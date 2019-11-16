@@ -1,5 +1,3 @@
-import { join } from 'path'
-
 interface TableRef<T> {
   columnValue: T
 }
@@ -16,42 +14,49 @@ export function string() {
   }
 }
 
-interface TableColumnRef<T, C> {
-  table: any // reference to the table object
-  columnName: string
-  tableType: T
-  columnType: C
+interface TableColumnRef<T, C, S> {
+  table: any // reference to the table object to generate the query
+  columnName: string // column name to generate the query
+  tableType: T // type of all columns in this table
+  columnType: C // selected column type
+  tableTypeSelected: S // type of all selected columns
 }
 
-type Table<T> = {
-  [K in keyof T]: TableColumnRef<{ [K in keyof T]: T[K] }, T[K]>
+type Table<T, S extends T> = {
+  [K in keyof T]: TableColumnRef<
+    { [K in keyof T]: T[K] },
+    T[K],
+    { [K in keyof S]: S[K] }
+  >
 }
 
 const tableNameSymbol = Symbol('tableName')
 const tableSchemaSymbol = Symbol('tableSchema')
+const tableSchemaSelectedSymbol = Symbol('tableSchemaSelected')
 
-export function table<T>(
+export function table<T, S extends T>(
   tableName: string,
   columns: { [K in keyof T]: (tableName: string) => TableRef<T[K]> },
-): Table<T> {
-  const tableType: { [K in keyof T]: T[K] } = {} as any // just to hold the type, we don't need the value at all
-  const columnReferences: {
-    [K in keyof T]: TableColumnRef<typeof tableType, T[K]>
-  } = {} as any
-
-  const tableSchema: { [key: string]: TableRef<any> } = {}
+): Table<T, S> {
+  // const tableType: { [K in keyof T]: T[K] } = {} as any // just to hold the type, we don't need the value at all
+  // const columnReferences: {
+  //   [K in keyof T]: TableColumnRef<typeof tableType, T[K], S>
+  // } = {} as any
+  const table: Table<T, S> = {} as any
+  const tableSchema: { [key: string]: any } = {}
+  const tableSchemaSelected: { [key: string]: any } = {}
 
   Object.keys(columns).forEach(k => {
     const c = (columns as any)[k]()
 
     tableSchema[k] = c
-    ;(columnReferences as any)[k] = {
+    ;(table as any)[k] = {
       columnValue: c.columnValue,
       columnName: k,
     }
-  })
 
-  const table = columnReferences
+    tableSchemaSelected[k] = tableSchema[k]
+  })
 
   // 'private' (untyped) assignment of the symbols so they do not appear
   // during typescript-autocompletion
@@ -59,6 +64,7 @@ export function table<T>(
 
   anyTable[tableNameSymbol] = tableName
   anyTable[tableSchemaSymbol] = tableSchema
+  anyTable[tableSchemaSelectedSymbol] = tableSchema
 
   // add the table reference to each column so we can extract the table schema
   // from the column ref
@@ -67,9 +73,9 @@ export function table<T>(
   return table
 }
 
-function select<T, K>(t: Table<T>) {
-  return {} as any
-}
+// function select<T, S>(t: Table<T, S>) {
+//   return {} as any
+// }
 
 const users = table('users', {
   id: integer(),
@@ -94,8 +100,8 @@ const xx = users
 console.log(xx, table)
 
 interface JoinDefinition {
-  colRef1: TableColumnRef<any, any>
-  colRef2: TableColumnRef<any, any>
+  colRef1: TableColumnRef<any, any, any>
+  colRef2: TableColumnRef<any, any, any>
   joinType: 'plain' | 'left' | 'jsonAgg'
 }
 
@@ -106,9 +112,15 @@ class QueryJoinJoin<
   C1,
   C2,
   C3,
-  T1R extends TableColumnRef<T1, C1>,
-  T2R extends TableColumnRef<T2, C2>,
-  T3R extends TableColumnRef<T3, C3>
+  S1,
+  S2,
+  S3,
+  T1R extends TableColumnRef<T1, C1, S1>,
+  T2R extends TableColumnRef<T2, C2, S2>,
+  T3R extends TableColumnRef<T3, C3, S3>,
+  T extends T1R['tableType'] &
+    T2R['tableTypeSelected'] &
+    Array<T3R['tableTypeSelected']>
 > {
   constructor(
     private t1: T1R,
@@ -122,9 +134,7 @@ class QueryJoinJoin<
     this.joins = joins
   }
 
-  fetch(): Array<
-    T1R['tableType'] & T2R['tableType'] & Array<T3R['tableType']>
-  > {
+  fetch(): T[] {
     return {} as any
   }
 }
@@ -134,9 +144,11 @@ class QueryJoin<
   T2,
   C1,
   C2,
-  T1R extends TableColumnRef<T1, C1>,
-  T2R extends TableColumnRef<T2, C2>,
-  T extends T1R['tableType'] & T2R['tableType']
+  S1,
+  S2,
+  T1R extends TableColumnRef<T1, C1, S1>,
+  T2R extends TableColumnRef<T2, C2, S2>,
+  T extends T1R['tableTypeSelected'] & T2R['tableTypeSelected']
 > {
   constructor(
     private t1: T1R,
@@ -151,7 +163,7 @@ class QueryJoin<
     s.push(...Object.keys(t2.tableType))
   }
 
-  join<T3, C3>(t: T1R | T2R, t3: TableColumnRef<T3, C3>) {
+  join<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
     return new QueryJoinJoin(this.t1, this.t2, t3, [
       ...this.joins,
       { colRef1: t, colRef2: t3, joinType: 'plain' },
@@ -174,9 +186,12 @@ class QueryJoinAs<
   T2,
   C1,
   C2,
-  T1R extends TableColumnRef<T1, C1>,
-  T2R extends TableColumnRef<T2, C2>,
-  K2 extends string
+  S1,
+  S2,
+  T1R extends TableColumnRef<T1, C1, S1>,
+  T2R extends TableColumnRef<T2, C2, S2>,
+  K2 extends string,
+  T extends T1R['tableTypeSelected'] & { [KK in K2]: T2R['tableTypeSelected'] }
 > {
   constructor(
     private t1: T1R,
@@ -203,7 +218,7 @@ class QueryJoinAs<
   //   ValType extends (T1R['tableType'] & T2R['tableType'])[ColType]
   // >(column: ColType, value: ValType) {}
 
-  fetch(): Array<T1R['tableType'] & { [KK in K2]: T2R['tableType'] }> {
+  fetch(): T[] {
     return {} as any
   }
 }
@@ -216,9 +231,15 @@ class QueryJoinJsonAggJoin<
   C1,
   C2,
   C3,
-  T1R extends TableColumnRef<T1, C1>,
-  T2R extends TableColumnRef<T2, C2>,
-  T3R extends TableColumnRef<T3, C3>
+  S1,
+  S2,
+  S3,
+  T1R extends TableColumnRef<T1, C1, S1>,
+  T2R extends TableColumnRef<T2, C2, S2>,
+  T3R extends TableColumnRef<T3, C3, S3>,
+  T extends T1R['tableType'] &
+    { [KK in K]: T2R['tableTypeSelected'][] } &
+    T3R['tableTypeSelected']
 > {
   constructor(
     private t1: T1R,
@@ -234,9 +255,7 @@ class QueryJoinJsonAggJoin<
     this.joins = joins
   }
 
-  fetch(): Array<
-    T1R['tableType'] & { [KK in K]: T2R['tableType'][] } & T3R['tableType']
-  > {
+  fetch(): T[] {
     return {} as any
   }
 }
@@ -250,9 +269,15 @@ class QueryJoinJsonAggJoinJsonAgg<
   C1,
   C2,
   C3,
-  T1R extends TableColumnRef<T1, C1>,
-  T2R extends TableColumnRef<T2, C2>,
-  T3R extends TableColumnRef<T3, C3>
+  S1,
+  S2,
+  S3,
+  T1R extends TableColumnRef<T1, C1, S1>,
+  T2R extends TableColumnRef<T2, C2, S2>,
+  T3R extends TableColumnRef<T3, C3, S3>,
+  T extends T1R['tableTypeSelected'] &
+    { [X in K2]: T2R['tableTypeSelected'][] } &
+    { [X in K3]: T3R['tableTypeSelected'][] }
 > {
   constructor(
     private t1: T1R,
@@ -270,11 +295,7 @@ class QueryJoinJsonAggJoinJsonAgg<
     this.joins = joins
   }
 
-  fetch(): Array<
-    T1R['tableType'] &
-      { [X in K2]: T2R['tableType'][] } &
-      { [X in K3]: T3R['tableType'][] }
-  > {
+  fetch(): T[] {
     return {} as any
   }
 }
@@ -285,8 +306,11 @@ class QueryJoinJsonAgg<
   T2,
   C1,
   C2,
-  T1R extends TableColumnRef<T1, C1>,
-  T2R extends TableColumnRef<T2, C2>
+  S1,
+  S2,
+  T1R extends TableColumnRef<T1, C1, S1>,
+  T2R extends TableColumnRef<T2, C2, S2>,
+  T extends T1R['tableTypeSelected'] & { [KK in K]: T2R['tableTypeSelected'][] }
 > {
   constructor(
     private t1: T1R,
@@ -300,7 +324,7 @@ class QueryJoinJsonAgg<
     this.key = key
   }
 
-  join<T3, C3>(t: T1R | T2R, t3: TableColumnRef<T3, C3>) {
+  join<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
     return new QueryJoinJsonAggJoin(this.t1, this.t2, t3, this.key, [
       ...this.joins,
       {
@@ -311,9 +335,9 @@ class QueryJoinJsonAgg<
     ])
   }
 
-  joinJsonAgg<T3, C3, K3 extends string>(
+  joinJsonAgg<T3, C3, S3, K3 extends string>(
     t: T1R | T2R,
-    t3: TableColumnRef<T3, C3>,
+    t3: TableColumnRef<T3, C3, S3>,
     k3: K3,
   ) {
     return new QueryJoinJsonAggJoinJsonAgg(this.t1, this.t2, t3, this.key, k3, [
@@ -323,12 +347,12 @@ class QueryJoinJsonAgg<
   }
 
   // generate the SQL + fetch it - actually an async returning a promise
-  fetch(): Array<T1R['tableType'] & { [KK in K]: T2R['tableType'][] }> {
+  fetch(): T[] {
     return {} as any
   }
 
   // return this query as a Table so we can use this as a subquery !
-  table(): Table<T1R['tableType'] & { [KK in K]: T2R['tableType'][] }> {
+  table(): Table<T, T> {
     const foo: any = {}
 
     return foo
@@ -345,16 +369,19 @@ class Query {
   // }
 
   // plain join without column renaming
-  join<T1, T2, C1, C2>(t1: TableColumnRef<T1, C1>, t2: TableColumnRef<T2, C2>) {
+  join<T1, T2, C1, C2, S1, S2>(
+    t1: TableColumnRef<T1, C1, S1>,
+    t2: TableColumnRef<T2, C2, S2>,
+  ) {
     return new QueryJoin(t1, t2, [
       { colRef1: t1, colRef2: t2, joinType: 'plain' },
     ])
   }
 
   // join but return the rows of a join as an object with their own keys
-  joinAs<T1, T2, C1, C2, K2 extends string>(
-    t1: TableColumnRef<T1, C1>,
-    t2: TableColumnRef<T2, C2>,
+  joinAs<T1, T2, C1, C2, S1, S2, K2 extends string>(
+    t1: TableColumnRef<T1, C1, S1>,
+    t2: TableColumnRef<T2, C2, S2>,
     k2: K2,
   ) {
     return new QueryJoinAs(t1, t2, k2, [
@@ -363,9 +390,9 @@ class Query {
   }
 
   // join + groupby with json_agg
-  joinJsonAgg<T1, T2, C1, C2, K extends string>(
-    t1: TableColumnRef<T1, C1>,
-    t2: TableColumnRef<T2, C2>,
+  joinJsonAgg<T1, T2, C1, C2, S1, S2, K extends string>(
+    t1: TableColumnRef<T1, C1, S1>,
+    t2: TableColumnRef<T2, C2, S2>,
     key: K,
   ) {
     return new QueryJoinJsonAgg(
