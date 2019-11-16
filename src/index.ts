@@ -17,12 +17,14 @@ export function string() {
 interface TableColumnRef<T, C, S> {
   table: any // reference to the table object to generate the query
   columnName: string // column name to generate the query
-  tableType: T // type of all columns in this table
-  columnType: C // selected column type
-  tableTypeSelected: S // type of all selected columns
+
+  // tag types: carry the type only, contain no useful value (just an empty object)
+  tableType: T // [TAG] type of all columns in this table for use in joins, where and orderBy
+  columnType: C // [TAG] selected column type
+  tableTypeSelected: S // [TAG] type of all selected columns
 }
 
-type Table<T, S extends T> = {
+type Table<T, S> = {
   [K in keyof T]: TableColumnRef<
     { [K in keyof T]: T[K] },
     T[K],
@@ -38,10 +40,6 @@ export function table<T, S extends T>(
   tableName: string,
   columns: { [K in keyof T]: (tableName: string) => TableRef<T[K]> },
 ): Table<T, S> {
-  // const tableType: { [K in keyof T]: T[K] } = {} as any // just to hold the type, we don't need the value at all
-  // const columnReferences: {
-  //   [K in keyof T]: TableColumnRef<typeof tableType, T[K], S>
-  // } = {} as any
   const table: Table<T, S> = {} as any
   const tableSchema: { [key: string]: any } = {}
   const tableSchemaSelected: { [key: string]: any } = {}
@@ -73,6 +71,20 @@ export function table<T, S extends T>(
   return table
 }
 
+/**
+ * json_agg projection of a table
+ */
+export function jsonAgg<T, S, K extends string>(
+  t: Table<T, S>,
+  key: K,
+): Table<T, { [KK in K]: S[] }> {
+  const at: any = t
+  const name: any = at[tableNameSymbol]
+  const tableName = `jsonAgg(${name}`
+
+  return {} as any
+}
+
 // function select<T, S>(t: Table<T, S>) {
 //   return {} as any
 // }
@@ -93,11 +105,6 @@ const itemEvents = table('itemEvents', {
   itemId: integer(),
   eventType: string(),
 })
-
-const yy = users.name
-const xx = users
-
-console.log(xx, table)
 
 interface JoinDefinition {
   colRef1: TableColumnRef<any, any, any>
@@ -133,6 +140,11 @@ class QueryJoinJoin<
     this.t3 = t3
     this.joins = joins
   }
+
+  where<CR extends T1R | T2R | T3R, CV extends CR['columnType']>(
+    col: CR,
+    value: CV,
+  ) {}
 
   fetch(): T[] {
     return {} as any
@@ -175,6 +187,10 @@ class QueryJoin<
     col: CR,
     value: CV,
   ) {}
+
+  table(): Table<T, T> {
+    return {} as any
+  }
 
   fetch(): T[] {
     return {} as any
@@ -223,146 +239,6 @@ class QueryJoinAs<
   }
 }
 
-class QueryJoinJsonAggJoin<
-  K extends string,
-  T1,
-  T2,
-  T3,
-  C1,
-  C2,
-  C3,
-  S1,
-  S2,
-  S3,
-  T1R extends TableColumnRef<T1, C1, S1>,
-  T2R extends TableColumnRef<T2, C2, S2>,
-  T3R extends TableColumnRef<T3, C3, S3>,
-  T extends T1R['tableType'] &
-    { [KK in K]: T2R['tableTypeSelected'][] } &
-    T3R['tableTypeSelected']
-> {
-  constructor(
-    private t1: T1R,
-    private t2: T2R,
-    private t3: T3R,
-    private key: K,
-    private joins: JoinDefinition[],
-  ) {
-    this.t1 = t1
-    this.t2 = t2
-    this.t3 = t3
-    this.key = key
-    this.joins = joins
-  }
-
-  fetch(): T[] {
-    return {} as any
-  }
-}
-
-class QueryJoinJsonAggJoinJsonAgg<
-  K2 extends string,
-  K3 extends string,
-  T1,
-  T2,
-  T3,
-  C1,
-  C2,
-  C3,
-  S1,
-  S2,
-  S3,
-  T1R extends TableColumnRef<T1, C1, S1>,
-  T2R extends TableColumnRef<T2, C2, S2>,
-  T3R extends TableColumnRef<T3, C3, S3>,
-  T extends T1R['tableTypeSelected'] &
-    { [X in K2]: T2R['tableTypeSelected'][] } &
-    { [X in K3]: T3R['tableTypeSelected'][] }
-> {
-  constructor(
-    private t1: T1R,
-    private t2: T2R,
-    private t3: T3R,
-    private k2: K2,
-    private k3: K3,
-    private joins: JoinDefinition[],
-  ) {
-    this.t1 = t1
-    this.t2 = t2
-    this.t3 = t3
-    this.k2 = k2
-    this.k3 = k3
-    this.joins = joins
-  }
-
-  fetch(): T[] {
-    return {} as any
-  }
-}
-
-class QueryJoinJsonAgg<
-  K extends string,
-  T1,
-  T2,
-  C1,
-  C2,
-  S1,
-  S2,
-  T1R extends TableColumnRef<T1, C1, S1>,
-  T2R extends TableColumnRef<T2, C2, S2>,
-  T extends T1R['tableTypeSelected'] & { [KK in K]: T2R['tableTypeSelected'][] }
-> {
-  constructor(
-    private t1: T1R,
-    private t2: T2R,
-    private joins: JoinDefinition[],
-    private key: K,
-  ) {
-    this.t1 = t1
-    this.t2 = t2
-    this.joins = joins
-    this.key = key
-  }
-
-  join<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
-    return new QueryJoinJsonAggJoin(this.t1, this.t2, t3, this.key, [
-      ...this.joins,
-      {
-        colRef1: t,
-        colRef2: t3,
-        joinType: 'plain',
-      },
-    ])
-  }
-
-  joinJsonAgg<T3, C3, S3, K3 extends string>(
-    t: T1R | T2R,
-    t3: TableColumnRef<T3, C3, S3>,
-    k3: K3,
-  ) {
-    return new QueryJoinJsonAggJoinJsonAgg(this.t1, this.t2, t3, this.key, k3, [
-      ...this.joins,
-      { colRef1: t, colRef2: t3, joinType: 'jsonAgg' },
-    ])
-  }
-
-  // generate the SQL + fetch it - actually an async returning a promise
-  fetch(): T[] {
-    return {} as any
-  }
-
-  // return this query as a Table so we can use this as a subquery !
-  table(): Table<T, T> {
-    const foo: any = {}
-
-    return foo
-    // return table('foo', {
-    //   ...this.t1.tableType,
-    //   ...this.t2.tableType,
-    // })
-  }
-}
-
 class Query {
   // constructor(private t1: T1) {
   //   this.t1 = t1
@@ -387,20 +263,6 @@ class Query {
     return new QueryJoinAs(t1, t2, k2, [
       { colRef1: t1, colRef2: t2, joinType: 'plain' },
     ])
-  }
-
-  // join + groupby with json_agg
-  joinJsonAgg<T1, T2, C1, C2, S1, S2, K extends string>(
-    t1: TableColumnRef<T1, C1, S1>,
-    t2: TableColumnRef<T2, C2, S2>,
-    key: K,
-  ) {
-    return new QueryJoinJsonAgg(
-      t1,
-      t2,
-      [{ colRef1: t1, colRef2: t2, joinType: 'jsonAgg' }],
-      key,
-    )
   }
 }
 
@@ -427,14 +289,21 @@ function query() {
 
 // NESTED
 const itemsWithEvents = query()
-  .joinJsonAgg(items.id, itemEvents.itemId, 'events')
+  .join(items.id, jsonAgg(itemEvents, 'events').itemId)
   .table()
 
 const userAndItemsWithEvents = query()
-  .joinJsonAgg(users.id, itemsWithEvents.userId, 'items')
+  .join(users.id, jsonAgg(itemsWithEvents, 'items').userId)
   .fetch()
 
 console.log(userAndItemsWithEvents)
+
+// console.log(jsonAgg(itemEvents, 'events'))
+// const itemsWithEvents = query()
+//   .join(items.id, jsonAgg(itemEvents, 'events').itemId)
+//   .fetch()
+//
+// console.log(itemsWithEvents)
 
 // SELECT/PROJECT
 // const q = query()
