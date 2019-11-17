@@ -1,3 +1,6 @@
+// get rid of 'unused variable' during development
+function use(_x: any) {}
+
 interface TableRef<T> {
   columnValue: T
 }
@@ -85,9 +88,17 @@ export function jsonAgg<T, S, K extends string>(
   return {} as any
 }
 
-// function select<T, S>(t: Table<T, S>) {
-//   return {} as any
-// }
+/**
+ * Project all columns of this table into a single json column named key
+ *
+ * TODO: decide whether to perform this as a postprocessing step or directly translate it to sql
+ */
+function as<T, S, K extends string>(
+  t: Table<T, S>,
+  key: K,
+): Table<T, { [KK in K]: S }> {
+  return {} as any
+}
 
 const users = table('users', {
   id: integer(),
@@ -197,48 +208,6 @@ class QueryJoin<
   }
 }
 
-class QueryJoinAs<
-  T1,
-  T2,
-  C1,
-  C2,
-  S1,
-  S2,
-  T1R extends TableColumnRef<T1, C1, S1>,
-  T2R extends TableColumnRef<T2, C2, S2>,
-  K2 extends string,
-  T extends T1R['tableTypeSelected'] & { [KK in K2]: T2R['tableTypeSelected'] }
-> {
-  constructor(
-    private t1: T1R,
-    private t2: T2R,
-    private k2: K2,
-    private joins: JoinDefinition[],
-  ) {
-    this.t1 = t1
-    this.t2 = t2
-    this.k2 = k2
-    this.joins = joins
-  }
-
-  // join<T3>(t: T1R | T2R, t3: TableColumnRef<T3>) {
-  //   return new QueryJoinJoin(this.t1, this.t2, t3, [
-  //     ...this.joins,
-  //     { colRef1: t, colRef2: t3, joinType: 'plain' },
-  //   ])
-  // }
-
-  // trying a simple where col = value condition (extend it later to support all ops)
-  // where<
-  //       ColType extends (keyof T1R['tableType'] | {T2R['tableType'])),
-  //   ValType extends (T1R['tableType'] & T2R['tableType'])[ColType]
-  // >(column: ColType, value: ValType) {}
-
-  fetch(): T[] {
-    return {} as any
-  }
-}
-
 class Query {
   // constructor(private t1: T1) {
   //   this.t1 = t1
@@ -253,17 +222,6 @@ class Query {
       { colRef1: t1, colRef2: t2, joinType: 'plain' },
     ])
   }
-
-  // join but return the rows of a join as an object with their own keys
-  joinAs<T1, T2, C1, C2, S1, S2, K2 extends string>(
-    t1: TableColumnRef<T1, C1, S1>,
-    t2: TableColumnRef<T2, C2, S2>,
-    k2: K2,
-  ) {
-    return new QueryJoinAs(t1, t2, k2, [
-      { colRef1: t1, colRef2: t2, joinType: 'plain' },
-    ])
-  }
 }
 
 function query() {
@@ -274,12 +232,6 @@ function query() {
 // const q = query()
 //   .join(users.id, items.userId)
 //   .join(items.id, itemEvents.itemId)
-//   .fetch()
-
-// JOIN + JSON_AGG + GROUP BY
-// const q = query()
-//   .joinJsonAgg(users.id, items.userId, 'items')
-//   .joinJsonAgg(items.id, itemEvents.itemId, 'events')
 //   .fetch()
 
 // WHERE
@@ -296,8 +248,14 @@ const userAndItemsWithEvents = query()
   .join(users.id, jsonAgg(itemsWithEvents, 'items').userId)
   .fetch()
 
-console.log(userAndItemsWithEvents)
+use(userAndItemsWithEvents)
 
+// JOIN AND RENAME
+const q = query()
+  .join(as(items, 'item').id, as(itemEvents, 'event').itemId)
+  .fetch()
+
+use(q)
 // console.log(jsonAgg(itemEvents, 'events'))
 // const itemsWithEvents = query()
 //   .join(items.id, jsonAgg(itemEvents, 'events').itemId)
