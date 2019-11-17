@@ -17,24 +17,70 @@ export function string() {
   }
 }
 
+/**
+ * A column of type C that belongs to a Table<T,S>
+ */
 interface TableColumnRef<T, C, S> {
-  table: any // reference to the table object to generate the query
-  columnName: string // column name to generate the query
-
   // tag types: carry the type only, contain no useful value (just an empty object)
   tableType: T // [TAG] type of all columns in this table for use in joins, where and orderBy
   columnType: C // [TAG] selected column type
   tableTypeSelected: S // [TAG] type of all selected columns
 }
 
+/**
+ * Selecting and Aggregation over tables
+ */
+interface TableProjectionMethods<T, S> {
+  /**
+   * Project all columns of this table into a single json column named key
+   *
+   * TODO: decide whether to perform this as a postprocessing step or directly translate it to sql
+   */
+  selectAs<K extends string>(
+    this: Table<T, S>,
+    key: K,
+  ): Table<T, { [KK in K]: S }>
+
+  /**
+   * json_agg projection of a table
+   */
+  selectAsJsonAgg<K extends string>(
+    this: Table<T, S>,
+    key: K,
+    orderBy?: TableColumnRef<T, any, S>,
+  ): Table<T, { [KK in K]: S[] }>
+
+  /**
+   * Choose the columns to include in the result.
+   */
+  select<K extends keyof S>(
+    this: Table<T, S>,
+    ...keys: K[]
+  ): Table<T, Pick<S, K>>
+
+  /**
+   * Get a reference to a column in case it clashes with one of these methods
+   */
+  column<K extends keyof T>(
+    this: Table<T, S>,
+    columnName: K,
+  ): TableColumnRef<T, T[K], S>
+}
+
+/**
+ * A relation of available columns T and selected columns S
+ */
 type Table<T, S> = {
   [K in keyof T]: TableColumnRef<
     { [K in keyof T]: T[K] },
     T[K],
     { [K in keyof S]: S[K] }
   >
-}
+} &
+  TableProjectionMethods<T, S>
 
+const columnValueSymbol = Symbol('columnValue')
+const columnNameSymbol = Symbol('columnName')
 const tableNameSymbol = Symbol('tableName')
 const tableSchemaSymbol = Symbol('tableSchema')
 const tableSchemaSelectedSymbol = Symbol('tableSchemaSelected')
@@ -52,8 +98,8 @@ export function table<T, S extends T>(
 
     tableSchema[k] = c
     ;(table as any)[k] = {
-      columnValue: c.columnValue,
-      columnName: k,
+      [columnValueSymbol]: c.columnValue,
+      [columnNameSymbol]: k,
     }
 
     tableSchemaSelected[k] = tableSchema[k]
@@ -74,32 +120,6 @@ export function table<T, S extends T>(
   return table
 }
 
-/**
- * json_agg projection of a table
- */
-export function jsonAgg<T, S, K extends string>(
-  t: Table<T, S>,
-  key: K,
-): Table<T, { [KK in K]: S[] }> {
-  const at: any = t
-  const name: any = at[tableNameSymbol]
-  const tableName = `jsonAgg(${name}`
-
-  return {} as any
-}
-
-/**
- * Project all columns of this table into a single json column named key
- *
- * TODO: decide whether to perform this as a postprocessing step or directly translate it to sql
- */
-function as<T, S, K extends string>(
-  t: Table<T, S>,
-  key: K,
-): Table<T, { [KK in K]: S }> {
-  return {} as any
-}
-
 const users = table('users', {
   id: integer(),
   name: string(),
@@ -115,12 +135,13 @@ const itemEvents = table('itemEvents', {
   id: integer(),
   itemId: integer(),
   eventType: string(),
+  timestamp: integer(),
 })
 
 interface JoinDefinition {
   colRef1: TableColumnRef<any, any, any>
   colRef2: TableColumnRef<any, any, any>
-  joinType: 'plain' | 'left' | 'jsonAgg'
+  joinType: 'plain' | 'left'
 }
 
 class QueryJoinJoin<
@@ -241,21 +262,34 @@ function query() {
 
 // NESTED
 const itemsWithEvents = query()
-  .join(items.id, jsonAgg(itemEvents, 'events').itemId)
+  .join(
+    items.id,
+    itemEvents.selectAsJsonAgg('events', itemEvents.timestamp).itemId,
+  )
   .table()
 
 const userAndItemsWithEvents = query()
-  .join(users.id, jsonAgg(itemsWithEvents, 'items').userId)
+  .join(users.id, itemsWithEvents.selectAsJsonAgg('items').userId)
   .fetch()
 
 use(userAndItemsWithEvents)
 
 // JOIN AND RENAME
-const q = query()
-  .join(as(items, 'item').id, as(itemEvents, 'event').itemId)
-  .fetch()
+// const q = query()
+//   .join(as(items, 'item').id, as(itemEvents, 'event').itemId)
+//   .fetch()
+//
+// use(q)
 
-use(q)
+// const q = query()
+//   .join(
+//     items.selectAs('item').id,
+//     itemEvents.selectAsJsonAgg('events', itemEvents.timestamp).itemId,
+//   )
+//   .fetch()
+//
+// use(q)
+
 // console.log(jsonAgg(itemEvents, 'events'))
 // const itemsWithEvents = query()
 //   .join(items.id, jsonAgg(itemEvents, 'events').itemId)
@@ -264,11 +298,12 @@ use(q)
 // console.log(itemsWithEvents)
 
 // SELECT/PROJECT
-// const q = query()
-//     .join(users.id, items.userId)
-//     .select(????)
-//   .where(items.id, 1)
 
+const q = query()
+  .join(users.id, items.select('label').selectAsJsonAgg('itemLabels').userId)
+  .fetch()
+
+use(q)
 // select c.id, c.name, json_agg(json_build_object('wheel_offset', a.wheel_offset)) from chassis c join axles a on c.id = a.chassi_id where c.id = 9 group by c.id;
 
 // select c.id, c.name, json_agg(json_build_object('wheel_offset', a.wheel_offset)) as axles
