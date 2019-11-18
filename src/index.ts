@@ -1,20 +1,21 @@
 // get rid of 'unused variable' during development
 function use(_x: any) {}
 
-interface TableRef<T> {
-  columnValue: T
+interface Column<T> {
+  columnName: string // the name of the column in the database
+  columnValue: T // this value is just needed to work with the type
 }
 
-export function integer() {
-  return (): TableRef<number> => {
-    return { columnValue: 0 as number }
-  }
+export function column<T>(name: string, type: T): Column<T> {
+  return { columnValue: type, columnName: name }
 }
 
-export function string() {
-  return (): TableRef<string> => {
-    return { columnValue: '' as string }
-  }
+export function integer(name: string) {
+  return () => column(name, 0 as number)
+}
+
+export function string(name: string) {
+  return () => column(name, '' as string)
 }
 
 /**
@@ -32,7 +33,7 @@ interface TableColumnRef<T, C, S> {
  */
 interface TableProjectionMethods<T, S> {
   /**
-   * Project all columns of this table into a single json column named key
+   * Project all columns of this table into a single json column named key.
    *
    * TODO: decide whether to perform this as a postprocessing step or directly translate it to sql
    */
@@ -42,7 +43,7 @@ interface TableProjectionMethods<T, S> {
   ): Table<T, { [KK in K]: S }>
 
   /**
-   * json_agg projection of a table
+   * json_agg projection of a whole table.
    */
   selectAsJsonAgg<K extends string>(
     this: Table<T, S>,
@@ -51,7 +52,7 @@ interface TableProjectionMethods<T, S> {
   ): Table<T, { [KK in K]: S[] }>
 
   /**
-   * Choose the columns to include in the result.
+   * Pick columns to appear in the result.
    */
   select<K extends keyof S>(
     this: Table<T, S>,
@@ -59,7 +60,7 @@ interface TableProjectionMethods<T, S> {
   ): Table<T, Pick<S, K>>
 
   /**
-   * Get a reference to a column in case it clashes with one of these methods
+   * Get a reference to a column in case it clashes with one of these methods.
    */
   column<K extends keyof T>(
     this: Table<T, S>,
@@ -69,6 +70,9 @@ interface TableProjectionMethods<T, S> {
 
 /**
  * A relation of available columns T and selected columns S
+ *
+ * Columns in S are present in the result and columns in T can be used in
+ * where, groupBy and joins.
  */
 type Table<T, S> = {
   [K in keyof T]: TableColumnRef<
@@ -79,15 +83,19 @@ type Table<T, S> = {
 } &
   TableProjectionMethods<T, S>
 
+// symbols to store internal metadata attributes to build the query
 const columnValueSymbol = Symbol('columnValue')
 const columnNameSymbol = Symbol('columnName')
 const tableNameSymbol = Symbol('tableName')
 const tableSchemaSymbol = Symbol('tableSchema')
 const tableSchemaSelectedSymbol = Symbol('tableSchemaSelected')
 
+/**
+ * Define a relation consisting of typed columns.
+ */
 export function table<T, S extends T>(
   tableName: string,
-  columns: { [K in keyof T]: (tableName: string) => TableRef<T[K]> },
+  columns: { [K in keyof T]: (tableName: string) => Column<T[K]> },
 ): Table<T, S> {
   const table: Table<T, S> = {} as any
   const tableSchema: { [key: string]: any } = {}
@@ -119,24 +127,6 @@ export function table<T, S extends T>(
 
   return table
 }
-
-const users = table('users', {
-  id: integer(),
-  name: string(),
-})
-
-const items = table('items', {
-  id: integer(),
-  label: string(),
-  userId: integer(),
-})
-
-const itemEvents = table('itemEvents', {
-  id: integer(),
-  itemId: integer(),
-  eventType: string(),
-  timestamp: integer(),
-})
 
 interface JoinDefinition {
   colRef1: TableColumnRef<any, any, any>
@@ -214,10 +204,16 @@ class QueryJoin<
     ])
   }
 
-  // trying a simple where col = value condition (extend it later to support all ops)
-  where<CR extends T1R | T2R, CV extends CR['columnType']>(
+  // where col = value
+  whereEq<CR extends T1R | T2R, CV extends CR['columnType']>(
     col: CR,
     value: CV,
+  ) {}
+
+  // where column in (...values)
+  whereIn<CR extends T1R | T2R, CV extends CR['columnType']>(
+    col: CR,
+    values: CV[],
   ) {}
 
   table(): Table<T, T> {
@@ -229,25 +225,52 @@ class QueryJoin<
   }
 }
 
-class Query {
-  // constructor(private t1: T1) {
-  //   this.t1 = t1
-  // }
+class Query<T, S> {
+  constructor(private t: Table<T, S>) {
+    this.t = t
+  }
 
-  // plain join without column renaming
-  join<T1, T2, C1, C2, S1, S2>(
-    t1: TableColumnRef<T1, C1, S1>,
+  // plain join
+  join<T2, C1, C2, S2>(
+    t1: TableColumnRef<T, C1, S>,
     t2: TableColumnRef<T2, C2, S2>,
   ) {
     return new QueryJoin(t1, t2, [
       { colRef1: t1, colRef2: t2, joinType: 'plain' },
     ])
   }
+
+  fetch(): S[] {
+    return [] as any
+  }
 }
 
-function query() {
-  return new Query()
+/**
+ * Chaining API root.
+ */
+function query<T, S>(t: Table<T, S>) {
+  return new Query(t)
 }
+
+// EXAMPLE SCHEMA
+
+const users = table('users', {
+  id: integer('id'),
+  name: string('name'),
+})
+
+const items = table('items', {
+  id: integer('id'),
+  label: string('label'),
+  userId: integer('user_id'),
+})
+
+const itemEvents = table('itemEvents', {
+  id: integer('id'),
+  itemId: integer('item_id'),
+  eventType: string('event_type'),
+  timestamp: integer('timestamp'),
+})
 
 // JOIN
 // const q = query()
@@ -261,14 +284,14 @@ function query() {
 //   .where(items.id, 1)
 
 // NESTED
-const itemsWithEvents = query()
+const itemsWithEvents = query(items)
   .join(
     items.id,
     itemEvents.selectAsJsonAgg('events', itemEvents.timestamp).itemId,
   )
   .table()
 
-const userAndItemsWithEvents = query()
+const userAndItemsWithEvents = query(users)
   .join(users.id, itemsWithEvents.selectAsJsonAgg('items').userId)
   .fetch()
 
@@ -299,7 +322,7 @@ use(userAndItemsWithEvents)
 
 // SELECT/PROJECT
 
-const q = query()
+const q = query(users)
   .join(users.id, items.select('label').selectAsJsonAgg('itemLabels').userId)
   .fetch()
 
