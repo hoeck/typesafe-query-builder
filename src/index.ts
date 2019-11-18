@@ -1,13 +1,19 @@
 // get rid of 'unused variable' during development
 function use(_x: any) {}
 
+/**
+ * The type of a columns
+ */
 interface Column<T> {
-  columnName: string // the name of the column in the database
+  // the column name is stored as a symbol so that noone can create it by
+  // accident and leak unescaped data into joins or other sql expressions
   columnValue: T // this value is just needed to work with the type
 }
 
+const columnNameSymbol = Symbol('columnName')
+
 export function column<T>(name: string, type: T): Column<T> {
-  return { columnValue: type, columnName: name }
+  return { columnValue: type, [columnNameSymbol]: name } as Column<T>
 }
 
 export function integer(name: string) {
@@ -85,7 +91,6 @@ type Table<T, S> = {
 
 // symbols to store internal metadata attributes to build the query
 const columnValueSymbol = Symbol('columnValue')
-const columnNameSymbol = Symbol('columnName')
 const tableNameSymbol = Symbol('tableName')
 const tableSchemaSymbol = Symbol('tableSchema')
 const tableSchemaSelectedSymbol = Symbol('tableSchemaSelected')
@@ -192,9 +197,6 @@ class QueryJoin<
     this.t1 = t1
     this.t2 = t2
     this.joins = joins
-
-    const s: any = Object.keys(t1.tableType)
-    s.push(...Object.keys(t2.tableType))
   }
 
   join<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
@@ -215,6 +217,17 @@ class QueryJoin<
     col: CR,
     values: CV[],
   ) {}
+
+  whereSql(
+    literals: TemplateStringsArray,
+    ...params: Array<
+      T1R | T2R | string | number | boolean | string[] | number[]
+    >
+  ) {
+    console.log('literals', literals)
+    console.log('params', params)
+    return this
+  }
 
   table(): Table<T, T> {
     return {} as any
@@ -284,18 +297,18 @@ const itemEvents = table('itemEvents', {
 //   .where(items.id, 1)
 
 // NESTED
-const itemsWithEvents = query(items)
-  .join(
-    items.id,
-    itemEvents.selectAsJsonAgg('events', itemEvents.timestamp).itemId,
-  )
-  .table()
-
-const userAndItemsWithEvents = query(users)
-  .join(users.id, itemsWithEvents.selectAsJsonAgg('items').userId)
-  .fetch()
-
-use(userAndItemsWithEvents)
+// const itemsWithEvents = query(items)
+//   .join(
+//     items.id,
+//     itemEvents.selectAsJsonAgg('events', itemEvents.timestamp).itemId,
+//   )
+//   .table()
+//
+// const userAndItemsWithEvents = query(users)
+//   .join(users.id, itemsWithEvents.selectAsJsonAgg('items').userId)
+//   .fetch()
+//
+// use(userAndItemsWithEvents)
 
 // JOIN AND RENAME
 // const q = query()
@@ -322,11 +335,18 @@ use(userAndItemsWithEvents)
 
 // SELECT/PROJECT
 
-const q = query(users)
-  .join(users.id, items.select('label').selectAsJsonAgg('itemLabels').userId)
-  .fetch()
+// const q = query(users)
+//   .join(users.id, items.select('label').selectAsJsonAgg('itemLabels').userId)
+//   .fetch()
+//
+// use(q)
+
+const id = 10
+const q = query(users).join(users.id, items.userId)
+  .whereSql`${users.id} = ${id}`.fetch()
 
 use(q)
+
 // select c.id, c.name, json_agg(json_build_object('wheel_offset', a.wheel_offset)) from chassis c join axles a on c.id = a.chassi_id where c.id = 9 group by c.id;
 
 // select c.id, c.name, json_agg(json_build_object('wheel_offset', a.wheel_offset)) as axles
