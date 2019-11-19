@@ -58,12 +58,29 @@ interface TableProjectionMethods<T, S> {
   ): Table<T, { [KK in K]: S[] }>
 
   /**
-   * Pick columns to appear in the result.
+   * json_object_agg projection of a whole table.
+   */
+  selectAsJsonObjectAgg<K extends string>(
+    this: Table<T, S>,
+    key: K,
+    orderBy?: TableColumnRef<T, any, S>,
+  ): Table<T, { [KK in K]: { [id: string]: S } }>
+
+  /**
+   * Choose columns to appear in the result.
    */
   select<K extends keyof S>(
     this: Table<T, S>,
     ...keys: K[]
   ): Table<T, Pick<S, K>>
+
+  /**
+   * Choose columns to *hide* from the result.
+   */
+  selectWithout<K extends keyof S>(
+    this: Table<T, S>,
+    ...keys: K[]
+  ): Table<T, Omit<S, K>>
 
   /**
    * Get a reference to a column in case it clashes with one of these methods.
@@ -133,38 +150,56 @@ export function table<T, S extends T>(
   return table
 }
 
+/**
+ * Turn all columns of a given table ref into optional columns.
+ *
+ * Need this for left joins.
+ */
+function partialTableRef<T, C, S>(
+  t: TableColumnRef<T, C, S>,
+): TableColumnRef<T, C, Partial<S>> {
+  return t as any
+}
+
 interface JoinDefinition {
   colRef1: TableColumnRef<any, any, any>
   colRef2: TableColumnRef<any, any, any>
-  joinType: 'plain' | 'left'
+  joinType: 'join' | 'leftJoin'
 }
 
-class QueryJoinJoin<
+class QueryJoin4<
   T1,
   T2,
   T3,
+  T4,
   C1,
   C2,
   C3,
+  C4,
   S1,
   S2,
   S3,
+  S4,
   T1R extends TableColumnRef<T1, C1, S1>,
   T2R extends TableColumnRef<T2, C2, S2>,
   T3R extends TableColumnRef<T3, C3, S3>,
+  T4R extends TableColumnRef<T4, C4, S4>,
   T extends T1R['tableType'] &
     T2R['tableTypeSelected'] &
-    Array<T3R['tableTypeSelected']>
+    T3R['tableTypeSelected'] &
+    T3R['tableTypeSelected']
 > {
   constructor(
     private t1: T1R,
     private t2: T2R,
     private t3: T3R,
+    private t4: T4R,
     private joins: JoinDefinition[],
   ) {
     this.t1 = t1
     this.t2 = t2
     this.t3 = t3
+    this.t4 = t4
     this.joins = joins
   }
 
@@ -178,7 +213,53 @@ class QueryJoinJoin<
   }
 }
 
-class QueryJoin<
+class QueryJoin3<
+  T1,
+  T2,
+  T3,
+  C1,
+  C2,
+  C3,
+  S1,
+  S2,
+  S3,
+  T1R extends TableColumnRef<T1, C1, S1>,
+  T2R extends TableColumnRef<T2, C2, S2>,
+  T3R extends TableColumnRef<T3, C3, S3>,
+  T extends T1R['tableTypeSelected'] &
+    T2R['tableTypeSelected'] &
+    T3R['tableTypeSelected']
+> {
+  constructor(
+    private t1: T1R,
+    private t2: T2R,
+    private t3: T3R,
+    private joins: JoinDefinition[],
+  ) {
+    this.t1 = t1
+    this.t2 = t2
+    this.t3 = t3
+    this.joins = joins
+  }
+
+  join<T4, C4, S4>(t: T1R | T2R | T3R, t4: TableColumnRef<T4, C4, S4>) {
+    return new QueryJoin4(this.t1, this.t2, this.t3, t4, [
+      ...this.joins,
+      { colRef1: t, colRef2: t4, joinType: 'join' },
+    ])
+  }
+
+  where<CR extends T1R | T2R | T3R, CV extends CR['columnType']>(
+    col: CR,
+    value: CV,
+  ) {}
+
+  fetch(): T[] {
+    return {} as any
+  }
+}
+
+class QueryJoin2<
   T1,
   T2,
   C1,
@@ -200,9 +281,18 @@ class QueryJoin<
   }
 
   join<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
-    return new QueryJoinJoin(this.t1, this.t2, t3, [
+    return new QueryJoin3(this.t1, this.t2, t3, [
       ...this.joins,
-      { colRef1: t, colRef2: t3, joinType: 'plain' },
+      { colRef1: t, colRef2: t3, joinType: 'join' },
+    ])
+  }
+
+  leftJoin<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
+    const partialT3 = partialTableRef(t3)
+
+    return new QueryJoin3(this.t1, this.t2, partialT3, [
+      ...this.joins,
+      { colRef1: t, colRef2: partialT3, joinType: 'join' },
     ])
   }
 
@@ -248,8 +338,19 @@ class Query<T, S> {
     t1: TableColumnRef<T, C1, S>,
     t2: TableColumnRef<T2, C2, S2>,
   ) {
-    return new QueryJoin(t1, t2, [
-      { colRef1: t1, colRef2: t2, joinType: 'plain' },
+    return new QueryJoin2(t1, t2, [
+      { colRef1: t1, colRef2: t2, joinType: 'join' },
+    ])
+  }
+
+  leftJoin<T2, C1, C2, S2>(
+    t1: TableColumnRef<T, C1, S>,
+    t2: TableColumnRef<T2, C2, S2>,
+  ) {
+    const partialT2 = partialTableRef(t2)
+
+    return new QueryJoin2(t1, partialT2, [
+      { colRef1: t1, colRef2: partialT2, joinType: 'leftJoin' },
     ])
   }
 
@@ -335,15 +436,17 @@ const itemEvents = table('itemEvents', {
 
 // SELECT/PROJECT
 
+// const id = 10
 // const q = query(users)
 //   .join(users.id, items.select('label').selectAsJsonAgg('itemLabels').userId)
-//   .fetch()
+//   .whereSql`${users.id} = ${id}`.fetch()
 //
 // use(q)
 
-const id = 10
-const q = query(users).join(users.id, items.userId)
-  .whereSql`${users.id} = ${id}`.fetch()
+const q = query(users.selectWithout('id'))
+  .join(users.id, items.selectWithout('id').userId)
+  .join(items.id, itemEvents.selectWithout('id').itemId)
+  .fetch()
 
 use(q)
 
