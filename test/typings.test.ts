@@ -1,37 +1,70 @@
 import { query } from '../src'
 import {
   EventRow,
+  EventTypeRow,
   ItemRow,
   UserRow,
+  eventTypes,
   events,
   items,
   users,
-} from './simpleSchema'
+} from './testSchema'
 
 // get rid of 'unused variable' warnings
 function use(_x: any) {}
 
-describe('typings typecheck', () => {
-  it('typechecks without joins', () => {
-    const result: Array<UserRow> = query(users).fetch()
+describe('query', () => {
+  describe('0 joins', () => {
+    fit('fetches', () => {
+      const result = query(users)
+      const expected: Array<UserRow> = result.fetch()
 
-    use(result)
+      use(expected)
+    })
+
+    it('fetches with selects', () => {
+      const result = query(items.select('itemLabel', 'itemActive')).fetch()
+      const expected: Array<Pick<ItemRow, 'itemLabel' | 'itemActive'>> = result
+
+      use(expected)
+    })
   })
 
-  it('typechecks with one join', () => {
-    const result: Array<ItemRow & UserRow> = query(items)
-      .join(items.itemUserId, users.userId)
-      .fetch()
+  describe('1 join', () => {
+    it('plain fetch', () => {
+      const result = query(items)
+        .join(items.itemUserId, users.userId)
+        .fetch()
+      const expected: Array<ItemRow & UserRow> = result
 
-    use(result)
+      use(expected)
+    })
   })
 
-  it('typechecks with two joins', () => {
-    const result: Array<UserRow & ItemRow & EventRow> = query(users)
-      .join(users.userId, items.itemUserId)
-      .join(items.itemId, events.eventItemId)
-      .fetch()
+  describe('2 joins', () => {
+    it('plain fetch', () => {
+      const result = query(users)
+        .join(users.userId, items.itemUserId)
+        .join(items.itemId, events.eventItemId)
+        .fetch()
+      const expected: Array<UserRow & ItemRow & EventRow> = result
 
-    use(result)
+      use(expected)
+    })
+  })
+
+  describe('3 join', () => {
+    it('plain fetch', () => {
+      const result = query(users)
+        .join(users.userId, items.itemUserId)
+        .join(items.itemId, events.eventItemId)
+        .join(events.eventType, eventTypes.type)
+        .fetch()
+      const expected: Array<
+        UserRow & ItemRow & EventRow & EventTypeRow
+      > = result
+
+      use(expected)
+    })
   })
 })

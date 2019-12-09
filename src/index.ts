@@ -1,5 +1,5 @@
 export { table, column } from './table'
-export { integer, string } from './table/columns'
+export { boolean, integer, string } from './table/columns'
 export { query } from './query'
 
 // JOIN

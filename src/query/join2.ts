@@ -5,12 +5,10 @@ import { Join3 } from './join3'
 export class Join2<
   T1,
   T2,
-  C1,
-  C2,
   S1,
   S2,
-  T1R extends TableColumnRef<T1, C1, S1>,
-  T2R extends TableColumnRef<T2, C2, S2>,
+  T1R extends TableColumnRef<T1, any, S1>,
+  T2R extends TableColumnRef<T2, any, S2>,
   T extends T1R['tableTypeSelected'] & T2R['tableTypeSelected']
 > {
   constructor(
@@ -23,14 +21,14 @@ export class Join2<
     this.joins = joins
   }
 
-  join<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
+  join<T3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, any, S3>) {
     return new Join3(this.t1, this.t2, t3, [
       ...this.joins,
       { colRef1: t, colRef2: t3, joinType: 'join' },
     ])
   }
 
-  leftJoin<T3, C3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, C3, S3>) {
+  leftJoin<T3, S3>(t: T1R | T2R, t3: TableColumnRef<T3, any, S3>) {
     const partialT3 = partialTableRef(t3)
 
     return new Join3(this.t1, this.t2, partialT3, [

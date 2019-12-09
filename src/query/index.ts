@@ -8,16 +8,13 @@ class Query<T, S> {
   }
 
   // plain join
-  join<T2, C1, C2, S2>(
-    t1: TableColumnRef<T, C1, S>,
-    t2: TableColumnRef<T2, C2, S2>,
-  ) {
+  join<T2, S2>(t1: TableColumnRef<T, any, S>, t2: TableColumnRef<T2, any, S2>) {
     return new Join2(t1, t2, [{ colRef1: t1, colRef2: t2, joinType: 'join' }])
   }
 
-  leftJoin<T2, C1, C2, S2>(
-    t1: TableColumnRef<T, C1, S>,
-    t2: TableColumnRef<T2, C2, S2>,
+  leftJoin<T2, S2>(
+    t1: TableColumnRef<T, any, S>,
+    t2: TableColumnRef<T2, any, S2>,
   ) {
     const partialT2 = partialTableRef(t2)
 

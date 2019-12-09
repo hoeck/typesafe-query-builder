@@ -6,22 +6,18 @@ export class Join4<
   T2,
   T3,
   T4,
-  C1,
-  C2,
-  C3,
-  C4,
   S1,
   S2,
   S3,
   S4,
-  T1R extends TableColumnRef<T1, C1, S1>,
-  T2R extends TableColumnRef<T2, C2, S2>,
-  T3R extends TableColumnRef<T3, C3, S3>,
-  T4R extends TableColumnRef<T4, C4, S4>,
+  T1R extends TableColumnRef<T1, any, S1>,
+  T2R extends TableColumnRef<T2, any, S2>,
+  T3R extends TableColumnRef<T3, any, S3>,
+  T4R extends TableColumnRef<T4, any, S4>,
   T extends T1R['tableType'] &
     T2R['tableTypeSelected'] &
     T3R['tableTypeSelected'] &
-    T3R['tableTypeSelected']
+    T4R['tableTypeSelected']
 > {
   constructor(
     private t1: T1R,

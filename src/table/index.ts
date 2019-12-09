@@ -105,13 +105,38 @@ export const tableSchemaSymbol = Symbol('tableSchema')
 export const tableSchemaSelectedSymbol = Symbol('tableSchemaSelected')
 
 /**
+ * Base object for all tables implementing the TableProjectionMethods
+ *
+ * The implementation is hidden anyway thus we're free to use lots of any's.
+ */
+class TableImplementation<T, S> implements TableProjectionMethods<T, S> {
+  // js/ts compatible projection
+  selectAs(this: any, k: any): any {}
+
+  // json_agg projection of a whole table.
+  selectAsJsonAgg(key: any, orderBy?: TableColumnRef<T, any, S>): any {}
+
+  // json_object_agg projection of a whole table.
+  selectAsJsonObjectAgg(key: any, orderBy?: TableColumnRef<T, any, S>): any {}
+
+  // choose columns to appear in the result.
+  select(...keys: any[]): any {}
+
+  // Choose columns to *hide* from the result.
+  selectWithout(...keys: any[]): any {}
+
+  // column accessor
+  column(columnName: any): any {}
+}
+
+/**
  * Define a relation consisting of typed columns.
  */
 export function table<T, S extends T>(
   tableName: string,
   columns: { [K in keyof T]: (tableName: string) => Column<T[K]> },
 ): Table<T, S> {
-  const table: Table<T, S> = {} as any
+  const table: Table<T, S> = new TableImplementation() as any
   const tableSchema: { [key: string]: any } = {}
   const tableSchemaSelected: { [key: string]: any } = {}
 
