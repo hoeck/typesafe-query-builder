@@ -1,11 +1,6 @@
 import { QueryItem } from './types'
 
-import {
-  getColumnMetadata,
-  getTableNameMetadata,
-  getTableSchemaMetadata,
-  getTableSchemaSelectedMetadata,
-} from '../table'
+import { getColumnMetadata, getTableMetadata } from '../table'
 
 class SqlQuery {
   private tableAliases: { [key: string]: string } = {}
@@ -52,18 +47,15 @@ class SqlQuery {
 
 // return an expression from a Column
 function getColumnSql(tableName: string, colref: any): string {
-  const { name, type, table } = getColumnMetadata(colref)
+  const meta = getColumnMetadata(colref)
 
-  // TODO: use table name from col
-
-  switch (type) {
+  switch (meta.type) {
     case 'column':
-      return `"${tableName}"."${name}"`
+      return `"${tableName}"."${meta.name}"`
     case 'jsonBuildObject':
-      // name contains the 'tableSchemaSelected'
       return (
         'json_build_object(' +
-        Object.entries(name)
+        Object.entries(meta.selectedColumns)
           .map(([alias, cr]) => {
             return `'${alias}',${getColumnSql(tableName, cr)}`
           })
@@ -82,13 +74,15 @@ export function buildSqlQuery(query: QueryItem[]): [string, any[]] {
     switch (item.queryType) {
       case 'from':
         {
-          const tableName = getTableNameMetadata(item.table)
-          const selectedSchema = getTableSchemaSelectedMetadata(item.table)
+          const meta = getTableMetadata(item.table)
 
-          sql.setFrom(tableName)
+          sql.setFrom(meta.tableName)
 
-          Object.keys(selectedSchema).forEach(k => {
-            sql.addSelect(getColumnSql(tableName, selectedSchema[k]), k)
+          Object.keys(meta.selectedColumns).forEach(k => {
+            sql.addSelect(
+              getColumnSql(meta.tableName, meta.selectedColumns[k]),
+              k,
+            )
           })
         }
         break
