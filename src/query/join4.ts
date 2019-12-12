@@ -1,5 +1,5 @@
 import { Table, TableColumnRef } from '../table'
-import { JoinDefinition } from './types'
+import { QueryItem } from './types'
 
 export class Join4<
   T1,
@@ -24,13 +24,13 @@ export class Join4<
     private t2: T2R,
     private t3: T3R,
     private t4: T4R,
-    private joins: JoinDefinition[],
+    private query: QueryItem[],
   ) {
     this.t1 = t1
     this.t2 = t2
     this.t3 = t3
     this.t4 = t4
-    this.joins = joins
+    this.query = query
   }
 
   where<CR extends T1R | T2R | T3R, CV extends CR['columnType']>(

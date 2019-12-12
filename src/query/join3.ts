@@ -1,5 +1,5 @@
 import { Table, TableColumnRef } from '../table'
-import { JoinDefinition } from './types'
+import { QueryItem } from './types'
 import { Join4 } from './join4'
 
 export class Join3<
@@ -20,18 +20,18 @@ export class Join3<
     private t1: T1R,
     private t2: T2R,
     private t3: T3R,
-    private joins: JoinDefinition[],
+    private query: QueryItem[],
   ) {
     this.t1 = t1
     this.t2 = t2
     this.t3 = t3
-    this.joins = joins
+    this.query = query
   }
 
   join<T4, C4, S4>(t: T1R | T2R | T3R, t4: TableColumnRef<T4, C4, S4>) {
     return new Join4(this.t1, this.t2, this.t3, t4, [
-      ...this.joins,
-      { colRef1: t, colRef2: t4, joinType: 'join' },
+      ...this.query,
+      { queryType: 'join', colRef1: t, colRef2: t4, joinType: 'join' },
     ])
   }
 

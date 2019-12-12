@@ -4,6 +4,7 @@ import {
   EventTypeRow,
   ItemRow,
   UserRow,
+  client,
   eventTypes,
   events,
   items,
@@ -14,22 +15,6 @@ import {
 function use(_x: any) {}
 
 describe('query', () => {
-  describe('0 joins', () => {
-    fit('fetches', () => {
-      const result = query(users)
-      const expected: Array<UserRow> = result.fetch()
-
-      use(expected)
-    })
-
-    it('fetches with selects', () => {
-      const result = query(items.select('itemLabel', 'itemActive')).fetch()
-      const expected: Array<Pick<ItemRow, 'itemLabel' | 'itemActive'>> = result
-
-      use(expected)
-    })
-  })
-
   describe('1 join', () => {
     it('plain fetch', () => {
       const result = query(items)

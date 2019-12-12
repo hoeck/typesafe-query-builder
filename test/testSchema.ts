@@ -1,4 +1,17 @@
+import { Client } from 'pg'
+
 import { table, integer, string, boolean } from '../src'
+
+// test database
+export const client = new Client({
+  user: 'postgres',
+  host: '127.0.0.1',
+  database: 'test_schema',
+  password: 'password',
+  port: 54321,
+})
+
+client.connect()
 
 // basic example schema for use in tests
 // all columns contain prefixes to help debugging types
@@ -7,11 +20,13 @@ import { table, integer, string, boolean } from '../src'
 export interface UserRow {
   userId: number
   userName: string
+  userEmail: string
 }
 
 export const users = table('users', {
   userId: integer('id'),
   userName: string('name'),
+  userEmail: string('email'),
 })
 
 export interface ItemRow {
@@ -51,5 +66,11 @@ export interface EventTypeRow {
 export const eventTypes = table('event_types', {
   type: string('type'),
   description: string('description'),
+  active: boolean('active'),
+})
+
+export const emptyTable = table('empty_table', {
+  id: integer('id'),
+  value: string('value'),
   active: boolean('active'),
 })
