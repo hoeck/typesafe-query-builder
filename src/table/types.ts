@@ -10,10 +10,18 @@ interface PlainColumnMetadata {
 interface JsonBuildObjectMetadata {
   type: 'jsonBuildObject'
   selectedColumns: TableSchema
-  table?: TableSchema
 }
 
-export type ColumnMetadata = PlainColumnMetadata | JsonBuildObjectMetadata
+interface JsonAggMetadata {
+  type: 'jsonAgg'
+  selectedColumns: TableSchema
+  orderBy?: TableColumnRef<any, any, any>
+}
+
+export type ColumnMetadata =
+  | PlainColumnMetadata
+  | JsonBuildObjectMetadata
+  | JsonAggMetadata
 
 // Internal structure to store selected/available columns.
 export interface TableSchema {
@@ -74,6 +82,14 @@ export interface TableProjectionMethods<T, S> {
   ): Table<T, Pick<S, K>>
 
   /**
+   * Choose columns to *hide* from the result.
+   */
+  selectWithout<K extends keyof S>(
+    this: Table<T, S>,
+    ...keys: K[]
+  ): Table<T, Omit<S, K>>
+
+  /**
    * Project all columns of this table into a single json column named key.
    *
    * TODO: decide whether to perform this as a postprocessing step or directly translate it to sql
@@ -85,29 +101,15 @@ export interface TableProjectionMethods<T, S> {
 
   /**
    * json_agg projection of a whole table.
+   *
+   * Passing a column to orderBy sorts the resulting json array by this column
+   * in ascending order.
    */
-  selectAsJsonAgg<K extends string>(
+  selectAsJsonAgg<K extends string, O extends T>(
     this: Table<T, S>,
     key: K,
-    orderBy?: TableColumnRef<T, any, S>,
+    orderBy?: TableColumnRef<O, any, any>,
   ): Table<T, { [KK in K]: S[] }>
-
-  /**
-   * json_object_agg projection of a whole table.
-   */
-  selectAsJsonObjectAgg<K extends string>(
-    this: Table<T, S>,
-    key: K,
-    orderBy?: TableColumnRef<T, any, S>,
-  ): Table<T, { [KK in K]: { [id: string]: S } }>
-
-  /**
-   * Choose columns to *hide* from the result.
-   */
-  selectWithout<K extends keyof S>(
-    this: Table<T, S>,
-    ...keys: K[]
-  ): Table<T, Omit<S, K>>
 
   /**
    * Get a reference to a column in case it clashes with one of these methods.

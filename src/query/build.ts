@@ -28,12 +28,12 @@ class SqlQuery {
           return `${s.columnSql} AS "${s.alias}"`
         })
         .join() +
-      '\n'
+      ' '
     )
   }
 
   private buildFrom() {
-    return `FROM ${this.from}\n`
+    return `FROM ${this.from} `
   }
 
   build(): [string, any[]] {
@@ -62,8 +62,22 @@ function getColumnSql(tableName: string, colref: any): string {
           .join(',') +
         ')'
       )
+    case 'jsonAgg':
+      return (
+        'json_agg(json_build_object(' +
+        Object.entries(meta.selectedColumns)
+          .map(([alias, cr]) => {
+            return `'${alias}',${getColumnSql(tableName, cr)}`
+          })
+          .join(',') +
+        ')' +
+        (meta.orderBy
+          ? ` ORDER BY ${getColumnSql(tableName, meta.orderBy)}`
+          : '') +
+        ')'
+      )
     default:
-      throw new Error('unknown column metadata')
+      throw new Error(`unknown column metadata`)
   }
 }
 

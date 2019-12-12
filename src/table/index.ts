@@ -8,6 +8,16 @@ import {
   TableSchema,
 } from './types'
 
+export {
+  Column,
+  ColumnMetadata,
+  Table,
+  TableColumnRef,
+  TableMetadata,
+  TableProjectionMethods,
+  TableSchema,
+} from './types'
+
 const columnMetadataSymbol = Symbol('columnMetadata')
 
 // internal column factory
@@ -80,15 +90,31 @@ class TableImplementation<T, S> implements TableProjectionMethods<T, S> {
     })
   }
 
+  // choose columns to *hide* from the result.
+  selectWithout(this: any, ...keys: any[]): any {
+    return new TableImplementation(this, m => {
+      const selectedColumns: TableSchema = { ...m.selectedColumns }
+
+      keys.forEach(k => {
+        delete selectedColumns[k]
+      })
+
+      return {
+        ...m,
+        selectedColumns,
+      }
+    })
+  }
+
   // js/ts compatible projection
-  selectAs(this: any, k: any): any {
+  selectAs(this: any, key: any): any {
     return new TableImplementation(this, m => {
       return {
         ...m,
         selectedColumns: {
           // create a new column that maps all selected columns into a json
           // object via json_build_object
-          [k]: _createColumn({
+          [key]: _createColumn({
             type: 'jsonBuildObject',
             selectedColumns: m.selectedColumns,
           }),
@@ -98,16 +124,25 @@ class TableImplementation<T, S> implements TableProjectionMethods<T, S> {
   }
 
   // json_agg projection of a whole table.
-  selectAsJsonAgg(key: any, orderBy?: TableColumnRef<T, any, S>): any {}
-
-  // json_object_agg projection of a whole table.
-  selectAsJsonObjectAgg(key: any, orderBy?: TableColumnRef<T, any, S>): any {}
-
-  // Choose columns to *hide* from the result.
-  selectWithout(...keys: any[]): any {}
+  selectAsJsonAgg(key: any, orderBy?: TableColumnRef<T, any, S>): any {
+    return new TableImplementation(this, m => {
+      return {
+        ...m,
+        selectedColumns: {
+          [key]: _createColumn({
+            type: 'jsonAgg',
+            selectedColumns: m.selectedColumns,
+            orderBy,
+          }),
+        },
+      }
+    })
+  }
 
   // column accessor
-  column(columnName: any): any {}
+  column(this: any, columnName: any): any {
+    return this[columnName]
+  }
 }
 
 /**

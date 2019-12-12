@@ -32,7 +32,7 @@ describe('query', () => {
     expect(result).toEqual([])
   })
 
-  it('fetch + select', async () => {
+  it('fetches with select', async () => {
     const result: Array<Pick<UserRow, 'userId' | 'userEmail'>> = await query(
       users.select('userId', 'userEmail'),
     ).fetch(client)
@@ -44,7 +44,7 @@ describe('query', () => {
     ])
   })
 
-  it('fetch + selectAs', async () => {
+  it('fetches with selectAs', async () => {
     const result = await query(users.selectAs('user')).fetch(client)
 
     expect(result).toEqual([
@@ -54,7 +54,7 @@ describe('query', () => {
     ])
   })
 
-  it('fetch + select + selectAs', async () => {
+  it('fetches with select and selectAs', async () => {
     const result = await query(users.select('userId').selectAs('user')).fetch(
       client,
     )
@@ -63,6 +63,58 @@ describe('query', () => {
       { user: { userId: 1 } },
       { user: { userId: 2 } },
       { user: { userId: 3 } },
+    ])
+  })
+
+  it('fetches with selectAsJsonAgg', async () => {
+    const result: Array<{ emails: UserRow[] }> = await query(
+      users.selectAsJsonAgg('emails'),
+    ).fetch(client)
+
+    expect(result).toEqual([
+      {
+        emails: [
+          { userId: 1, userName: 'user-a', userEmail: 'a@user' },
+          { userId: 2, userName: 'user-c', userEmail: 'c@user' },
+          { userId: 3, userName: 'user-b', userEmail: 'b@user' },
+        ],
+      },
+    ])
+  })
+
+  it('fetches with select and selectAsJsonAgg', async () => {
+    const result: Array<{
+      emails: Array<Pick<UserRow, 'userEmail'>>
+    }> = await query(users.select('userEmail').selectAsJsonAgg('emails')).fetch(
+      client,
+    )
+
+    expect(result).toEqual([
+      {
+        emails: [
+          { userEmail: 'a@user' },
+          { userEmail: 'c@user' },
+          { userEmail: 'b@user' },
+        ],
+      },
+    ])
+  })
+
+  it('fetches with select and selectAsJsonAgg and orderBy', async () => {
+    const result: Array<{
+      emails: Array<Pick<UserRow, 'userEmail'>>
+    }> = await query(
+      users.select('userEmail').selectAsJsonAgg('emails', users.userEmail),
+    ).fetch(client)
+
+    expect(result).toEqual([
+      {
+        emails: [
+          { userEmail: 'a@user' },
+          { userEmail: 'b@user' },
+          { userEmail: 'c@user' },
+        ],
+      },
     ])
   })
 })
