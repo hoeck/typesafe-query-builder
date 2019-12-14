@@ -2,6 +2,9 @@ import { Client } from 'pg'
 
 import { table, integer, string, boolean } from '../src'
 
+// enable "deep" console.log
+require('util').inspect.defaultOptions.depth = null
+
 // test database
 export const client = new Client({
   user: 'postgres',

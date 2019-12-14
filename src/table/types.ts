@@ -1,28 +1,3 @@
-// column metadata to describe how a column should be rendered into an sql expression
-
-interface PlainColumnMetadata {
-  type: 'column'
-  name: string
-  value: any
-  table?: TableSchema
-}
-
-interface JsonBuildObjectMetadata {
-  type: 'jsonBuildObject'
-  selectedColumns: TableSchema
-}
-
-interface JsonAggMetadata {
-  type: 'jsonAgg'
-  selectedColumns: TableSchema
-  orderBy?: TableColumnRef<any, any, any>
-}
-
-export type ColumnMetadata =
-  | PlainColumnMetadata
-  | JsonBuildObjectMetadata
-  | JsonAggMetadata
-
 // Internal structure to store selected/available columns.
 export interface TableSchema {
   [key: string]: TableColumnRef<any, any, any>
@@ -42,6 +17,9 @@ export interface Column<T> {
   // the column name is stored as a symbol so that noone can create it by
   // accident and leak unescaped data into joins or other sql expressions
   columnValue: T // this value is just needed to work with the type and has no runtime meaning
+
+  // name of the column in the database
+  name: string
 }
 
 /**
@@ -105,10 +83,10 @@ export interface TableProjectionMethods<T, S> {
    * Passing a column to orderBy sorts the resulting json array by this column
    * in ascending order.
    */
-  selectAsJsonAgg<K extends string, O extends T>(
+  selectAsJsonAgg<K extends string, O extends keyof T>(
     this: Table<T, S>,
     key: K,
-    orderBy?: TableColumnRef<O, any, any>,
+    orderBy?: O,
   ): Table<T, { [KK in K]: S[] }>
 
   /**

@@ -1,83 +1,76 @@
 import { QueryItem } from './types'
 
-import { getColumnMetadata, getTableMetadata } from '../table'
+import { getTableImplementation } from '../table'
+
+class AliasGenerator {
+  private counter = 0
+  private aliasMap: { [tableName: string]: string } = {} // tableName -> alias
+
+  getAlias(tableName: string) {
+    if (!this.aliasMap[tableName]) {
+      this.aliasMap[tableName] = `a${this.counter}`
+      this.counter += 1
+    }
+
+    return this.aliasMap[tableName]
+  }
+}
 
 class SqlQuery {
-  private tableAliases: { [key: string]: string } = {}
   private from?: string
-  private select: Array<{
-    columnSql: string
-    alias: string
+  private select: string[] = []
+  private joins: Array<{
+    tableSql2: string
+    columnSql1: string
+    columnSql2: string
   }> = []
 
-  setFrom(tableName: string) {
-    this.from = tableName
+  private aliasGenerator = new AliasGenerator()
+
+  getAlias(tableName: string) {
+    return this.aliasGenerator.getAlias(tableName)
   }
 
-  addSelect(columnSql: string, alias: string) {
-    this.select.push({ columnSql, alias })
+  setFrom(tableSql: string) {
+    this.from = tableSql
+  }
+
+  addSelect(selectSql: string) {
+    this.select.push(selectSql)
+  }
+
+  addJoin(tableSql2: string, columnSql1: string, columnSql2: string) {
+    this.joins.push({ tableSql2, columnSql1, columnSql2 })
   }
 
   private buildSelect() {
     // json_build_object(name, col, name2, col2, ....)
-    return (
-      'SELECT ' +
-      this.select
-        .map(s => {
-          // quotes are needed to get case sensitivity
-          return `${s.columnSql} AS "${s.alias}"`
-        })
-        .join() +
-      ' '
-    )
+    return 'SELECT ' + this.select.join(',')
   }
 
   private buildFrom() {
-    return `FROM ${this.from} `
+    if (!this.from) {
+      throw new Error('from must not be empty')
+    }
+
+    return `FROM ${this.from}`
+  }
+
+  private buildJoin() {
+    return this.joins
+      .map(j => {
+        return `JOIN ${j.tableSql2} ON ${j.columnSql1} = ${j.columnSql2}`
+      })
+      .join(' ')
   }
 
   build(): [string, any[]] {
-    const queryString = this.buildSelect() + this.buildFrom()
+    const queryString =
+      this.buildSelect() + ' ' + this.buildFrom() + ' ' + this.buildJoin()
 
     const params: any[] = []
 
     return [queryString, params]
-  }
-}
-
-// return an expression from a Column
-function getColumnSql(tableName: string, colref: any): string {
-  const meta = getColumnMetadata(colref)
-
-  switch (meta.type) {
-    case 'column':
-      return `"${tableName}"."${meta.name}"`
-    case 'jsonBuildObject':
-      return (
-        'json_build_object(' +
-        Object.entries(meta.selectedColumns)
-          .map(([alias, cr]) => {
-            return `'${alias}',${getColumnSql(tableName, cr)}`
-          })
-          .join(',') +
-        ')'
-      )
-    case 'jsonAgg':
-      return (
-        'json_agg(json_build_object(' +
-        Object.entries(meta.selectedColumns)
-          .map(([alias, cr]) => {
-            return `'${alias}',${getColumnSql(tableName, cr)}`
-          })
-          .join(',') +
-        ')' +
-        (meta.orderBy
-          ? ` ORDER BY ${getColumnSql(tableName, meta.orderBy)}`
-          : '') +
-        ')'
-      )
-    default:
-      throw new Error(`unknown column metadata`)
   }
 }
 
@@ -88,18 +81,29 @@ export function buildSqlQuery(query: QueryItem[]): [string, any[]] {
     switch (item.queryType) {
       case 'from':
         {
-          const meta = getTableMetadata(item.table)
+          const table = getTableImplementation(item.table)
+          const alias = sql.getAlias(table.tableName)
 
-          sql.setFrom(meta.tableName)
-
-          Object.keys(meta.selectedColumns).forEach(k => {
-            sql.addSelect(
-              getColumnSql(meta.tableName, meta.selectedColumns[k]),
-              k,
-            )
-          })
+          sql.setFrom(table.getTableSql(alias))
+          sql.addSelect(table.getSelectSql(alias))
         }
         break
+      case 'join': {
+        const table1 = getTableImplementation(item.colRef1)
+        const table2 = getTableImplementation(item.colRef2)
+
+        const alias1 = sql.getAlias(table1.tableName)
+        const alias2 = sql.getAlias(table2.tableName)
+
+        sql.addJoin(
+          table2.getTableSql(alias2),
+          table1.getReferencedColumnSql(alias1),
+          table2.getReferencedColumnSql(alias2),
+        )
+        sql.addSelect(table2.getSelectSql(alias2))
+
+        break
+      }
       default:
       // assert-never
     }

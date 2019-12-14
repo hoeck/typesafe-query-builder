@@ -28,7 +28,13 @@ export class Join3<
     this.query = query
   }
 
-  join<T4, C4, S4>(t: T1R | T2R | T3R, t4: TableColumnRef<T4, C4, S4>) {
+  join<T4, S4, CV>(
+    t:
+      | TableColumnRef<T1, any, any>
+      | TableColumnRef<T2, any, any>
+      | TableColumnRef<T3, any, any>,
+    t4: TableColumnRef<T4, CV, S4>,
+  ) {
     return new Join4(this.t1, this.t2, this.t3, t4, [
       ...this.query,
       { queryType: 'join', colRef1: t, colRef2: t4, joinType: 'join' },

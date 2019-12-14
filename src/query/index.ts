@@ -1,6 +1,6 @@
 import { Table, TableColumnRef, partialTableRef } from '../table'
 import { buildSqlQuery } from './build'
-import { DatabaseClient, QueryItem, SqlQuery } from './types'
+import { DatabaseClient, QueryItem } from './types'
 import { Join2 } from './join2'
 
 class Query<T, S> {
@@ -10,19 +10,24 @@ class Query<T, S> {
   }
 
   // plain join
-  join<T2, S2>(t1: TableColumnRef<T, any, S>, t2: TableColumnRef<T2, any, S2>) {
+  join<T2, S2, CV>(
+    t1: TableColumnRef<T, CV, any>,
+    t2: TableColumnRef<T2, CV, S2>,
+  ) {
     return new Join2(t1, t2, [
+      ...this.query,
       { queryType: 'join', colRef1: t1, colRef2: t2, joinType: 'join' },
     ])
   }
 
-  leftJoin<T2, S2>(
-    t1: TableColumnRef<T, any, S>,
-    t2: TableColumnRef<T2, any, S2>,
+  leftJoin<T2, S2, CV>(
+    t1: TableColumnRef<T, CV, any>,
+    t2: TableColumnRef<T2, CV, S2>,
   ) {
     const partialT2 = partialTableRef(t2)
 
     return new Join2(t1, partialT2, [
+      ...this.query,
       {
         queryType: 'join',
         colRef1: t1,
@@ -72,7 +77,7 @@ class Query<T, S> {
     return this
   }
 
-  sql(): SqlQuery {
+  sql() {
     return buildSqlQuery(this.query)
   }
 

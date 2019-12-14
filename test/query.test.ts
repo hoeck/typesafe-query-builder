@@ -104,7 +104,7 @@ describe('query', () => {
     const result: Array<{
       emails: Array<Pick<UserRow, 'userEmail'>>
     }> = await query(
-      users.select('userEmail').selectAsJsonAgg('emails', users.userEmail),
+      users.select('userEmail').selectAsJsonAgg('emails', 'userEmail'),
     ).fetch(client)
 
     expect(result).toEqual([

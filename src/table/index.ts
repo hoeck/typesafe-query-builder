@@ -1,147 +1,222 @@
-import {
-  Column,
-  ColumnMetadata,
-  Table,
-  TableColumnRef,
-  TableMetadata,
-  TableProjectionMethods,
-  TableSchema,
-} from './types'
+import { Column, Table, TableColumnRef } from './types'
 
-export {
-  Column,
-  ColumnMetadata,
-  Table,
-  TableColumnRef,
-  TableMetadata,
-  TableProjectionMethods,
-  TableSchema,
-} from './types'
-
-const columnMetadataSymbol = Symbol('columnMetadata')
-
-// internal column factory
-function _createColumn(metadata: ColumnMetadata): any {
-  return {
-    [columnMetadataSymbol]: metadata,
-  }
-}
-
-function _setColumnTable(col: any, table: any) {
-  if (col[columnMetadataSymbol]) {
-    col[columnMetadataSymbol].table = table
-  }
-}
-
-export function getColumnMetadata(
-  c: TableColumnRef<any, any, any> | Column<any>,
-): ColumnMetadata {
-  return (c as any)[columnMetadataSymbol]
-}
+export { Table, TableColumnRef, TableProjectionMethods } from './types'
 
 /**
  * column constructor
  */
 export function column<T>(name: string, type: T): Column<T> {
-  const col: any = _createColumn({ type: 'column', name, value: type })
-
-  return col
+  return { columnValue: type, name }
 }
 
-// symbol to store internal hidden metadata attributes to build the query
-// use them via the accessor functions defined below
-const tableMetadataSymbol = Symbol('tableMetadata')
+// access the tables implementation for building queries
+const tableImplementationSymbol = Symbol('tableImplementation')
 
 /**
  * Base object for all tables implementing the TableProjectionMethods
  *
  * The implementation is hidden anyway thus we're free to use lots of any's.
  */
-class TableImplementation<T, S> implements TableProjectionMethods<T, S> {
-  // copy ctor
-  constructor(src?: any, updateMetaFn?: (m: TableMetadata) => TableMetadata) {
-    if (src) {
-      const anyThis: any = this
-      Object.keys(src).forEach(k => {
-        anyThis[k] = src[k]
-      })
+class TableImplementation {
+  // in case this table has a name
+  // TODO: what about subselects which are represented by a table?
+  tableName: string
 
-      if (updateMetaFn) {
-        anyThis[tableMetadataSymbol] = updateMetaFn(src[tableMetadataSymbol])
-      } else {
-        anyThis[tableMetadataSymbol] = src[tableMetadataSymbol]
+  // all columns available in this table to use in selection, projection, where, etc.
+  tableColumns: { [key: string]: Column<any> }
+
+  // currently selected columns, undefined == all
+  selected?: string[]
+
+  // single-column projections
+  projection?:
+    | {
+        type: 'jsonBuildObject'
+        name: string
       }
+    | {
+        type: 'jsonAgg'
+        name: string
+        orderBy?: string
+      }
+
+  // key into tableColumns when this TableImplementation acts as a TableColumn
+  referencedColumn?: string
+
+  // select
+  // selectAs (should actually call this selectAsJson)
+  // selectAsJsonAgg
+  // als: sql-functions such as avg, count, ...
+
+  constructor(tableName: string, tableColumns: { [key: string]: Column<any> }) {
+    this.tableName = tableName
+    this.tableColumns = tableColumns
+
+    // mark this as the table implementation so we know that this is not the proxy
+    ;(this as any)[tableImplementationSymbol] = true
+  }
+
+  copy() {
+    const res = new TableImplementation(this.tableName, this.tableColumns)
+
+    res.selected = this.selected
+    res.projection = this.projection
+    res.referencedColumn = this.referencedColumn
+
+    return res
+  }
+
+  createTableColumn(name: string) {
+    const res = this.copy()
+
+    if (this.tableColumns[name] === undefined) {
+      throw new Error('assertion error: column does not exist')
+    }
+
+    res.referencedColumn = name
+
+    return res
+  }
+
+  // serving the actual Table<T,S>
+  getTableProxy(): Table<any, any> {
+    return new Proxy(this, {
+      get: (_target, prop, _receiver) => {
+        // TableProjectionMethods
+        if (
+          prop === 'select' ||
+          prop === 'selectAs' ||
+          prop === 'selectAsJsonAgg' ||
+          prop === 'selectWithout' ||
+          prop === 'column'
+        ) {
+          return this[prop]
+        }
+
+        // TableColumn
+        if (typeof prop === 'string' && this.tableColumns[prop]) {
+          return this.createTableColumn(prop)
+        }
+
+        // Access to this implementation (used to build the sql query)
+        if (prop === tableImplementationSymbol) {
+          return this
+        }
+
+        return undefined
+      },
+    }) as any
+  }
+
+  getSelectSql(alias: string) {
+    const selected = this.selected || Object.keys(this.tableColumns)
+
+    if (this.projection === undefined) {
+      // default projection (none)
+      return selected
+        .map(columnKey => {
+          const column = this.tableColumns[columnKey]
+
+          return `${alias}."${column.name}" AS "${columnKey}"`
+        })
+        .join(',')
+    } else if (this.projection.type === 'jsonBuildObject') {
+      // project all columns into a json object
+      return (
+        'json_build_object(' +
+        selected
+          .map(columnKey => {
+            const column = this.tableColumns[columnKey]
+
+            return `'${columnKey}',${alias}."${column.name}"`
+          })
+          .join(',') +
+        `) AS "${this.projection.name}"`
+      )
+    } else if (this.projection.type === 'jsonAgg') {
+      return (
+        'json_agg(json_build_object(' +
+        selected
+          .map(columnKey => {
+            const column = this.tableColumns[columnKey]
+
+            return `'${columnKey}',${alias}."${column.name}"`
+          })
+          .join(',') +
+        ')' +
+        (this.projection.orderBy
+          ? ` ORDER BY ${alias}."${this.tableColumns[this.projection.orderBy].name}"`
+          : '') +
+        `) AS "${this.projection.name}"`
+      )
+    } else {
+      throw new Error('invalid projection type')
     }
   }
 
+  getTableSql(alias: string) {
+    return `"${this.tableName}" ${alias}`
+  }
+
+  getReferencedColumnSql(alias: string) {
+    if (!this.referencedColumn) {
+      throw new Error('referencedColumn is undefined')
+    }
+
+    return `${alias}."${this.tableColumns[this.referencedColumn].name}"`
+  }
+
+  /// TableProjectionMethods implementation
+
   // choose columns to appear in the result.
-  select(this: any, ...keys: any[]): any {
-    return new TableImplementation(this, m => {
-      const selectedColumns: TableSchema = {}
+  select(...keys: string[]) {
+    const res = getTableImplementation(this).copy()
 
-      keys.forEach(k => {
-        selectedColumns[k] = m.selectedColumns[k]
-      })
+    res.selected = keys
 
-      return {
-        ...m,
-        selectedColumns,
-      }
-    })
+    return res.getTableProxy()
   }
 
   // choose columns to *hide* from the result.
-  selectWithout(this: any, ...keys: any[]): any {
-    return new TableImplementation(this, m => {
-      const selectedColumns: TableSchema = { ...m.selectedColumns }
+  selectWithout(...keys: string[]) {
+    const res = getTableImplementation(this).copy()
 
-      keys.forEach(k => {
-        delete selectedColumns[k]
-      })
+    res.selected = (res.selected || Object.keys(res.tableColumns)).filter(
+      k => !keys.includes(k),
+    )
 
-      return {
-        ...m,
-        selectedColumns,
-      }
-    })
+    return res.getTableProxy()
   }
 
   // js/ts compatible projection
-  selectAs(this: any, key: any): any {
-    return new TableImplementation(this, m => {
-      return {
-        ...m,
-        selectedColumns: {
-          // create a new column that maps all selected columns into a json
-          // object via json_build_object
-          [key]: _createColumn({
-            type: 'jsonBuildObject',
-            selectedColumns: m.selectedColumns,
-          }),
-        },
-      }
-    })
+  // TODO rename to selectAsJson
+  selectAs(key: string) {
+    const res = getTableImplementation(this).copy()
+
+    res.projection = {
+      type: 'jsonBuildObject',
+      name: key,
+    }
+
+    return res.getTableProxy()
   }
 
   // json_agg projection of a whole table.
-  selectAsJsonAgg(key: any, orderBy?: TableColumnRef<T, any, S>): any {
-    return new TableImplementation(this, m => {
-      return {
-        ...m,
-        selectedColumns: {
-          [key]: _createColumn({
-            type: 'jsonAgg',
-            selectedColumns: m.selectedColumns,
-            orderBy,
-          }),
-        },
-      }
-    })
+  selectAsJsonAgg(key: any, orderBy?: any): any {
+    const res = getTableImplementation(this).copy()
+
+    res.projection = {
+      type: 'jsonAgg',
+      name: key,
+      orderBy,
+    }
+
+    return res.getTableProxy()
   }
 
   // column accessor
-  column(this: any, columnName: any): any {
-    return this[columnName]
+  column(_columnName: string) {
+    throw new Error('TODO')
   }
 }
 
@@ -150,40 +225,23 @@ class TableImplementation<T, S> implements TableProjectionMethods<T, S> {
  */
 export function table<T, S extends T>(
   tableName: string,
-  columns: { [K in keyof T]: (tableName: string) => Column<T[K]> },
+  columns: { [K in keyof T]: Column<T[K]> },
 ): Table<T, S> {
-  const table: Table<T, S> = new TableImplementation() as any
-  const tableSchema: TableSchema = {}
-  const tableSchemaSelected: TableSchema = {}
-
-  Object.keys(columns).forEach(k => {
-    const c = (columns as any)[k](k)
-
-    tableSchema[k] = c
-    ;(table as any)[k] = c
-
-    tableSchemaSelected[k] = tableSchema[k]
-  })
-
-  // 'private' (untyped) assignment of the symbols so they do not appear
-  // during typescript-autocompletion
-  const anyTable: any = table
-
-  anyTable[tableMetadataSymbol] = {
-    tableName,
-    presentColumns: tableSchema,
-    selectedColumns: tableSchemaSelected,
-  }
-
-  // add the table reference to each column so we can extract the table schema
-  // from the column ref
-  Object.values(table).forEach((v: any) => _setColumnTable(v, table))
-
-  return table
+  return new TableImplementation(tableName, columns).getTableProxy() as any
 }
 
-export function getTableMetadata(table: any): TableMetadata {
-  return table[tableMetadataSymbol]
+export function getTableImplementation(table: any): TableImplementation {
+  const implementation = (table as any)[tableImplementationSymbol]
+
+  if (implementation === undefined) {
+    throw new Error('table implementation not found')
+  }
+
+  if (implementation === true) {
+    return table as any
+  }
+
+  return implementation
 }
 
 /**
