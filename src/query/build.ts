@@ -1,5 +1,5 @@
 import { Table, table, column, Column } from '../table'
-import { QueryItem } from './types'
+import { QueryItem, JoinItem } from './types'
 
 import { getTableImplementation } from '../table'
 
@@ -21,6 +21,7 @@ class SqlQuery {
   private from?: string
   private select: string[] = []
   private joins: Array<{
+    joinType: JoinItem['joinType']
     tableSql2: string
     columnSql1: string
     columnSql2: string
@@ -41,8 +42,13 @@ class SqlQuery {
     this.select.push(selectSql)
   }
 
-  addJoin(tableSql2: string, columnSql1: string, columnSql2: string) {
-    this.joins.push({ tableSql2, columnSql1, columnSql2 })
+  addJoin(
+    joinType: JoinItem['joinType'],
+    tableSql2: string,
+    columnSql1: string,
+    columnSql2: string,
+  ) {
+    this.joins.push({ joinType, tableSql2, columnSql1, columnSql2 })
   }
 
   addGroupBy(columnSql: string) {
@@ -50,7 +56,6 @@ class SqlQuery {
   }
 
   private buildSelect() {
-    // json_build_object(name, col, name2, col2, ....)
     return 'SELECT ' + this.select.join(',')
   }
 
@@ -65,7 +70,9 @@ class SqlQuery {
   private buildJoin() {
     return this.joins
       .map(j => {
-        return `JOIN ${j.tableSql2} ON ${j.columnSql1} = ${j.columnSql2}`
+        const joinType = j.joinType === 'join' ? 'JOIN' : 'LEFT JOIN'
+
+        return `${joinType} ${j.tableSql2} ON ${j.columnSql1} = ${j.columnSql2}`
       })
       .join(' ')
   }
@@ -116,6 +123,7 @@ export function buildSqlQuery(query: QueryItem[]): [string, any[]] {
         const alias2 = sql.getAlias(table2.tableName)
 
         sql.addJoin(
+          item.joinType,
           table2.getTableSql(alias2),
           table1.getReferencedColumnSql(alias1),
           table2.getReferencedColumnSql(alias2),

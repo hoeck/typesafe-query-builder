@@ -23,15 +23,13 @@ class Query<T, S> {
   leftJoin<T2, S2, CV>(
     t1: TableColumnRef<T, CV, any>,
     t2: TableColumnRef<T2, CV, S2>,
-  ) {
-    const partialT2 = partialTableRef(t2)
-
-    return new Join2(t1, partialT2, [
+  ): Join2<T, T2, S & Partial<S2>> {
+    return new Join2(t1, t2, [
       ...this.query,
       {
         queryType: 'join',
         colRef1: t1,
-        colRef2: partialT2,
+        colRef2: t2,
         joinType: 'leftJoin',
       },
     ])
