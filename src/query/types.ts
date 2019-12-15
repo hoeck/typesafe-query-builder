@@ -39,6 +39,21 @@ export type QueryItem =
 
 export type SqlQuery = [string, any[]] // [sql-query-string, params]
 
+// bc. databases work with null rather than undefined
+export type NullableLeftJoin<T> = {
+  // bc left-joining a json aggregate results in an empty array [] and not null
+  [P in keyof T]: T[P] extends { __json_agg_column__: true }
+    ? Omit<T[P], '__json_agg_column__'>
+    : T[P] | null
+}
+
+// remove the json agg tag from the table type if we do not left join
+export type WithoutJsonAggTag<T> = {
+  [P in keyof T]: T[P] extends { __json_agg_column__: true }
+    ? Omit<T[P], '__json_agg_column__'>
+    : T[P]
+}
+
 // Postgres Client
 export interface DatabaseClient {
   query(

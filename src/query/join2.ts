@@ -1,6 +1,6 @@
 import { Table, TableColumnRef, partialTableRef, table } from '../table'
 import { buildSqlQuery, buildColumns } from './build'
-import { DatabaseClient, QueryItem } from './types'
+import { DatabaseClient, QueryItem, NullableLeftJoin } from './types'
 import { Join3 } from './join3'
 
 export class Join2<T1, T2, S> {

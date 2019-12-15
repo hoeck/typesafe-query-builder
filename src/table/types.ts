@@ -69,8 +69,6 @@ export interface TableProjectionMethods<T, S> {
 
   /**
    * Project all columns of this table into a single json column named key.
-   *
-   * TODO: decide whether to perform this as a postprocessing step or directly translate it to sql
    */
   selectAs<K extends string>(
     this: Table<T, S>,
@@ -82,12 +80,14 @@ export interface TableProjectionMethods<T, S> {
    *
    * Passing a column to orderBy sorts the resulting json array by this column
    * in ascending order.
+   *
+   * Use a special marker tag to skip this column when left-joining, see NullableLeftJoin and WithoutJsonAggTag
    */
   selectAsJsonAgg<K extends string, O extends keyof T>(
     this: Table<T, S>,
     key: K,
     orderBy?: O,
-  ): Table<T, { [KK in K]: S[] }>
+  ): Table<T, { [KK in K]: S[] & { __json_agg_column__: true } }>
 
   /**
    * Get a reference to a column in case it clashes with one of these methods.

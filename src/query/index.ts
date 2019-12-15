@@ -1,6 +1,11 @@
 import { Table, TableColumnRef, partialTableRef, table } from '../table'
 import { buildSqlQuery, buildColumns } from './build'
-import { DatabaseClient, QueryItem } from './types'
+import {
+  DatabaseClient,
+  QueryItem,
+  NullableLeftJoin,
+  WithoutJsonAggTag,
+} from './types'
 import { Join2 } from './join2'
 
 class Query<T, S> {
@@ -13,7 +18,7 @@ class Query<T, S> {
   join<T2, S2, CV>(
     t1: TableColumnRef<T, CV, any>,
     t2: TableColumnRef<T2, CV, S2>,
-  ): Join2<T, T2, S & S2> {
+  ): Join2<T, T2, S & WithoutJsonAggTag<S2>> {
     return new Join2(this.t, t2, [
       ...this.query,
       { queryType: 'join', colRef1: t1, colRef2: t2, joinType: 'join' },
@@ -23,7 +28,7 @@ class Query<T, S> {
   leftJoin<T2, S2, CV>(
     t1: TableColumnRef<T, CV, any>,
     t2: TableColumnRef<T2, CV, S2>,
-  ): Join2<T, T2, S & Partial<S2>> {
+  ): Join2<T, T2, S & NullableLeftJoin<S2>> {
     return new Join2(t1, t2, [
       ...this.query,
       {

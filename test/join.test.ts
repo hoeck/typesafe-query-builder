@@ -182,6 +182,21 @@ describe('query', () => {
       ])
     })
 
+    it('fetches left joins', async () => {
+      const result = await query(users.select('userName'))
+        .leftJoin(users.userId, items.select('itemId', 'itemLabel').itemUserId)
+        .fetch(client)
+
+      expect(result).toEqual([
+        { userName: 'user-a', itemId: 1, itemLabel: 'item-1' },
+        { userName: 'user-a', itemId: 2, itemLabel: 'item-2' },
+        { userName: 'user-c', itemId: 3, itemLabel: 'item-3' },
+        { userName: 'user-c', itemId: 4, itemLabel: 'item-4' },
+        { userName: 'user-c', itemId: 5, itemLabel: 'item-5' },
+        { userName: 'user-b', itemId: null, itemLabel: null }, // <- nulls from the db!
+      ])
+    })
+
     it('fetches left joined json aggregates', async () => {
       const result = await query(users.select('userId'))
         .leftJoin(
@@ -207,7 +222,7 @@ describe('query', () => {
             { itemId: 5, itemLabel: 'item-5' },
           ],
         },
-        { userId: 3, userItems: [] },
+        { userId: 3, userItems: [] }, // <- empty array yeah!
       ])
     })
   })
