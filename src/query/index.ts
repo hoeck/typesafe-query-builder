@@ -1,5 +1,5 @@
-import { Table, TableColumnRef, partialTableRef } from '../table'
-import { buildSqlQuery } from './build'
+import { Table, TableColumnRef, partialTableRef, table } from '../table'
+import { buildSqlQuery, buildColumns } from './build'
 import { DatabaseClient, QueryItem } from './types'
 import { Join2 } from './join2'
 
@@ -13,8 +13,8 @@ class Query<T, S> {
   join<T2, S2, CV>(
     t1: TableColumnRef<T, CV, any>,
     t2: TableColumnRef<T2, CV, S2>,
-  ) {
-    return new Join2(t1, t2, [
+  ): Join2<T, T2, S & S2> {
+    return new Join2(this.t, t2, [
       ...this.query,
       { queryType: 'join', colRef1: t1, colRef2: t2, joinType: 'join' },
     ])
@@ -75,6 +75,11 @@ class Query<T, S> {
     console.log('literals', literals)
     console.log('params', params)
     return this
+  }
+
+  table(): Table<S, S> {
+    // TODO: params!
+    return table(this.sql()[0], buildColumns(this.query)) as any
   }
 
   sql() {

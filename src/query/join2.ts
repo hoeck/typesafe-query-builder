@@ -1,18 +1,10 @@
-import { Table, TableColumnRef, partialTableRef } from '../table'
-import { buildSqlQuery } from './build'
+import { Table, TableColumnRef, partialTableRef, table } from '../table'
+import { buildSqlQuery, buildColumns } from './build'
 import { DatabaseClient, QueryItem } from './types'
 import { Join3 } from './join3'
 
-export class Join2<
-  T1,
-  T2,
-  S1,
-  S2,
-  T1R extends TableColumnRef<T1, any, S1>,
-  T2R extends TableColumnRef<T2, any, S2>,
-  S extends T1R['tableTypeSelected'] & T2R['tableTypeSelected']
-> {
-  constructor(private t1: T1R, private t2: T2R, private query: QueryItem[]) {
+export class Join2<T1, T2, S> {
+  constructor(private t1: any, private t2: any, private query: QueryItem[]) {
     this.t1 = t1
     this.t2 = t2
     this.query = query
@@ -45,20 +37,21 @@ export class Join2<
     ])
   }
 
-  // where col = value
-  whereEq<CR extends T1R | T2R, CV extends CR['columnType']>(
-    col: CR,
-    value: CV,
-  ) {}
-
-  // where column in (...values)
-  whereIn<CR extends T1R | T2R, CV extends CR['columnType']>(
-    col: CR,
-    values: CV[],
-  ) {}
+  // // where col = value
+  // whereEq<CR extends T1R | T2R, CV extends CR['columnType']>(
+  //   col: CR,
+  //   value: CV,
+  // ) {}
+  //
+  // // where column in (...values)
+  // whereIn<CR extends T1R | T2R, CV extends CR['columnType']>(
+  //   col: CR,
+  //   values: CV[],
+  // ) {}
 
   table(): Table<S, S> {
-    return {} as any
+    // TODO: params!
+    return table(`(${this.sql()[0]})`, buildColumns(this.query)) as any
   }
 
   sql() {

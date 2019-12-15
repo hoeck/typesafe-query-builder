@@ -1,3 +1,4 @@
+import { Table, table, column, Column } from '../table'
 import { QueryItem } from './types'
 
 import { getTableImplementation } from '../table'
@@ -24,6 +25,7 @@ class SqlQuery {
     columnSql1: string
     columnSql2: string
   }> = []
+  private groupBy: string[] = []
 
   private aliasGenerator = new AliasGenerator()
 
@@ -41,6 +43,10 @@ class SqlQuery {
 
   addJoin(tableSql2: string, columnSql1: string, columnSql2: string) {
     this.joins.push({ tableSql2, columnSql1, columnSql2 })
+  }
+
+  addGroupBy(columnSql: string) {
+    this.groupBy.push(columnSql)
   }
 
   private buildSelect() {
@@ -64,9 +70,23 @@ class SqlQuery {
       .join(' ')
   }
 
+  private buildGroupBy() {
+    if (!this.groupBy.length) {
+      return ''
+    }
+
+    return 'GROUP BY ' + this.groupBy.join(',')
+  }
+
   build(): [string, any[]] {
     const queryString =
-      this.buildSelect() + ' ' + this.buildFrom() + ' ' + this.buildJoin()
+      this.buildSelect() +
+      ' ' +
+      this.buildFrom() +
+      ' ' +
+      this.buildJoin() +
+      ' ' +
+      this.buildGroupBy()
 
     const params: any[] = []
 
@@ -102,6 +122,10 @@ export function buildSqlQuery(query: QueryItem[]): [string, any[]] {
         )
         sql.addSelect(table2.getSelectSql(alias2))
 
+        if (table2.needsGroupBy()) {
+          sql.addGroupBy(table1.getReferencedColumnSql(alias1))
+        }
+
         break
       }
       default:
@@ -110,4 +134,37 @@ export function buildSqlQuery(query: QueryItem[]): [string, any[]] {
   })
 
   return sql.build()
+}
+
+export function buildColumns(
+  query: QueryItem[],
+): { [key: string]: Column<any> } {
+  const columns: any = {}
+
+  query.forEach(item => {
+    switch (item.queryType) {
+      case 'from': {
+        const table = getTableImplementation(item.table)
+
+        table.getColumns().forEach(c => {
+          columns[c] = column(c, undefined as any)
+        })
+
+        break
+      }
+      case 'join': {
+        const table2 = getTableImplementation(item.colRef2)
+
+        table2.getColumns().forEach(c => {
+          columns[c] = column(c, undefined as any)
+        })
+
+        break
+      }
+      default:
+      // assert-never
+    }
+  })
+
+  return columns
 }

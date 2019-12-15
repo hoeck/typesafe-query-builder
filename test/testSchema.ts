@@ -53,10 +53,10 @@ export interface EventRow {
   eventTimestamp: number
 }
 
-export const events = table('item_events', {
+export const events = table('events', {
   eventId: integer('id'),
   eventItemId: integer('item_id'),
-  eventType: string('event_type'),
+  eventType: string('type'),
   eventTimestamp: integer('timestamp'),
 })
 

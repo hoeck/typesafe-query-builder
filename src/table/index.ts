@@ -1,6 +1,6 @@
 import { Column, Table, TableColumnRef } from './types'
 
-export { Table, TableColumnRef, TableProjectionMethods } from './types'
+export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
 
 /**
  * column constructor
@@ -108,6 +108,18 @@ class TableImplementation {
     }) as any
   }
 
+  getColumns() {
+    if (this.projection === undefined) {
+      return this.selected || Object.keys(this.tableColumns)
+    } else if (this.projection.type === 'jsonBuildObject') {
+      return [this.projection.name]
+    } else if (this.projection.type === 'jsonAgg') {
+      return [this.projection.name]
+    } else {
+      throw new Error('invalid projection type')
+    }
+  }
+
   getSelectSql(alias: string) {
     const selected = this.selected || Object.keys(this.tableColumns)
 
@@ -135,19 +147,14 @@ class TableImplementation {
       )
     } else if (this.projection.type === 'jsonAgg') {
       return (
-        'json_agg(json_build_object(' +
-        selected
-          .map(columnKey => {
-            const column = this.tableColumns[columnKey]
-
-            return `'${columnKey}',${alias}."${column.name}"`
-          })
-          .join(',') +
-        ')' +
+        // for left joins with mission values, make postgres return an
+        // empty json array [] instead of [null]
+        // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
+        `coalesce(json_agg(${alias}.__json_agg_column__` +
         (this.projection.orderBy
           ? ` ORDER BY ${alias}."${this.tableColumns[this.projection.orderBy].name}"`
           : '') +
-        `) AS "${this.projection.name}"`
+        `) FILTER (WHERE ${alias}.__json_agg_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
       )
     } else {
       throw new Error('invalid projection type')
@@ -155,7 +162,19 @@ class TableImplementation {
   }
 
   getTableSql(alias: string) {
-    return `"${this.tableName}" ${alias}`
+    if (this.projection && this.projection.type === 'jsonAgg') {
+      // subselect to get a simple [null] when using left joins to filter into a []
+      return (
+        '(select json_build_object(' +
+        (this.selected || Object.keys(this.tableColumns))
+          .map(c => `'${c}', x."${this.tableColumns[c].name}"`)
+          .join(',') +
+        `) AS __json_agg_column__, *` +
+        `from ${this.tableName} x) ${alias}`
+      )
+    } else {
+      return `${this.tableName} ${alias}`
+    }
   }
 
   getReferencedColumnSql(alias: string) {
@@ -164,6 +183,10 @@ class TableImplementation {
     }
 
     return `${alias}."${this.tableColumns[this.referencedColumn].name}"`
+  }
+
+  needsGroupBy() {
+    return !!(this.projection && this.projection.type === 'jsonAgg')
   }
 
   /// TableProjectionMethods implementation

@@ -109,4 +109,14 @@ const q = query(missions)
   .joinJsonAgg(missions.id, d.missionId)
   .fetch()
 
+-- avoid [{"key": null}] results in left joins:
+select
+  users.id,
+  coalesce(json_agg(json_build_object('id', items.id, 'label', items.label)) filter (where tester is not null), '[]')
+from
+  users
+left join
+  (select 1 as tester, * from items) items on users.id = items.user_id and items.id > 0
+group by
+  users.id;
 */
