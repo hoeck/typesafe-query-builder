@@ -12,6 +12,8 @@ import {
   users,
 } from './testSchema'
 
+import { Table } from '../src/table'
+
 // get rid of 'unused variable' warnings
 function use(_x: any) {}
 
@@ -125,6 +127,20 @@ describe('query', () => {
       ).fetch(client)
 
       expect(result).toEqual([{ empty: [] }])
+    })
+  })
+
+  describe('where conditions', () => {
+    test.only('basic where', async () => {
+      const result = await query(users.select('userName'))
+        .whereEq(users.userId, 'id')
+        .fetch(client, {
+          id: 2,
+        })
+
+      console.log(result)
+
+      expect(result).toEqual([{ userName: 'user-a' }])
     })
   })
 })

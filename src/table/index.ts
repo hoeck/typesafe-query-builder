@@ -19,7 +19,7 @@ const tableImplementationSymbol = Symbol('tableImplementation')
  */
 class TableImplementation {
   // in case this table has a name
-  // TODO: what about subselects which are represented by a table?
+  // TODO: what about subselects which are represented by a table? A: their sql is atm stored in the tableName
   tableName: string
 
   // all columns available in this table to use in selection, projection, where, etc.
@@ -27,6 +27,9 @@ class TableImplementation {
 
   // currently selected columns, undefined == all
   selected?: string[]
+
+  // parameter object - keys are: TODO
+  params?: { [key: string]: any }
 
   // single-column projections
   projection?:
@@ -48,16 +51,25 @@ class TableImplementation {
   // selectAsJsonAgg
   // als: sql-functions such as avg, count, ...
 
-  constructor(tableName: string, tableColumns: { [key: string]: Column<any> }) {
+  constructor(
+    tableName: string,
+    tableColumns: { [key: string]: Column<any> },
+    params?: any,
+  ) {
     this.tableName = tableName
     this.tableColumns = tableColumns
+    this.params = params
 
     // mark this as the table implementation so we know that this is not the proxy
     ;(this as any)[tableImplementationSymbol] = true
   }
 
   copy() {
-    const res = new TableImplementation(this.tableName, this.tableColumns)
+    const res = new TableImplementation(
+      this.tableName,
+      this.tableColumns,
+      this.params,
+    )
 
     res.selected = this.selected
     res.projection = this.projection
@@ -79,7 +91,7 @@ class TableImplementation {
   }
 
   // serving the actual Table<T,S>
-  getTableProxy(): Table<any, any> {
+  getTableProxy(): Table<any, any, any> {
     return new Proxy(this, {
       get: (_target, prop, _receiver) => {
         // TableProjectionMethods
@@ -246,11 +258,16 @@ class TableImplementation {
 /**
  * Define a relation consisting of typed columns.
  */
-export function table<T, S extends T>(
+export function table<T, S extends T, P = {}>(
   tableName: string,
   columns: { [K in keyof T]: Column<T[K]> },
-): Table<T, S> {
-  return new TableImplementation(tableName, columns).getTableProxy() as any
+  params?: P,
+): Table<T, S, P> {
+  return new TableImplementation(
+    tableName,
+    columns,
+    params,
+  ).getTableProxy() as any
 }
 
 export function getTableImplementation(table: any): TableImplementation {
@@ -265,15 +282,4 @@ export function getTableImplementation(table: any): TableImplementation {
   }
 
   return implementation
-}
-
-/**
- * Turn all columns of a given table ref into optional columns.
- *
- * Need this for left joins.
- */
-export function partialTableRef<T, C, S>(
-  t: TableColumnRef<T, C, S>,
-): TableColumnRef<T, C, Partial<S>> {
-  return t as any
 }

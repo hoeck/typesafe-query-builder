@@ -1,3 +1,5 @@
+/*
+
 import { Table, TableColumnRef } from '../table'
 import { QueryItem } from './types'
 
@@ -42,3 +44,5 @@ export class Join4<
     return {} as any
   }
 }
+
+*/

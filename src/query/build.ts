@@ -26,6 +26,7 @@ class SqlQuery {
     columnSql1: string
     columnSql2: string
   }> = []
+  private where: string[] = []
   private groupBy: string[] = []
 
   private aliasGenerator = new AliasGenerator()
@@ -55,6 +56,10 @@ class SqlQuery {
     this.groupBy.push(columnSql)
   }
 
+  addWhereEq(columnSql: string, paramKey: string) {
+    this.where.push(`${columnSql} = ($1::json->>${paramKey})::int`)
+  }
+
   private buildSelect() {
     return 'SELECT ' + this.select.join(',')
   }
@@ -77,6 +82,10 @@ class SqlQuery {
       .join(' ')
   }
 
+  private buildWhere() {
+    return 'WHERE ' + this.where.join(' AND ')
+  }
+
   private buildGroupBy() {
     if (!this.groupBy.length) {
       return ''
@@ -85,7 +94,7 @@ class SqlQuery {
     return 'GROUP BY ' + this.groupBy.join(',')
   }
 
-  build(): [string, any[]] {
+  build(): string {
     const queryString =
       this.buildSelect() +
       ' ' +
@@ -93,15 +102,15 @@ class SqlQuery {
       ' ' +
       this.buildJoin() +
       ' ' +
+      this.buildWhere() +
+      ' ' +
       this.buildGroupBy()
 
-    const params: any[] = []
-
-    return [queryString, params]
+    return queryString
   }
 }
 
-export function buildSqlQuery(query: QueryItem[]): [string, any[]] {
+export function buildSqlQuery(query: QueryItem[]): string {
   const sql = new SqlQuery()
 
   query.forEach(item => {
@@ -133,6 +142,14 @@ export function buildSqlQuery(query: QueryItem[]): [string, any[]] {
         if (table2.needsGroupBy()) {
           sql.addGroupBy(table1.getReferencedColumnSql(alias1))
         }
+
+        break
+      }
+      case 'whereEq': {
+        const table = getTableImplementation(item.col)
+        const alias = sql.getAlias(table.tableName)
+
+        sql.addWhereEq(table.getReferencedColumnSql(alias), item.paramKey)
 
         break
       }
