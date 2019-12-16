@@ -47,7 +47,7 @@ export type NullableLeftJoin<T> = {
     : T[P] | null
 }
 
-// remove the json agg tag from the table type if we do not left join
+// remove the json agg tag from the column map if we do not left join
 export type WithoutJsonAggTag<T> = {
   [P in keyof T]: T[P] extends { __json_agg_column__: true }
     ? Omit<T[P], '__json_agg_column__'>

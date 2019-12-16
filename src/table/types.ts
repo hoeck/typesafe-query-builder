@@ -1,15 +1,3 @@
-// Internal structure to store selected/available columns.
-export interface TableSchema {
-  [key: string]: TableColumnRef<any, any, any>
-}
-
-// internal structure to
-export interface TableMetadata {
-  tableName: string
-  presentColumns: TableSchema
-  selectedColumns: TableSchema
-}
-
 /**
  * The type of a column
  */
