@@ -121,7 +121,7 @@ describe('query', () => {
           items.itemId,
           events
             .select('eventType', 'eventTimestamp')
-            .selectAsJsonAgg('userItems').eventItemId,
+            .selectAsJsonAgg('itemEvents').eventItemId,
         )
         .table()
 
@@ -137,35 +137,24 @@ describe('query', () => {
               itemId: 1,
               itemLabel: 'item-1',
               itemUserId: 1,
-              userItems: [
+              itemEvents: [
                 { eventType: 'A', eventTimestamp: 0 },
                 { eventType: 'C', eventTimestamp: 10 },
                 { eventType: 'A', eventTimestamp: 20 },
                 { eventType: 'B', eventTimestamp: 30 },
               ],
             },
-            {
-              itemId: 2,
-              itemLabel: 'item-2',
-              itemUserId: 1,
-              userItems: [{ eventType: 'A', eventTimestamp: 10 }],
-            },
+            // items without events are mising bc this is not a left join
           ],
         },
         {
           userId: 2,
           items: [
             {
-              itemId: 3,
-              itemLabel: 'item-3',
-              itemUserId: 2,
-              userItems: [{ eventType: 'A', eventTimestamp: 10 }],
-            },
-            {
               itemId: 4,
               itemLabel: 'item-4',
               itemUserId: 2,
-              userItems: [
+              itemEvents: [
                 { eventType: 'A', eventTimestamp: 10 },
                 { eventType: 'B', eventTimestamp: 50 },
                 { eventType: 'C', eventTimestamp: 80 },
@@ -175,10 +164,14 @@ describe('query', () => {
               itemId: 5,
               itemLabel: 'item-5',
               itemUserId: 2,
-              userItems: [{ eventType: 'A', eventTimestamp: 10 }],
+              itemEvents: [
+                { eventType: 'A', eventTimestamp: 10 },
+                { eventType: 'B', eventTimestamp: 15 },
+              ],
             },
           ],
         },
+        // userId: 3 is missing bc this is not a left join
       ])
     })
 
@@ -223,6 +216,67 @@ describe('query', () => {
           ],
         },
         { userId: 3, userItems: [] }, // <- empty array yeah!
+      ])
+    })
+
+    it('fetches left joined nested json aggregates', async () => {
+      const nested = query(items.select('itemId', 'itemLabel', 'itemUserId'))
+        .leftJoin(
+          items.itemId,
+          events
+            .select('eventType', 'eventTimestamp')
+            .selectAsJsonAgg('itemEvents').eventItemId,
+        )
+        .table()
+
+      const result = await query(users.select('userId'))
+        .leftJoin(users.userId, nested.selectAsJsonAgg('items').itemUserId)
+        .fetch(client)
+
+      expect(result).toEqual([
+        {
+          userId: 1,
+          items: [
+            {
+              itemId: 1,
+              itemLabel: 'item-1',
+              itemUserId: 1,
+              itemEvents: [
+                { eventType: 'C', eventTimestamp: 10 },
+                { eventType: 'A', eventTimestamp: 20 },
+                { eventType: 'B', eventTimestamp: 30 },
+                { eventType: 'A', eventTimestamp: 0 },
+              ],
+            },
+            { itemId: 2, itemLabel: 'item-2', itemUserId: 1, itemEvents: [] }, // <- empty itemEvents bc of left join
+          ],
+        },
+        {
+          userId: 2,
+          items: [
+            { itemId: 3, itemLabel: 'item-3', itemUserId: 2, itemEvents: [] },
+            {
+              itemId: 4,
+              itemLabel: 'item-4',
+              itemUserId: 2,
+              itemEvents: [
+                { eventType: 'C', eventTimestamp: 80 },
+                { eventType: 'B', eventTimestamp: 50 },
+                { eventType: 'A', eventTimestamp: 10 },
+              ],
+            },
+            {
+              itemId: 5,
+              itemLabel: 'item-5',
+              itemUserId: 2,
+              itemEvents: [
+                { eventType: 'A', eventTimestamp: 10 },
+                { eventType: 'B', eventTimestamp: 15 },
+              ],
+            },
+          ],
+        },
+        { userId: 3, items: [] }, // <- empty items bc of left join
       ])
     })
   })
