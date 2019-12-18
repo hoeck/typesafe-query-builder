@@ -131,16 +131,25 @@ describe('query', () => {
   })
 
   describe('where conditions', () => {
-    test.only('basic where', async () => {
+    test('basic where', async () => {
       const result = await query(users.select('userName'))
         .whereEq(users.userId, 'id')
         .fetch(client, {
           id: 2,
         })
 
-      console.log(result)
-
-      expect(result).toEqual([{ userName: 'user-a' }])
+      expect(result).toEqual([{ userName: 'user-c' }])
     })
+
+    // TODO:
+    // test('basic nullable where', async () => {
+    //   const result = await query(users.select('userName'))
+    //     .whereEq(users.userId, 'id')
+    //     .fetch(client, {
+    //       id: null,
+    //     })
+    //
+    //   expect(result).toEqual([{ userName: 'user-c' }])
+    // })
   })
 })

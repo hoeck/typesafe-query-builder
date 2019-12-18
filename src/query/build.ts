@@ -1,7 +1,6 @@
-import { Table, table, column, Column } from '../table'
+import { column, Column, getTableImplementation } from '../table'
 import { QueryItem, JoinItem } from './types'
-
-import { getTableImplementation } from '../table'
+import { BuildContext } from './buildContext'
 
 class AliasGenerator {
   private counter = 0
@@ -31,6 +30,10 @@ class SqlQuery {
 
   private aliasGenerator = new AliasGenerator()
 
+  constructor(private ctx: BuildContext) {
+    this.ctx = ctx
+  }
+
   getAlias(tableName: string) {
     return this.aliasGenerator.getAlias(tableName)
   }
@@ -57,7 +60,7 @@ class SqlQuery {
   }
 
   addWhereEq(columnSql: string, paramKey: string) {
-    this.where.push(`${columnSql} = ($1::json->>${paramKey})::int`)
+    this.where.push(`${columnSql} = ${this.ctx.getNextParameter(paramKey)}`)
   }
 
   private buildSelect() {
@@ -83,6 +86,10 @@ class SqlQuery {
   }
 
   private buildWhere() {
+    if (!this.where.length) {
+      return ''
+    }
+
     return 'WHERE ' + this.where.join(' AND ')
   }
 
@@ -110,8 +117,8 @@ class SqlQuery {
   }
 }
 
-export function buildSqlQuery(query: QueryItem[]): string {
-  const sql = new SqlQuery()
+export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
+  const sql = new SqlQuery(ctx)
 
   query.forEach(item => {
     switch (item.queryType) {
@@ -120,7 +127,7 @@ export function buildSqlQuery(query: QueryItem[]): string {
           const table = getTableImplementation(item.table)
           const alias = sql.getAlias(table.tableName)
 
-          sql.setFrom(table.getTableSql(alias))
+          sql.setFrom(table.getTableSql(alias, ctx))
           sql.addSelect(table.getSelectSql(alias))
         }
         break
@@ -133,7 +140,7 @@ export function buildSqlQuery(query: QueryItem[]): string {
 
         sql.addJoin(
           item.joinType,
-          table2.getTableSql(alias2),
+          table2.getTableSql(alias2, ctx),
           table1.getReferencedColumnSql(alias1),
           table2.getReferencedColumnSql(alias2),
         )
@@ -161,6 +168,7 @@ export function buildSqlQuery(query: QueryItem[]): string {
   return sql.build()
 }
 
+// return the columns to select when building subselects
 export function buildColumns(
   query: QueryItem[],
 ): { [key: string]: Column<any> } {

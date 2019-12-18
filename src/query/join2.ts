@@ -1,6 +1,12 @@
-import { Table, TableColumnRef, table } from '../table'
+import {
+  Table,
+  TableColumnRef,
+  TableImplementation,
+  getTableImplementation,
+} from '../table'
 import { buildSqlQuery, buildColumns } from './build'
 import { DatabaseClient, QueryItem, NullableLeftJoin } from './types'
+import { BuildContext } from './buildContext'
 //import { Join3 } from './join3'
 
 export class Join2<T1, T2, S, P> {
@@ -48,15 +54,37 @@ export class Join2<T1, T2, S, P> {
   // ) {}
 
   table(): Table<S, S, P> {
-    // TODO: params!
-    return table(`(${this.sql()[0]})`, buildColumns(this.query)) as any
+    const t1 = getTableImplementation(this.t1)
+    const t2 = getTableImplementation(this.t2)
+
+    const tableImp = new TableImplementation(
+      // hopefully a generated, unique table name
+      '__typesafe_query_builder_' + t1.tableName + '_join_' + t2.tableName,
+      buildColumns(this.query),
+    )
+
+    // to be able to generate postgres positional arguments and map them to
+    // the `params: P` object we need delay building the sql until we know all
+    // parameters
+    tableImp.tableQuery = (ctx: BuildContext) => {
+      return buildSqlQuery(this.query, ctx)
+    }
+
+    return tableImp.getTableProxy() as any
   }
 
   sql() {
-    return buildSqlQuery(this.query)
+    const ctx = new BuildContext()
+
+    return [buildSqlQuery(this.query, ctx), ctx]
   }
 
-  async fetch(client: DatabaseClient): Promise<S[]> {
-    return (await client.query(...this.sql())).rows as S[]
+  async fetch(client: DatabaseClient, params?: P): Promise<S[]> {
+    // TODO: properly infer optional of P
+    const ctx = new BuildContext()
+    const sql = buildSqlQuery(this.query, ctx)
+    const paramArray = params ? ctx.getMappedParameterObject(params) : []
+
+    return (await client.query(sql, paramArray)).rows as S[]
   }
 }

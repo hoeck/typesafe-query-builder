@@ -1,3 +1,4 @@
+import { BuildContext } from './buildContext'
 import { Table, TableColumnRef, table } from '../table'
 import { buildSqlQuery, buildColumns } from './build'
 import {
@@ -88,14 +89,18 @@ class Query<T, S, P> {
   // }
 
   sql() {
-    return buildSqlQuery(this.query)
+    const ctx = new BuildContext()
+
+    return [buildSqlQuery(this.query, ctx), ctx]
   }
 
   async fetch(client: DatabaseClient, params?: P): Promise<S[]> {
-    const queryString = this.sql()
+    // TODO: properly infer optional of P
+    const ctx = new BuildContext()
+    const sql = buildSqlQuery(this.query, ctx)
+    const paramArray = params ? ctx.getMappedParameterObject(params) : []
 
-    // params are passed as json
-    return (await client.query(queryString, params ? [params] : [])).rows as S[]
+    return (await client.query(sql, paramArray)).rows as S[]
   }
 }
 

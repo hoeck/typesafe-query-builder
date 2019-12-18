@@ -1,5 +1,5 @@
-import { Column, Table, TableColumnRef } from './types'
-
+import { BuildContext } from '../query/buildContext'
+import { Column, Table } from './types'
 export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
 
 /**
@@ -17,10 +17,16 @@ const tableImplementationSymbol = Symbol('tableImplementation')
  *
  * The implementation is hidden anyway thus we're free to use lots of any's.
  */
-class TableImplementation {
+export class TableImplementation {
   // in case this table has a name
-  // TODO: what about subselects which are represented by a table? A: their sql is atm stored in the tableName
+  // when its a subselect (tableQuery is not undefined) then this name must
+  // be some generated unique identifier bc its used to lookup this tables alias
   tableName: string
+
+  // when this table wraps a query as a subselect it may contain where
+  // parameters which we need to be preserved so they can be templated when
+  // the final query is assembled
+  tableQuery?: (ctx: BuildContext) => string
 
   // all columns available in this table to use in selection, projection, where, etc.
   tableColumns: { [key: string]: Column<any> }
@@ -58,22 +64,18 @@ class TableImplementation {
   ) {
     this.tableName = tableName
     this.tableColumns = tableColumns
-    this.params = params
 
     // mark this as the table implementation so we know that this is not the proxy
     ;(this as any)[tableImplementationSymbol] = true
   }
 
   copy() {
-    const res = new TableImplementation(
-      this.tableName,
-      this.tableColumns,
-      this.params,
-    )
+    const res = new TableImplementation(this.tableName, this.tableColumns)
 
     res.selected = this.selected
     res.projection = this.projection
     res.referencedColumn = this.referencedColumn
+    res.tableQuery = this.tableQuery
 
     return res
   }
@@ -173,19 +175,23 @@ class TableImplementation {
     }
   }
 
-  getTableSql(alias: string) {
+  getTableSql(alias: string, ctx: BuildContext) {
+    const tableSql = this.tableQuery
+      ? `(${this.tableQuery(ctx)})`
+      : `"${this.tableName}"`
+
     if (this.projection && this.projection.type === 'jsonAgg') {
-      // subselect to get a simple [null] when using left joins to filter into a []
+      // subselect is required to turn `[null]` when using json_agg left joins into `[]`
       return (
         '(select json_build_object(' +
         (this.selected || Object.keys(this.tableColumns))
           .map(c => `'${c}', x."${this.tableColumns[c].name}"`)
           .join(',') +
         `) AS __json_agg_column__, *` +
-        `from ${this.tableName} x) ${alias}`
+        `from ${tableSql} x) ${alias}`
       )
     } else {
-      return `${this.tableName} ${alias}`
+      return `${tableSql} ${alias}`
     }
   }
 
@@ -261,13 +267,8 @@ class TableImplementation {
 export function table<T, S extends T, P = {}>(
   tableName: string,
   columns: { [K in keyof T]: Column<T[K]> },
-  params?: P,
 ): Table<T, S, P> {
-  return new TableImplementation(
-    tableName,
-    columns,
-    params,
-  ).getTableProxy() as any
+  return new TableImplementation(tableName, columns).getTableProxy() as any
 }
 
 export function getTableImplementation(table: any): TableImplementation {
