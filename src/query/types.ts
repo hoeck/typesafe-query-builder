@@ -109,7 +109,9 @@ export interface Query<T, S, P> {
 
   sql(): string
 
-  fetch(client: DatabaseClient, params?: P): Promise<S[]>
+  fetch: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S[]>
+    : (client: DatabaseClient, params: P) => Promise<S[]>
 }
 
 /**
