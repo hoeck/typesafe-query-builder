@@ -124,7 +124,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
     switch (item.queryType) {
       case 'from':
         {
-          const table = getTableImplementation(item.table)
+          const { table } = item
           const alias = sql.getAlias(table.tableName)
 
           sql.setFrom(table.getTableSql(alias, ctx))
@@ -132,8 +132,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
         }
         break
       case 'join': {
-        const table1 = getTableImplementation(item.colRef1)
-        const table2 = getTableImplementation(item.colRef2)
+        const { column1: table1, column2: table2 } = item
 
         const alias1 = sql.getAlias(table1.tableName)
         const alias2 = sql.getAlias(table2.tableName)
@@ -153,7 +152,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
         break
       }
       case 'whereEq': {
-        const table = getTableImplementation(item.col)
+        const table = item.column
         const alias = sql.getAlias(table.tableName)
 
         sql.addWhereEq(table.getReferencedColumnSql(alias), item.paramKey)
@@ -177,7 +176,7 @@ export function buildColumns(
   query.forEach(item => {
     switch (item.queryType) {
       case 'from': {
-        const table = getTableImplementation(item.table)
+        const { table } = item
 
         table.getColumns().forEach(c => {
           columns[c] = column(c, undefined as any)
@@ -186,7 +185,7 @@ export function buildColumns(
         break
       }
       case 'join': {
-        const table2 = getTableImplementation(item.colRef2)
+        const { column2: table2 } = item
 
         table2.getColumns().forEach(c => {
           columns[c] = column(c, undefined as any)

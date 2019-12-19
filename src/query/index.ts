@@ -1,54 +1,71 @@
+import crypto from 'crypto'
 import { BuildContext } from './buildContext'
-import { Table, TableColumnRef, table } from '../table'
-import { buildSqlQuery, buildColumns } from './build'
 import {
-  DatabaseClient,
-  QueryItem,
-  NullableLeftJoin,
-  WithoutJsonAggTag,
-} from './types'
-import { Join2 } from './join2'
+  Table,
+  TableColumnRef,
+  table,
+  getTableImplementation,
+  TableImplementation,
+} from '../table'
+import { buildSqlQuery, buildColumns } from './build'
+import { DatabaseClient, Query, QueryItem } from './types'
 
-class Query<T, S, P> {
-  constructor(private t: Table<T, S, P>, private query: QueryItem[]) {
-    this.t = t
+type AnyTableColumnRef = TableColumnRef<any, any, any, any>
+type AnyTable = Table<any, any, any>
+
+class QueryImplementation {
+  constructor(
+    private tables: TableImplementation[],
+    private query: QueryItem[],
+  ) {
+    this.tables = tables
     this.query = query
   }
 
-  // plain join
-  join<T2, S2, CJ, PJ>(
-    t1: TableColumnRef<T, CJ, any, any>,
-    t2: TableColumnRef<T2, CJ, S2, PJ>,
-  ): Join2<T, T2, S & S2, P & PJ> {
-    return new (Join2 as any)(this.t, t2, [
-      ...this.query,
-      // TODO: directly pass the column-ref-1 and the join base table (this.t) bc the base table contains the selection and parameters
-      { queryType: 'join', colRef1: t1, colRef2: t2, joinType: 'join' },
-    ])
+  join(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
+    const table1 = getTableImplementation(ref1)
+    const table2 = getTableImplementation(ref2)
+
+    return new QueryImplementation(
+      [...this.tables, table2],
+      [
+        ...this.query,
+        {
+          queryType: 'join',
+          column1: table1,
+          column2: table2,
+          joinType: 'join',
+        },
+      ],
+    )
   }
 
-  leftJoin<T2, S2, CJ, PJ>(
-    t1: TableColumnRef<T, CJ, any, any>,
-    t2: TableColumnRef<T2, CJ, S2, PJ>,
-  ): Join2<T, T2, S & NullableLeftJoin<S2>, P & PJ> {
-    return new (Join2 as any)(t1, t2, [
+  leftJoin(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
+    const table1 = getTableImplementation(ref1)
+    const table2 = getTableImplementation(ref2)
+
+    return new QueryImplementation(
+      [...this.tables, table2],
+      [
+        ...this.query,
+        {
+          queryType: 'join',
+          column1: table1,
+          column2: table2,
+          joinType: 'leftJoin',
+        },
+      ],
+    )
+  }
+
+  whereEq(column: AnyTableColumnRef, paramKey: string) {
+    return new QueryImplementation(this.tables, [
       ...this.query,
       {
-        queryType: 'join',
-        colRef1: t1,
-        colRef2: t2,
-        joinType: 'leftJoin',
+        queryType: 'whereEq',
+        column: getTableImplementation(column),
+        paramKey,
       },
-    ])
-  }
-
-  whereEq<CP, K extends string>(
-    col: TableColumnRef<T, CP, any, any>,
-    paramKey: K,
-  ): Query<T, S, P & { [KK in K]: CP }> {
-    return new (Query as any)(this.t, [
-      ...this.query,
-      { queryType: 'whereEq', col, paramKey },
     ])
   }
 
@@ -82,25 +99,43 @@ class Query<T, S, P> {
   //   return this
   // }
 
-  // table(): Table<S, S, P> {
-  //   // TODO: params!
-  //   // return table(this.sql(), buildColumns(this.query)) as any
-  //   return 'foo' as any
-  // }
+  table(): any {
+    // table name which does not clash with some real tables
+    const tableNameHash = crypto.createHash('sha1')
 
-  sql() {
-    const ctx = new BuildContext()
+    this.tables.forEach(t => {
+      tableNameHash.update(t.tableName)
+    })
 
-    return [buildSqlQuery(this.query, ctx), ctx]
+    const tableName =
+      '__typesafe_query_builder_' + tableNameHash.digest('base64')
+
+    const tableImplementation = new TableImplementation(
+      tableName,
+      buildColumns(this.query),
+    )
+
+    // to be able to generate postgres positional arguments and map them to
+    // the `params: P` object we need delay building the sql until we know all
+    // parameters
+    tableImplementation.tableQuery = (ctx: BuildContext) => {
+      return buildSqlQuery(this.query, ctx)
+    }
+
+    return tableImplementation.getTableProxy() as any
   }
 
-  async fetch(client: DatabaseClient, params?: P): Promise<S[]> {
-    // TODO: properly infer optional of P
+  sql(ctx?: BuildContext): string {
+    return buildSqlQuery(this.query, ctx || new BuildContext())
+  }
+
+  async fetch(client: DatabaseClient, params?: any): Promise<any[]> {
+    // TODO: properly infer optionality of P
     const ctx = new BuildContext()
-    const sql = buildSqlQuery(this.query, ctx)
+    const sql = this.sql(ctx)
     const paramArray = params ? ctx.getMappedParameterObject(params) : []
 
-    return (await client.query(sql, paramArray)).rows as S[]
+    return (await client.query(sql, paramArray)).rows
   }
 }
 
@@ -108,5 +143,9 @@ class Query<T, S, P> {
  * Chaining API root.
  */
 export function query<T, S, P>(table: Table<T, S, P>): Query<T, S, P> {
-  return new (Query as any)(table, [{ queryType: 'from', table }])
+  const ti = getTableImplementation(table)
+  return new QueryImplementation(
+    [ti],
+    [{ queryType: 'from', table: ti }],
+  ) as any
 }
