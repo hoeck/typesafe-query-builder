@@ -14,7 +14,13 @@ export const client = new Client({
   port: 54321,
 })
 
-client.connect()
+beforeAll(async () => {
+  await client.connect()
+})
+
+afterAll(async () => {
+  await client.end()
+})
 
 // basic example schema for use in tests
 // all columns contain prefixes to help debugging types
