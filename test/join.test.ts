@@ -29,6 +29,7 @@ describe('query', () => {
         userId: 1,
         userName: 'user-a',
         userEmail: 'a@user',
+        userAvatar: null,
       })
 
       expect(result.every(r => r.itemUserId === r.userId)).toBe(true)

@@ -59,8 +59,26 @@ class SqlQuery {
     this.groupBy.push(columnSql)
   }
 
-  addWhereEq(columnSql: string, paramKey: string) {
-    this.where.push(`${columnSql} = ${this.ctx.getNextParameter(paramKey)}`)
+  addWhereEq(columnSql: string, paramKey: string, nullable: boolean) {
+    const c = columnSql
+
+    if (nullable) {
+      const p1 = this.ctx.getNextParameter(paramKey)
+      const p2 = this.ctx.getNextParameter(paramKey)
+
+      // Null and equals check using a single javascript value.
+      // Using a single parameter for null and equals check results in an
+      // 'could not determine data type of parameter $N'-error.
+      // Still with two paramerts a type cast is required for the null-check
+      // param so use text as that cast works for most types.
+      this.where.push(
+        `CASE WHEN ${p1}::text IS NULL THEN ${c} IS NULL ELSE ${c} = ${p2} END`,
+      )
+    } else {
+      const p = this.ctx.getNextParameter(paramKey)
+
+      this.where.push(`${c} = ${p}`)
+    }
   }
 
   private buildSelect() {
@@ -155,7 +173,11 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
         const table = item.column
         const alias = sql.getAlias(table.tableName)
 
-        sql.addWhereEq(table.getReferencedColumnSql(alias), item.paramKey)
+        sql.addWhereEq(
+          table.getReferencedColumnSql(alias),
+          item.paramKey,
+          !!table.getReferencedColumn().nullable,
+        )
 
         break
       }

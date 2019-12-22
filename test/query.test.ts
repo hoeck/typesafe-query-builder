@@ -23,9 +23,24 @@ describe('query', () => {
       const result: Array<UserRow> = await query(users).fetch(client)
 
       expect(result).toEqual([
-        { userId: 1, userName: 'user-a', userEmail: 'a@user' },
-        { userId: 2, userName: 'user-c', userEmail: 'c@user' },
-        { userId: 3, userName: 'user-b', userEmail: 'b@user' },
+        {
+          userId: 1,
+          userName: 'user-a',
+          userEmail: 'a@user',
+          userAvatar: null,
+        },
+        {
+          userId: 2,
+          userName: 'user-c',
+          userEmail: 'c@user',
+          userAvatar: null,
+        },
+        {
+          userId: 3,
+          userName: 'user-b',
+          userEmail: 'b@user',
+          userAvatar: 'image.png',
+        },
       ])
     })
 
@@ -51,9 +66,30 @@ describe('query', () => {
       const result = await query(users.selectAs('user')).fetch(client)
 
       expect(result).toEqual([
-        { user: { userId: 1, userName: 'user-a', userEmail: 'a@user' } },
-        { user: { userId: 2, userName: 'user-c', userEmail: 'c@user' } },
-        { user: { userId: 3, userName: 'user-b', userEmail: 'b@user' } },
+        {
+          user: {
+            userId: 1,
+            userName: 'user-a',
+            userEmail: 'a@user',
+            userAvatar: null,
+          },
+        },
+        {
+          user: {
+            userId: 2,
+            userName: 'user-c',
+            userEmail: 'c@user',
+            userAvatar: null,
+          },
+        },
+        {
+          user: {
+            userId: 3,
+            userName: 'user-b',
+            userEmail: 'b@user',
+            userAvatar: 'image.png',
+          },
+        },
       ])
     })
 
@@ -77,9 +113,24 @@ describe('query', () => {
       expect(result).toEqual([
         {
           emails: [
-            { userId: 1, userName: 'user-a', userEmail: 'a@user' },
-            { userId: 2, userName: 'user-c', userEmail: 'c@user' },
-            { userId: 3, userName: 'user-b', userEmail: 'b@user' },
+            {
+              userId: 1,
+              userName: 'user-a',
+              userEmail: 'a@user',
+              userAvatar: null,
+            },
+            {
+              userId: 2,
+              userName: 'user-c',
+              userEmail: 'c@user',
+              userAvatar: null,
+            },
+            {
+              userId: 3,
+              userName: 'user-b',
+              userEmail: 'b@user',
+              userAvatar: 'image.png',
+            },
           ],
         },
       ])
@@ -131,7 +182,7 @@ describe('query', () => {
   })
 
   describe('where conditions', () => {
-    test('basic where', async () => {
+    test('equals', async () => {
       const result = await query(users.select('userName'))
         .whereEq(users.userId, 'id')
         .fetch(client, {
@@ -141,15 +192,17 @@ describe('query', () => {
       expect(result).toEqual([{ userName: 'user-c' }])
     })
 
-    // TODO:
-    // test('basic nullable where', async () => {
-    //   const result = await query(users.select('userName'))
-    //     .whereEq(users.userId, 'id')
-    //     .fetch(client, {
-    //       id: null,
-    //     })
-    //
-    //   expect(result).toEqual([{ userName: 'user-c' }])
-    // })
+    test('is null', async () => {
+      const result = await query(users.select('userName', 'userAvatar'))
+        .whereEq(users.userAvatar, 'avatar')
+        .fetch(client, {
+          avatar: null,
+        })
+
+      expect(result).toEqual([
+        { userName: 'user-a', userAvatar: null },
+        { userName: 'user-c', userAvatar: null },
+      ])
+    })
   })
 })

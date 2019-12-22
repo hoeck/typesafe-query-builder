@@ -1,4 +1,4 @@
-export { table, column } from './table'
+export { table, column, nullable } from './table'
 export { boolean, integer, string } from './table/columns'
 export { query } from './query'
 
@@ -119,4 +119,27 @@ left join
   (select 1 as tester, * from items) items on users.id = items.user_id and items.id > 0
 group by
   users.id;
+
+# null vs undefined
+
+null + undefined for missing value:
++ null values are serialized
++ JSON.stringify([undefined]) -> "[null]"
+- records get (visually) bigger whith lots of nullable fields vs just omitting them
++ null -> undefined/optional transformation can be done easily with a generic helper function
+- undefined/optional -> null transformation (e.g. for constructing objects) can NOT be done automatically
+  + complex datastructures will need some kind of factory anyway
+
+undefined only:
++ usability/compactness
+  + when creating objects (just omit undefined keys)
+  + when viewing objects (undefined keys are not shown)
++ typscript coding guidelines preferer undefined over null
+- typesafety
+  - its not clear whether one has forgot to include an undefined key or whether its been left out on purpose
+- updates and inserts
+  - its not clear when to use a default or merge with an existing value (key missing from object) vs.
+    when to set a key to undefined (explicit key: undefined)
+    - both have the same type signature!
+    - undefined keys are not serialized so an update/insert intent cannot be transferred via JSON
 */

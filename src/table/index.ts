@@ -9,6 +9,10 @@ export function column<T>(name: string, type: T): Column<T> {
   return { columnValue: type, name }
 }
 
+export function nullable<T>(c: Column<T>): Column<T | null> {
+  return { ...c, nullable: true }
+}
+
 // access the tables implementation for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
 
@@ -195,12 +199,18 @@ export class TableImplementation {
     }
   }
 
-  getReferencedColumnSql(alias: string) {
+  getReferencedColumn(): Column<any> {
     if (!this.referencedColumn) {
       throw new Error('referencedColumn is undefined')
     }
 
-    return `${alias}."${this.tableColumns[this.referencedColumn].name}"`
+    return this.tableColumns[this.referencedColumn]
+  }
+
+  getReferencedColumnSql(alias: string) {
+    const col = this.getReferencedColumn()
+
+    return `${alias}."${col.name}"`
   }
 
   needsGroupBy() {

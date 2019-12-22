@@ -8,6 +8,9 @@ export interface Column<T> {
 
   // name of the column in the database
   name: string
+
+  // whether this column can contain nulls
+  nullable?: boolean
 }
 
 /**

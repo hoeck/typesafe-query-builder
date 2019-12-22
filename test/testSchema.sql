@@ -7,15 +7,16 @@ CREATE DATABASE test_schema;
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
-  email TEXT NOT NULL
+  email TEXT NOT NULL,
+  avatar TEXT
 );
 
 INSERT INTO users
-  (id, name, email)
+  (id, name, email, avatar)
 VALUES
-  (1, 'user-a', 'a@user'),
-  (2, 'user-c', 'c@user'),
-  (3, 'user-b', 'b@user');
+  (1, 'user-a', 'a@user', NULL),
+  (2, 'user-c', 'c@user', NULL),
+  (3, 'user-b', 'b@user', 'image.png');
 
 CREATE TABLE items (
   id SERIAL PRIMARY KEY,

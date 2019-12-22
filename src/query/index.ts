@@ -130,7 +130,6 @@ class QueryImplementation {
   }
 
   async fetch(client: DatabaseClient, params?: any): Promise<any[]> {
-    // TODO: properly infer optionality of P
     const ctx = new BuildContext()
     const sql = this.sql(ctx)
     const paramArray = params ? ctx.getMappedParameterObject(params) : []

@@ -1,6 +1,6 @@
 import { Client } from 'pg'
 
-import { table, integer, string, boolean } from '../src'
+import { table, integer, string, boolean, nullable } from '../src'
 
 // enable "deep" console.log
 require('util').inspect.defaultOptions.depth = null
@@ -30,12 +30,14 @@ export interface UserRow {
   userId: number
   userName: string
   userEmail: string
+  userAvatar: string | null
 }
 
 export const users = table('users', {
   userId: integer('id'),
   userName: string('name'),
   userEmail: string('email'),
+  userAvatar: nullable(string('avatar')),
 })
 
 export interface ItemRow {
