@@ -112,6 +112,8 @@ export interface Query<T, S, P> {
   fetch: keyof P extends never
     ? (client: DatabaseClient) => Promise<S[]>
     : (client: DatabaseClient, params: P) => Promise<S[]>
+
+  explain: (client: DatabaseClient, params?: P) => Promise<string>
 }
 
 /**
@@ -132,7 +134,11 @@ export interface Join2<T1, T2, S, P> {
 
   sql(): [string, BuildContext]
 
-  fetch(client: DatabaseClient, params?: P): Promise<S[]>
+  fetch: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S[]>
+    : (client: DatabaseClient, params: P) => Promise<S[]>
+
+  explain: (client: DatabaseClient, params?: P) => Promise<string>
 }
 
 // TODO

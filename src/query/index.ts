@@ -136,6 +136,16 @@ class QueryImplementation {
 
     return (await client.query(sql, paramArray)).rows
   }
+
+  async explain(client: DatabaseClient, params?: any): Promise<string> {
+    const ctx = new BuildContext()
+    const sql = 'EXPLAIN ' + this.sql(ctx)
+    const paramArray = params ? ctx.getMappedParameterObject(params) : []
+
+    return (await client.query(sql, paramArray)).rows
+      .map(r => r['QUERY PLAN'])
+      .join('\n')
+  }
 }
 
 /**
