@@ -13,6 +13,10 @@ export function nullable<T>(c: Column<T>): Column<T | null> {
   return { ...c, nullable: true }
 }
 
+export function hasDefault<T>(c: Column<T>): Column<T & { hasDefault?: true }> {
+  return c as any
+}
+
 // access the tables implementation for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
 
@@ -138,8 +142,9 @@ export class TableImplementation {
     }
   }
 
-  getSelectSql(alias: string) {
+  getSelectSql(alias: string | undefined) {
     const selected = this.selected || Object.keys(this.tableColumns)
+    const aliasPrefix = alias ? alias + '.' : ''
 
     if (this.projection === undefined) {
       // default projection (none)
@@ -147,7 +152,7 @@ export class TableImplementation {
         .map(columnKey => {
           const column = this.tableColumns[columnKey]
 
-          return `${alias}."${column.name}" AS "${columnKey}"`
+          return `${aliasPrefix}"${column.name}" AS "${columnKey}"`
         })
         .join(',')
     } else if (this.projection.type === 'jsonBuildObject') {
@@ -158,7 +163,7 @@ export class TableImplementation {
           .map(columnKey => {
             const column = this.tableColumns[columnKey]
 
-            return `'${columnKey}',${alias}."${column.name}"`
+            return `'${columnKey}',${aliasPrefix}"${column.name}"`
           })
           .join(',') +
         `) AS "${this.projection.name}"`
@@ -168,11 +173,11 @@ export class TableImplementation {
         // for left joins with mission values, make postgres return an
         // empty json array [] instead of [null]
         // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
-        `coalesce(json_agg(${alias}.__json_agg_column__` +
+        `coalesce(json_agg(${aliasPrefix}__json_agg_column__` +
         (this.projection.orderBy
-          ? ` ORDER BY ${alias}."${this.tableColumns[this.projection.orderBy].name}"`
+          ? ` ORDER BY ${aliasPrefix}"${this.tableColumns[this.projection.orderBy].name}"`
           : '') +
-        `) FILTER (WHERE ${alias}.__json_agg_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
+        `) FILTER (WHERE ${aliasPrefix}__json_agg_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
       )
     } else {
       throw new Error('invalid projection type')

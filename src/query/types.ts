@@ -105,6 +105,31 @@ export interface Query<T, S, P> {
     paramKeys: Array<TableColumnRef<T, any, any, any> | any>,
   ): Query<T, S, P>
 
+  // single row insert
+  // TODO: explore
+  // https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING
+  // for inserts across multiple tables
+  insert<
+    ColumnsWithDefaults extends {
+      [K in keyof T]: T[K] extends { hasDefault?: true } ? K : never
+    }[keyof T]
+  >(
+    client: DatabaseClient,
+    data: Partial<Pick<T, ColumnsWithDefaults>> & Omit<T, ColumnsWithDefaults>,
+  ): Promise<S>
+
+  // multi row insert
+  insert<
+    ColumnsWithDefaults extends {
+      [K in keyof T]: T[K] extends { hasDefault?: true } ? K : never
+    }[keyof T]
+  >(
+    client: DatabaseClient,
+    data: Array<
+      Partial<Pick<T, ColumnsWithDefaults>> & Omit<T, ColumnsWithDefaults>
+    >,
+  ): Promise<S[]>
+
   table(): Table<S, S, P>
 
   sql(): string

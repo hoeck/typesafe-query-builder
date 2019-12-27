@@ -1,4 +1,9 @@
-import { column, Column, getTableImplementation } from '../table'
+import {
+  TableImplementation,
+  column,
+  Column,
+  getTableImplementation,
+} from '../table'
 import { QueryItem, JoinItem } from './types'
 import { BuildContext } from './buildContext'
 
@@ -221,4 +226,38 @@ export function buildColumns(
   })
 
   return columns
+}
+
+export function buildInsert(table: TableImplementation, data: any) {
+  const dataList = Array.isArray(data) ? data : [data]
+  const firstItem = dataList.length ? dataList[0] : undefined
+
+  if (!firstItem) {
+    return
+  }
+
+  let paramCount = 0
+
+  return (
+    'INSERT INTO "' +
+    table.tableName +
+    '" (' +
+    Object.keys(firstItem)
+      .map(k => {
+        return '"' + table.tableColumns[k].name + '"'
+      })
+      .join(',') +
+    ') VALUES (' +
+    dataList
+      .map(row => {
+        return Object.keys(row).map(_ => {
+          paramCount += 1
+
+          return '$' + paramCount
+        })
+      })
+      .join('),(') +
+    ') RETURNING ' +
+    table.getSelectSql(undefined)
+  )
 }

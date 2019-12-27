@@ -9,7 +9,8 @@ export interface Column<T> {
   // name of the column in the database
   name: string
 
-  // whether this column can contain nulls
+  // whether this column can contain nulls (needed when creating the query as
+  // the type information in T is gone at runtime)
   nullable?: boolean
 }
 

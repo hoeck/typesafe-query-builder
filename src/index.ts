@@ -1,4 +1,4 @@
-export { table, column, nullable } from './table'
+export { table, column, nullable, hasDefault } from './table'
 export { boolean, integer, string } from './table/columns'
 export { query } from './query'
 

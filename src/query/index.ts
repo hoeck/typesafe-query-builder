@@ -7,11 +7,10 @@ import {
   getTableImplementation,
   TableImplementation,
 } from '../table'
-import { buildSqlQuery, buildColumns } from './build'
+import { buildSqlQuery, buildColumns, buildInsert } from './build'
 import { DatabaseClient, Query, QueryItem } from './types'
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
-type AnyTable = Table<any, any, any>
 
 class QueryImplementation {
   constructor(
@@ -145,6 +144,27 @@ class QueryImplementation {
     return (await client.query(sql, paramArray)).rows
       .map(r => r['QUERY PLAN'])
       .join('\n')
+  }
+
+  // DML methods
+
+  async insert(client: DatabaseClient, data: any) {
+    const sql = buildInsert(this.tables[0], data)
+
+    if (!sql) {
+      return []
+    }
+
+    const dataList = Array.isArray(data) ? data : [data]
+    const params: any[] = []
+
+    dataList.forEach(row => {
+      params.push(...Object.values(row))
+    })
+
+    const result = (await client.query(sql, params)).rows
+
+    return result.length === 1 ? result[0] : result
   }
 }
 
