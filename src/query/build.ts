@@ -6,7 +6,6 @@ import {
 } from '../table'
 import { QueryItem, JoinItem } from './types'
 import { BuildContext } from './buildContext'
-import { getPackedSettings } from 'http2'
 
 function assertNever(x: never): never {
   throw new Error('Unexpected value. Should have been never.')
