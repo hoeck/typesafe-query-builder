@@ -6,6 +6,11 @@ import {
 } from '../table'
 import { QueryItem, JoinItem } from './types'
 import { BuildContext } from './buildContext'
+import { getPackedSettings } from 'http2'
+
+function assertNever(x: never): never {
+  throw new Error('Unexpected value. Should have been never.')
+}
 
 class AliasGenerator {
   private counter = 0
@@ -22,7 +27,7 @@ class AliasGenerator {
 }
 
 class SqlQuery {
-  private from?: string
+  private from: string[] = []
   private select: string[] = []
   private joins: Array<{
     joinType: JoinItem['joinType']
@@ -43,8 +48,8 @@ class SqlQuery {
     return this.aliasGenerator.getAlias(tableName)
   }
 
-  setFrom(tableSql: string) {
-    this.from = tableSql
+  addFrom(tableSql: string) {
+    this.from.push(tableSql)
   }
 
   addSelect(selectSql: string) {
@@ -91,11 +96,11 @@ class SqlQuery {
   }
 
   private buildFrom() {
-    if (!this.from) {
+    if (!this.from.length) {
       throw new Error('from must not be empty')
     }
 
-    return `FROM ${this.from}`
+    return 'FROM ' + this.from.join(',')
   }
 
   private buildJoin() {
@@ -125,7 +130,7 @@ class SqlQuery {
   }
 
   build(): string {
-    const queryString =
+    return (
       this.buildSelect() +
       ' ' +
       this.buildFrom() +
@@ -135,8 +140,44 @@ class SqlQuery {
       this.buildWhere() +
       ' ' +
       this.buildGroupBy()
+    )
+  }
 
-    return queryString
+  buildUpdate(
+    table: TableImplementation['tableColumns'],
+    columnsToSet: string[], // actually keyof TableImplementation['tableColumns']
+    columnsCtx: BuildContext,
+    returning: string, // select expression for the returning clause
+  ): string {
+    if (this.from.length !== 1) {
+      throw new Error('need exactly one from clause')
+    }
+
+    // first all clauses that affect parameters
+    const where = this.buildWhere()
+
+    // then add the column-set-clauses and let them use a separate set of parameters
+    columnsCtx.setParameterOffset(this.ctx.getParameterMapping().length)
+
+    const update = columnsToSet
+      .map(c => {
+        const param = columnsCtx.getNextParameter(c)
+        const name = table[c].name
+
+        return name + '=' + param
+      })
+      .join(',')
+
+    return (
+      'UPDATE ' +
+      this.from[0] +
+      ' SET ' +
+      update +
+      ' ' +
+      where +
+      ' RETURNING ' +
+      returning
+    )
   }
 }
 
@@ -150,7 +191,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
           const { table } = item
           const alias = sql.getAlias(table.tableName)
 
-          sql.setFrom(table.getTableSql(alias, ctx))
+          sql.addFrom(table.getTableSql(alias, ctx))
           sql.addSelect(table.getSelectSql(alias))
         }
         break
@@ -260,4 +301,60 @@ export function buildInsert(table: TableImplementation, data: any) {
     ') RETURNING ' +
     table.getSelectSql(undefined)
   )
+}
+
+export function buildUpdate(
+  query: QueryItem[],
+  paramsCtx: BuildContext,
+  columnsToSet: string[],
+  dataCtx: BuildContext,
+): string {
+  const sql = new SqlQuery(paramsCtx)
+  let table: TableImplementation | undefined
+
+  query.forEach(item => {
+    switch (item.queryType) {
+      case 'from':
+        {
+          table = item.table
+
+          const alias = sql.getAlias(item.table.tableName)
+
+          sql.addFrom(item.table.getTableSql(alias, paramsCtx))
+        }
+        break
+
+      case 'whereEq':
+        {
+          const table = item.column
+          const alias = sql.getAlias(table.tableName)
+
+          sql.addWhereEq(
+            table.getReferencedColumnSql(alias),
+            item.paramKey,
+            !!table.getReferencedColumn().nullable,
+          )
+        }
+        break
+
+      case 'whereIn': // TODO
+      case 'join':
+      case 'orderBy':
+        throw new Error(
+          `queryType is not allowed in updates: ${item.queryType}`,
+        )
+
+      default:
+        assertNever(item)
+    }
+  })
+
+  if (!table) {
+    throw new Error('table is missing in update')
+  }
+
+  const alias = sql.getAlias(table.tableName)
+  const returning = table.getSelectSql(alias)
+
+  return sql.buildUpdate(table.tableColumns, columnsToSet, dataCtx, returning)
 }

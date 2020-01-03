@@ -6,19 +6,24 @@
  * to be an object so it works across subqueries and is mergable.
  */
 export class BuildContext {
+  private offset = 0
   private mutableParameterMapping: string[] = []
+
+  setParameterOffset(offset: number) {
+    this.offset = offset
+  }
 
   getNextParameter(name: string) {
     this.mutableParameterMapping.push(name)
 
-    return '$' + this.mutableParameterMapping.length
+    return '$' + (this.mutableParameterMapping.length + this.offset).toString()
   }
 
-  getParameters() {
+  getParameterMapping() {
     return this.mutableParameterMapping
   }
 
-  getMappedParameterObject(paramObject: { [paramKey: string]: any }) {
+  getParameters(paramObject: { [paramKey: string]: any }): any[] {
     return this.mutableParameterMapping.map(k => paramObject[k])
   }
 }

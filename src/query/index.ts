@@ -7,10 +7,24 @@ import {
   getTableImplementation,
   TableImplementation,
 } from '../table'
-import { buildSqlQuery, buildColumns, buildInsert } from './build'
+import { buildSqlQuery, buildColumns, buildInsert, buildUpdate } from './build'
 import { DatabaseClient, Query, QueryItem } from './types'
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
+
+export function checkAllowedColumns(allowedColumnsSet: Set<string>, data: any) {
+  const invalidColumns = Object.keys(data).filter(
+    k => !allowedColumnsSet.has(k),
+  )
+
+  if (invalidColumns.length) {
+    throw new Error(
+      'invalid columns in insert/update object: "' +
+        invalidColumns.join('", "') +
+        '"',
+    )
+  }
+}
 
 class QueryImplementation {
   constructor(
@@ -131,7 +145,7 @@ class QueryImplementation {
   async fetch(client: DatabaseClient, params?: any): Promise<any[]> {
     const ctx = new BuildContext()
     const sql = this.sql(ctx)
-    const paramArray = params ? ctx.getMappedParameterObject(params) : []
+    const paramArray = params ? ctx.getParameters(params) : []
 
     return (await client.query(sql, paramArray)).rows
   }
@@ -139,7 +153,7 @@ class QueryImplementation {
   async explain(client: DatabaseClient, params?: any): Promise<string> {
     const ctx = new BuildContext()
     const sql = 'EXPLAIN ' + this.sql(ctx)
-    const paramArray = params ? ctx.getMappedParameterObject(params) : []
+    const paramArray = params ? ctx.getParameters(params) : []
 
     return (await client.query(sql, paramArray)).rows
       .map(r => r['QUERY PLAN'])
@@ -148,23 +162,58 @@ class QueryImplementation {
 
   // DML methods
 
-  async insert(client: DatabaseClient, data: any) {
-    const sql = buildInsert(this.tables[0], data)
-
-    if (!sql) {
-      return []
+  insert(_all: '*') {
+    if (this.tables.length !== 1) {
+      throw new Error('expected exactly one table')
     }
 
-    const dataList = Array.isArray(data) ? data : [data]
-    const params: any[] = []
+    return {
+      execute: async (client: DatabaseClient, data: any) => {
+        const sql = buildInsert(this.tables[0], data)
 
-    dataList.forEach(row => {
-      params.push(...Object.values(row))
-    })
+        if (!sql) {
+          return []
+        }
 
-    const result = (await client.query(sql, params)).rows
+        const dataList = Array.isArray(data) ? data : [data]
+        const params: any[] = []
 
-    return result.length === 1 ? result[0] : result
+        dataList.forEach(row => {
+          params.push(...Object.values(row))
+        })
+
+        const result = (await client.query(sql, params)).rows
+
+        return result.length === 1 ? result[0] : result
+      },
+    }
+  }
+
+  update(...columnNames: string[]) {
+    if (this.tables.length !== 1) {
+      throw new Error('expected exactly one table')
+    }
+
+    return {
+      execute: async (client: DatabaseClient, params: any, data: any) => {
+        const paramsCtx = new BuildContext()
+        const dataCtx = new BuildContext()
+
+        const allowedCols =
+          columnNames[0] === '*' ? Object.keys(data) : columnNames
+
+        if (columnNames[0] !== '*') {
+          checkAllowedColumns(new Set(allowedCols), data)
+        }
+
+        const sql = buildUpdate(this.query, paramsCtx, allowedCols, dataCtx)
+
+        return (await client.query(
+          sql,
+          paramsCtx.getParameters(params).concat(dataCtx.getParameters(data)),
+        )).rows
+      },
+    }
   }
 }
 

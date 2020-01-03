@@ -13,7 +13,16 @@ import {
   users,
 } from './testSchema'
 
-describe('query.insert', () => {
+describe('dml methods', () => {
+  async function queryUsers(ids: number[]) {
+    const sql =
+      'SELECT id as "userId", avatar as "userAvatar", email as "userEmail", name as "userName" FROM users WHERE id = ANY($1::int[]) ORDER BY id'
+
+    const rows = (await client.query(sql, [ids])).rows
+
+    return rows.length === 1 ? rows[0] : rows
+  }
+
   beforeEach(async () => {
     await client.query('BEGIN')
   })
@@ -22,99 +31,215 @@ describe('query.insert', () => {
     await client.query('ROLLBACK')
   })
 
-  async function queryUsers(ids: number[]) {
-    const sql =
-      'SELECT id as "userId", avatar as "userAvatar", email as "userEmail", name as "userName" FROM users WHERE id = ANY($1::int[])'
+  describe('insert', () => {
+    test('basic insert', async () => {
+      const data = {
+        userId: 123,
+        userAvatar: 'foo.png',
+        userEmail: 'foo@foo',
+        userName: 'foo',
+      }
 
-    const rows = (await client.query(sql, [ids])).rows
+      const insertResult = await query(users)
+        .insert('*')
+        .execute(client, data)
 
-    return rows.length === 1 ? rows[0] : rows
-  }
+      expect(insertResult).toEqual(data)
 
-  test('simple insert', async () => {
-    const data = {
-      userId: 123,
-      userAvatar: 'foo.png',
-      userEmail: 'foo@foo',
-      userName: 'foo',
-    }
+      const queryResult = await queryUsers([123])
 
-    const insertResult = await query(users).insert(client, data)
+      expect(queryResult).toEqual(data)
+    })
 
-    expect(insertResult).toEqual(data)
+    test('default values', async () => {
+      const data = {
+        userName: 'foo',
+        userEmail: 'foo@foo',
+        userAvatar: 'foo.png',
+      }
+      const insertResult = await query(users)
+        .insert('*')
+        .execute(client, data)
 
-    const queryResult = await queryUsers([123])
+      expect(insertResult).toEqual(expect.objectContaining(data))
+      expect(typeof insertResult.userId).toBe('number')
 
-    expect(queryResult).toEqual(data)
+      const queryResult = await queryUsers([insertResult.userId])
+
+      expect(queryResult).toEqual(expect.objectContaining(data))
+    })
+
+    test('multi row insert', async () => {
+      const data = [
+        {
+          userAvatar: 'f0.png',
+          userEmail: 'f0@f0',
+          userName: 'f0',
+        },
+        {
+          userAvatar: 'f1.png',
+          userEmail: 'f1@f1',
+          userName: 'f1',
+        },
+        {
+          userAvatar: 'f2.png',
+          userEmail: 'f2@f2',
+          userName: 'f2',
+        },
+      ]
+      const insertResult = await query(users)
+        .insert('*')
+        .execute(client, data)
+
+      expect(insertResult).toHaveLength(data.length)
+
+      for (let i = 0; i < data.length; i++) {
+        expect(insertResult[i]).toEqual(expect.objectContaining(data[i]))
+      }
+
+      const queryResult = await queryUsers(insertResult.map(r => r.userId))
+
+      for (let i = 0; i < data.length; i++) {
+        expect(queryResult[i]).toEqual(expect.objectContaining(data[i]))
+      }
+    })
+
+    test('returning partial results', async () => {
+      // not sure whether I like this feature ...
+      const data = {
+        userId: 123,
+        userAvatar: 'foo.png',
+        userEmail: 'foo@foo',
+        userName: 'foo',
+      }
+
+      const insertResult = await query(users.select('userId'))
+        .insert('*')
+        .execute(client, data)
+
+      expect(insertResult).toEqual({ userId: 123 })
+    })
+
+    // TODO what about non-base tables?
+    // e.g. query(users.selectAsJsonAgg(..)).insert(..) ?
+    // or query(users.select(...).join(...).table()).insert ?
   })
 
-  test('default values', async () => {
-    const data = {
-      userName: 'foo',
-      userEmail: 'foo@foo',
-      userAvatar: 'foo.png',
-    }
-    const insertResult = await query(users).insert(client, data)
+  describe('update', () => {
+    test('basic update', async () => {
+      const result = await query(users)
+        .whereEq(users.userId, 'id')
+        .update('*') // declare what to update
+        .execute(
+          client,
+          { id: 1 }, // update params
+          {
+            userEmail: 'new@foo',
+          },
+        )
 
-    expect(insertResult).toEqual(expect.objectContaining(data))
-    expect(typeof insertResult.userId).toBe('number')
+      expect(result).toEqual([
+        {
+          userAvatar: null,
+          userEmail: 'new@foo',
+          userId: 1,
+          userName: 'user-a',
+        },
+      ])
 
-    const queryResult = await queryUsers([insertResult.userId])
+      expect(
+        (await queryUsers([1, 2, 3])).map((u: any) => ({
+          userId: u.userId,
+          userEmail: u.userEmail,
+        })),
+      ).toEqual([
+        {
+          userEmail: 'new@foo',
+          userId: 1,
+        },
+        {
+          userEmail: 'c@user',
+          userId: 2,
+        },
+        {
+          userEmail: 'b@user',
+          userId: 3,
+        },
+      ])
+    })
 
-    expect(queryResult).toEqual(expect.objectContaining(data))
+    test('with custom returning', async () => {
+      const result = await query(users.select('userEmail'))
+        .whereEq(users.userId, 'id')
+        .update('*') // declare what to update
+        .execute(
+          client,
+          { id: 1 }, // update params
+          {
+            userEmail: 'new@foo',
+          },
+        )
+
+      expect(result).toEqual([
+        {
+          userEmail: 'new@foo',
+        },
+      ])
+    })
+
+    test('many rows', async () => {
+      const result = await query(users.select('userId', 'userEmail'))
+        .update('*') // declare what to update
+        .execute(
+          client,
+          {},
+          {
+            userEmail: 'all@foo',
+          },
+        )
+
+      expect(result).toEqual([
+        { userId: 1, userEmail: 'all@foo' },
+        { userId: 2, userEmail: 'all@foo' },
+        { userId: 3, userEmail: 'all@foo' },
+      ])
+    })
+
+    test('with whitelist', async () => {
+      const result = await query(users.select('userId', 'userEmail'))
+        .whereEq(users.userId, 'id')
+        .update('userEmail') // declare what to update
+        .execute(
+          client,
+          { id: 2 },
+          {
+            userEmail: 'new@foo',
+          },
+        )
+
+      expect(result).toEqual([
+        {
+          userEmail: 'new@foo',
+          userId: 2,
+        },
+      ])
+    })
+
+    test('with whitelist that triggers an error', async () => {
+      await expect(
+        query(users)
+          .whereEq(users.userId, 'id')
+          .update('userEmail', 'userAvatar') // declare what to update
+          .execute(client, { id: 2 }, {
+            userEmail: 'new@foo',
+            userAvatar: 'foo.png',
+            // sneaky invalid fields
+            userName: 'NOT ALLOWED TO CHANGE YOUR NAME',
+            userId: 1000,
+          } as any),
+      ).rejects.toThrow(
+        'invalid columns in insert/update object: "userName", "userId"',
+      )
+    })
   })
-
-  test('multi row insert', async () => {
-    const data = [
-      {
-        userAvatar: 'f0.png',
-        userEmail: 'f0@f0',
-        userName: 'f0',
-      },
-      {
-        userAvatar: 'f1.png',
-        userEmail: 'f1@f1',
-        userName: 'f1',
-      },
-      {
-        userAvatar: 'f2.png',
-        userEmail: 'f2@f2',
-        userName: 'f2',
-      },
-    ]
-    const insertResult = await query(users).insert(client, data)
-
-    expect(insertResult).toHaveLength(data.length)
-
-    for (let i = 0; i < data.length; i++) {
-      expect(insertResult[i]).toEqual(expect.objectContaining(data[i]))
-    }
-
-    const queryResult = await queryUsers(insertResult.map(r => r.userId))
-
-    for (let i = 0; i < data.length; i++) {
-      expect(queryResult[i]).toEqual(expect.objectContaining(data[i]))
-    }
-  })
-
-  test('returning partial results', async () => {
-    // not sure whether I like this feature ...
-    const data = {
-      userId: 123,
-      userAvatar: 'foo.png',
-      userEmail: 'foo@foo',
-      userName: 'foo',
-    }
-
-    const insertResult = await query(users.select('userId')).insert(
-      client,
-      data,
-    )
-
-    expect(insertResult).toEqual({ userId: 123 })
-  })
-
-  // TODO what about non-base tables?
-  // e.g. query(users.selectAsJsonAgg(..)).insert(..) ?
-  // or query(users.select(...).join(...).table()).insert ?
 })

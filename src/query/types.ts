@@ -105,30 +105,25 @@ export interface Query<T, S, P> {
     paramKeys: Array<TableColumnRef<T, any, any, any> | any>,
   ): Query<T, S, P>
 
-  // single row insert
+  // insert
   // TODO: explore
   // https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING
   // for inserts across multiple tables
+  // insert all cols defined in the table
   insert<
     ColumnsWithDefaults extends {
       [K in keyof T]: T[K] extends { hasDefault?: true } ? K : never
     }[keyof T]
   >(
-    client: DatabaseClient,
-    data: Partial<Pick<T, ColumnsWithDefaults>> & Omit<T, ColumnsWithDefaults>,
-  ): Promise<S>
+    all: '*',
+  ): InsertQuery<
+    Partial<Pick<T, ColumnsWithDefaults>> & Omit<T, ColumnsWithDefaults>,
+    S
+  >
+  // TODO: implement a whitelisting similar to update(...columnNames)
 
-  // multi row insert
-  insert<
-    ColumnsWithDefaults extends {
-      [K in keyof T]: T[K] extends { hasDefault?: true } ? K : never
-    }[keyof T]
-  >(
-    client: DatabaseClient,
-    data: Array<
-      Partial<Pick<T, ColumnsWithDefaults>> & Omit<T, ColumnsWithDefaults>
-    >,
-  ): Promise<S[]>
+  update(all: '*'): UpdateQuery<P, Partial<T>, S>
+  update<K extends keyof T>(...columnNames: K[]): UpdateQuery<P, Pick<T, K>, S>
 
   table(): Table<S, S, P>
 
@@ -139,6 +134,18 @@ export interface Query<T, S, P> {
     : (client: DatabaseClient, params: P) => Promise<S[]>
 
   explain: (client: DatabaseClient, params?: P) => Promise<string>
+}
+
+export interface InsertQuery<R, S> {
+  // single row insert
+  execute(client: DatabaseClient, row: R): Promise<S>
+
+  // multi row insert
+  execute(client: DatabaseClient, row: R[]): Promise<S[]>
+}
+
+export interface UpdateQuery<P, D, S> {
+  execute(client: DatabaseClient, params: P, data: D): Promise<S[]>
 }
 
 /**
