@@ -77,7 +77,7 @@ describe('dml methods', () => {
           userName: 'f0',
         },
         {
-          userAvatar: 'f1.png',
+          userAvatar: null,
           userEmail: 'f1@f1',
           userName: 'f1',
         },
@@ -118,6 +118,37 @@ describe('dml methods', () => {
         .execute(client, data)
 
       expect(insertResult).toEqual({ userId: 123 })
+    })
+
+    test('null data validation', async () => {
+      // not sure whether I like this feature ...
+      const data: any = {
+        userId: null, // should throw this
+        userAvatar: 'foo.png',
+        userEmail: 'foo@foo',
+        userName: 'foo',
+      }
+
+      await expect(
+        query(users.select('userId'))
+          .insert('*')
+          .execute(client, data),
+      ).rejects.toThrow('expected a number but got: null')
+    })
+
+    test('data validation', async () => {
+      // not sure whether I like this feature ...
+      const data: any = {
+        userAvatar: 123,
+        userEmail: 'foo@foo',
+        userName: 'foo',
+      }
+
+      await expect(
+        query(users.select('userId'))
+          .insert('*')
+          .execute(client, data),
+      ).rejects.toThrow('expected a string but got: 123')
     })
 
     // TODO what about non-base tables?
@@ -240,6 +271,34 @@ describe('dml methods', () => {
       ).rejects.toThrow(
         'invalid columns in insert/update object: "userName", "userId"',
       )
+    })
+
+    test('set null', async () => {
+      const result = await query(users.select('userAvatar'))
+        .whereEq(users.userId, 'id')
+        .update('*') // declare what to update
+        .execute(
+          client,
+          { id: 3 },
+          {
+            userAvatar: null,
+          },
+        )
+
+      expect(result).toEqual([{ userAvatar: null }])
+    })
+
+    test('data validation', async () => {
+      // it should call the columns validation function before inserting the data
+      // this starts getting useful when inserting json data and arrays!
+      await expect(
+        query(users.select('userAvatar'))
+          .whereEq(users.userId, 'id')
+          .update('*') // declare what to update
+          .execute(client, { id: 1 }, {
+            userEmail: 123,
+          } as any),
+      ).rejects.toThrow('expected a string but got: 123')
     })
   })
 })

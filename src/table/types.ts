@@ -2,9 +2,8 @@
  * The type of a column
  */
 export interface Column<T> {
-  // the column name is stored as a symbol so that noone can create it by
-  // accident and leak unescaped data into joins or other sql expressions
-  columnValue: T // this value is just needed to work with the type and has no runtime meaning
+  // column value type represented by its validation function
+  columnValue: (value: unknown) => T
 
   // name of the column in the database
   name: string

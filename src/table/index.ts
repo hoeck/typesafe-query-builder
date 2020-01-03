@@ -5,12 +5,25 @@ export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
 /**
  * column constructor
  */
-export function column<T>(name: string, type: T): Column<T> {
-  return { columnValue: type, name }
+export function column<T>(
+  name: string,
+  validator: (value: unknown) => T,
+): Column<T> {
+  return { columnValue: validator, name }
 }
 
 export function nullable<T>(c: Column<T>): Column<T | null> {
-  return { ...c, nullable: true }
+  return {
+    ...c,
+    columnValue: (value: unknown) => {
+      if (value === null) {
+        return null
+      }
+
+      return c.columnValue(value)
+    },
+    nullable: true,
+  }
 }
 
 export function hasDefault<T>(c: Column<T>): Column<T & { hasDefault?: true }> {

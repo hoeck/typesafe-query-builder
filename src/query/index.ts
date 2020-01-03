@@ -12,10 +12,11 @@ import { DatabaseClient, Query, QueryItem } from './types'
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
-export function checkAllowedColumns(allowedColumnsSet: Set<string>, data: any) {
-  const invalidColumns = Object.keys(data).filter(
-    k => !allowedColumnsSet.has(k),
-  )
+export function checkAllowedColumns(
+  allowedColumnsSet: Set<string>,
+  dataColumns: string[],
+) {
+  const invalidColumns = dataColumns.filter(k => !allowedColumnsSet.has(k))
 
   if (invalidColumns.length) {
     throw new Error(
@@ -24,6 +25,23 @@ export function checkAllowedColumns(allowedColumnsSet: Set<string>, data: any) {
         '"',
     )
   }
+}
+
+export function validateRowData(
+  table: TableImplementation,
+  keys: string[],
+  data: any,
+) {
+  keys.forEach(k => {
+    const value = data[k]
+    const column = table.tableColumns[k]
+
+    if (!column) {
+      throw new Error('column is missing from table implementation ' + k)
+    }
+
+    column.columnValue(value) // throw on invalid data
+  })
 }
 
 class QueryImplementation {
@@ -169,6 +187,7 @@ class QueryImplementation {
 
     return {
       execute: async (client: DatabaseClient, data: any) => {
+        const table = this.tables[0]
         const sql = buildInsert(this.tables[0], data)
 
         if (!sql) {
@@ -179,6 +198,9 @@ class QueryImplementation {
         const params: any[] = []
 
         dataList.forEach(row => {
+          // be picky part 2: validate the inserted data
+          validateRowData(table, Object.keys(row), row)
+
           params.push(...Object.values(row))
         })
 
@@ -196,15 +218,23 @@ class QueryImplementation {
 
     return {
       execute: async (client: DatabaseClient, params: any, data: any) => {
+        const table = this.tables[0]
         const paramsCtx = new BuildContext()
         const dataCtx = new BuildContext()
 
+        const dataColumns = Object.keys(data)
         const allowedCols =
           columnNames[0] === '*' ? Object.keys(data) : columnNames
 
+        // be picky about what goes into the database part 1:
+        // whitelisted columns only
         if (columnNames[0] !== '*') {
-          checkAllowedColumns(new Set(allowedCols), data)
+          checkAllowedColumns(new Set(allowedCols), dataColumns)
         }
+
+        // be picky part 2:
+        // validate column values
+        validateRowData(table, dataColumns, data)
 
         const sql = buildUpdate(this.query, paramsCtx, allowedCols, dataCtx)
 
