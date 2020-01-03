@@ -1,5 +1,5 @@
 export { table, column, nullable, hasDefault } from './table'
-export { boolean, integer, string } from './table/columns'
+export { boolean, integer, string, json } from './table/columns'
 export { query } from './query'
 
 // JOIN

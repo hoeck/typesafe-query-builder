@@ -1,6 +1,14 @@
 import { Client } from 'pg'
 
-import { table, integer, string, boolean, nullable, hasDefault } from '../src'
+import {
+  table,
+  integer,
+  string,
+  boolean,
+  nullable,
+  hasDefault,
+  json,
+} from '../src'
 
 // enable "deep" console.log
 require('util').inspect.defaultOptions.depth = null
@@ -59,13 +67,32 @@ export interface EventRow {
   eventItemId: number
   eventType: string
   eventTimestamp: number
+  eventPayload: { data: string } | null
 }
 
 export const events = table('events', {
-  eventId: integer('id'),
+  eventId: hasDefault(integer('id')),
   eventItemId: integer('item_id'),
   eventType: string('type'),
   eventTimestamp: integer('timestamp'),
+
+  // ad hoc runtype
+  // in a real setup I would use a runtype library for this
+  eventPayload: nullable(
+    json('payload', value => {
+      if (typeof value !== 'object') {
+        throw new Error('not an object')
+      }
+
+      if (typeof (value as any).data !== 'string') {
+        throw new Error('expected a data:string attribute')
+      }
+
+      return {
+        data: (value as any).data,
+      }
+    }),
+  ),
 })
 
 export interface EventTypeRow {

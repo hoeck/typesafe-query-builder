@@ -120,6 +120,36 @@ describe('dml methods', () => {
       expect(insertResult).toEqual({ userId: 123 })
     })
 
+    test('json insert', async () => {
+      const result = await query(events.select('eventPayload'))
+        .insert('*')
+        .execute(client, {
+          eventItemId: 1,
+          eventPayload: { data: 'foo string payload' },
+          eventTimestamp: 0,
+          eventType: 'A',
+        })
+
+      expect(result).toEqual({
+        eventPayload: { data: 'foo string payload' },
+      })
+    })
+
+    test('data validation', async () => {
+      // not sure whether I like this feature ...
+      const data: any = {
+        userAvatar: 123,
+        userEmail: 'foo@foo',
+        userName: 'foo',
+      }
+
+      await expect(
+        query(users.select('userId'))
+          .insert('*')
+          .execute(client, data),
+      ).rejects.toThrow('expected a string but got: 123')
+    })
+
     test('null data validation', async () => {
       // not sure whether I like this feature ...
       const data: any = {
@@ -136,19 +166,17 @@ describe('dml methods', () => {
       ).rejects.toThrow('expected a number but got: null')
     })
 
-    test('data validation', async () => {
-      // not sure whether I like this feature ...
-      const data: any = {
-        userAvatar: 123,
-        userEmail: 'foo@foo',
-        userName: 'foo',
-      }
-
+    test('json data validation', async () => {
       await expect(
-        query(users.select('userId'))
+        query(events.select('eventPayload'))
           .insert('*')
-          .execute(client, data),
-      ).rejects.toThrow('expected a string but got: 123')
+          .execute(client, {
+            eventItemId: 1,
+            eventPayload: { foo: 1 },
+            eventTimestamp: 0,
+            eventType: 'A',
+          } as any),
+      ).rejects.toThrow('expected a data:string attribute')
     })
 
     // TODO what about non-base tables?

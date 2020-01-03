@@ -18,6 +18,8 @@ VALUES
   (2, 'user-c', 'c@user', NULL),
   (3, 'user-b', 'b@user', 'image.png');
 
+SELECT pg_catalog.setval('users_id_seq', 4, false);
+
 CREATE TABLE items (
   id SERIAL PRIMARY KEY,
   label TEXT NOT NULL,
@@ -38,21 +40,22 @@ CREATE TABLE events (
   id SERIAL PRIMARY KEY,
   item_id INTEGER NOT NULL,
   type TEXT NOT NULL,
-  timestamp INTEGER NOT NULL
+  timestamp INTEGER NOT NULL,
+  payload JSON
 );
 
 INSERT INTO events
-  (item_id, type, timestamp)
+  (item_id, type, timestamp, payload)
 VALUES
-  (1, 'A', 0),
-  (1, 'C', 10),
-  (1, 'A', 20),
-  (1, 'B', 30),
-  (4, 'A', 10),
-  (4, 'B', 50),
-  (4, 'C', 80),
-  (5, 'A', 10),
-  (5, 'B', 15);
+  (1, 'A', 0, null),
+  (1, 'C', 10, null),
+  (1, 'A', 20, null),
+  (1, 'B', 30, null),
+  (4, 'A', 10, null),
+  (4, 'B', 50, '{"data": "asdf"}'),
+  (4, 'C', 80, null),
+  (5, 'A', 10, null),
+  (5, 'B', 15, null);
 
 CREATE TABLE event_types (
   type TEXT PRIMARY KEY,

@@ -1,5 +1,6 @@
 import { inspect } from 'util'
 import { column } from './index'
+import { Column } from './types'
 
 export function integer(name: string) {
   return column(name, value => {
@@ -35,4 +36,11 @@ export function boolean(name: string) {
 
     return value
   })
+}
+
+export function json<T>(
+  name: string,
+  validator: (data: unknown) => T,
+): Column<T> {
+  return column(name, validator)
 }
