@@ -85,6 +85,8 @@ const label: string = usersWithItems[0].userId
 
 `yarn` to fetch all deps
 
-`yarn run start-test-database` to start a dockered postgres server that loads the test schema
+`yarn test-database:start` to start a dockered postgres server that loads the test schema
 
-`yarn test --watchAll` to run the tests in watch mode
+`yarn test-database:psql` to start a psql connected to the test-database
+
+`yarn test` to run the tests in watch mode
