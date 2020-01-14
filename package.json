@@ -10,6 +10,7 @@
     "dist"
   ],
   "scripts": {
+    "prepare": "tsdx build",
     "start": "tsdx watch",
     "build": "tsdx build",
     "test": "tsdx test",
