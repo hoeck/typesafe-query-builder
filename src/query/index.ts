@@ -3,12 +3,13 @@ import { BuildContext } from './buildContext'
 import {
   Table,
   TableColumnRef,
-  table,
   getTableImplementation,
   TableImplementation,
 } from '../table'
 import { buildSqlQuery, buildColumns, buildInsert, buildUpdate } from './build'
 import { DatabaseClient, Query, QueryItem } from './types'
+
+export { DatabaseClient } from './types'
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
@@ -238,10 +239,12 @@ class QueryImplementation {
 
         const sql = buildUpdate(this.query, paramsCtx, allowedCols, dataCtx)
 
-        return (await client.query(
-          sql,
-          paramsCtx.getParameters(params).concat(dataCtx.getParameters(data)),
-        )).rows
+        return (
+          await client.query(
+            sql,
+            paramsCtx.getParameters(params).concat(dataCtx.getParameters(data)),
+          )
+        ).rows
       },
     }
   }

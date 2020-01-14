@@ -79,6 +79,7 @@ const label: string = usersWithItems[0].userId
 - implement more joins
 - optionally check table schema definitions against the database schema
 - allow renaming single columns with select
+- expose query types to allow passing queries around as function parameters
 
 ## Local Development
 
