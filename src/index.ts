@@ -1,6 +1,6 @@
 export { table, column, nullable, hasDefault } from './table'
-export { boolean, integer, string, json } from './table/columns'
-export { DatabaseClient, query } from './query'
+export { date, boolean, integer, string, json } from './table/columns'
+export { DatabaseClient, ResultType, Statement, query } from './query'
 
 // JOIN
 // const q = query()

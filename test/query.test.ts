@@ -12,8 +12,6 @@ import {
   users,
 } from './testSchema'
 
-import { Table } from '../src/table'
-
 // get rid of 'unused variable' warnings
 function use(_x: any) {}
 
@@ -203,6 +201,35 @@ describe('query', () => {
         { userName: 'user-a', userAvatar: null },
         { userName: 'user-c', userAvatar: null },
       ])
+    })
+  })
+
+  describe('fetchOne convenience method', () => {
+    test('returns exactly one row', async () => {
+      const result: UserRow = await query(users)
+        .whereEq(users.userId, 'id')
+        .fetchOne(client, { id: 2 })
+
+      expect(result).toEqual({
+        userId: 2,
+        userName: 'user-c',
+        userEmail: 'c@user',
+        userAvatar: null,
+      })
+    })
+
+    test('throws when there is more than one row', async () => {
+      await expect(query(users).fetchOne(client)).rejects.toThrow(
+        'expected exactly one row but the query returned: 3',
+      )
+    })
+
+    test('throws when there is no row in the result', async () => {
+      await expect(
+        query(users)
+          .whereEq(users.userAvatar, 'avatar')
+          .fetchOne(client, { avatar: 'doesNotExist.png' }),
+      ).rejects.toThrow('expected exactly one row but the query returned: 0')
     })
   })
 })

@@ -163,7 +163,7 @@ describe('dml methods', () => {
         query(users.select('userId'))
           .insert('*')
           .execute(client, data),
-      ).rejects.toThrow('expected a number but got: null')
+      ).rejects.toThrow('expected an integer but got: null')
     })
 
     test('json data validation', async () => {

@@ -75,9 +75,50 @@ export interface LiteralSqlParameter {
 }
 
 /**
+ * A query that can be executed with Params resulting in Selection row data.
+ */
+export interface Statement<S, P> {
+  /**
+   * Return this query as a table to use it in subqueries.
+   */
+  table(): Table<S, S, P>
+
+  /**
+   * Return the generated sql
+   */
+  sql(): string
+
+  /**
+   * Execute the query and return all rows.
+   */
+  fetch: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S[]>
+    : (client: DatabaseClient, params: P) => Promise<S[]>
+
+  /**
+   * Execute the query and return exactly 1 row.
+   *
+   * Throw an exception if no rows or more than 1 row was found.
+   */
+  fetchOne: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S>
+    : (client: DatabaseClient, params: P) => Promise<S>
+
+  /**
+   * Run an SQL EXPLAIN on this query.
+   */
+  explain: (client: DatabaseClient, params?: P) => Promise<string>
+}
+
+/**
+ * Access the row type of a query for use e.g. in data consuming functions.
+ */
+export type ResultType<T> = T extends Statement<infer S, any> ? S : never
+
+/**
  * Query for a single table ("select * from table")
  */
-export interface Query<T, S, P> {
+export interface Query<T, S, P> extends Statement<S, P> {
   // plain join
   join<T2, S2, CJ, PJ>(
     t1: TableColumnRef<T, CJ, any, any>,
@@ -94,16 +135,17 @@ export interface Query<T, S, P> {
     paramKey: K,
   ): Query<T, S, P & { [KK in K]: CP }>
 
-  whereIn<CP, K extends string>(
-    col: TableColumnRef<T, CP, any, any>,
-    paramKey: K,
-  ): Query<T, S, P & { [KK in K]: CP[] }>
-
-  // as a template literal: whereSql`...`
-  whereSql(
-    literals: TemplateStringsArray,
-    paramKeys: Array<TableColumnRef<T, any, any, any> | any>,
-  ): Query<T, S, P>
+  // TODO:
+  // whereIn<CP, K extends string>(
+  //   col: TableColumnRef<T, CP, any, any>,
+  //   paramKey: K,
+  // ): Query<T, S, P & { [KK in K]: CP[] }>
+  //
+  // // as a template literal: whereSql`...`
+  // whereSql(
+  //   literals: TemplateStringsArray,
+  //   paramKeys: Array<TableColumnRef<T, any, any, any> | any>,
+  // ): Query<T, S, P>
 
   // insert
   // TODO: explore
@@ -124,16 +166,6 @@ export interface Query<T, S, P> {
 
   update(all: '*'): UpdateQuery<P, Partial<T>, S>
   update<K extends keyof T>(...columnNames: K[]): UpdateQuery<P, Pick<T, K>, S>
-
-  table(): Table<S, S, P>
-
-  sql(): string
-
-  fetch: keyof P extends never
-    ? (client: DatabaseClient) => Promise<S[]>
-    : (client: DatabaseClient, params: P) => Promise<S[]>
-
-  explain: (client: DatabaseClient, params?: P) => Promise<string>
 }
 
 export interface InsertQuery<R, S> {
@@ -151,7 +183,7 @@ export interface UpdateQuery<P, D, S> {
 /**
  * Join over two tables
  */
-export interface Join2<T1, T2, S, P> {
+export interface Join2<T1, T2, S, P> extends Statement<S, P> {
   join<T3, S3, CV>(
     t: TableColumnRef<T1, CV, any, any> | TableColumnRef<T2, CV, any, any>,
     t3: TableColumnRef<T3, CV, S3, P>,
@@ -162,20 +194,37 @@ export interface Join2<T1, T2, S, P> {
     t3: TableColumnRef<T3, CV, S3, P>,
   ): Join3<T1, T2, T3, S & NullableLeftJoin<S3>, P>
 
-  table(): Table<S, S, P>
-
-  sql(): [string, BuildContext]
-
-  fetch: keyof P extends never
-    ? (client: DatabaseClient) => Promise<S[]>
-    : (client: DatabaseClient, params: P) => Promise<S[]>
-
-  explain: (client: DatabaseClient, params?: P) => Promise<string>
+  whereEq<CP, K extends string>(
+    col: TableColumnRef<T1 | T2, CP, any, any>,
+    paramKey: K,
+  ): Join2<T1, T2, S, P & { [KK in K]: CP }>
 }
 
-// TODO
-export interface Join3<T1, T2, T3, S, P> {}
-export interface Join4<T1, T2, T3, T4, S, P> {}
-export interface Join5<T1, T2, T3, T4, T5, S, P> {}
-export interface Join6<T1, T2, T3, T4, T5, T6, S, P> {}
-export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P> {}
+export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
+  join<T4, S4, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>,
+    t4: TableColumnRef<T3, CV, S4, P>,
+  ): Join4<T1, T2, T3, T4, S & S4, P>
+
+  leftJoin<T4, S4, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>,
+    t4: TableColumnRef<T3, CV, S4, P>,
+  ): Join4<T1, T2, T3, T4, S & NullableLeftJoin<S4>, P>
+
+  whereEq<CP, K extends string>(
+    col: TableColumnRef<T1 | T2 | T3, CP, any, any>,
+    paramKey: K,
+  ): Join3<T1, T2, T3, S, P & { [KK in K]: CP }>
+}
+
+export interface Join4<T1, T2, T3, T4, S, P> extends Statement<S, P> {}
+export interface Join5<T1, T2, T3, T4, T5, S, P> extends Statement<S, P> {}
+export interface Join6<T1, T2, T3, T4, T5, T6, S, P> extends Statement<S, P> {}
+export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>
+  extends Statement<S, P> {}

@@ -9,7 +9,7 @@ import {
 import { buildSqlQuery, buildColumns, buildInsert, buildUpdate } from './build'
 import { DatabaseClient, Query, QueryItem } from './types'
 
-export { DatabaseClient } from './types'
+export { DatabaseClient, Statement, ResultType } from './types'
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
@@ -167,6 +167,22 @@ class QueryImplementation {
     const paramArray = params ? ctx.getParameters(params) : []
 
     return (await client.query(sql, paramArray)).rows
+  }
+
+  async fetchOne(client: DatabaseClient, params?: any): Promise<any> {
+    const ctx = new BuildContext()
+    const sql = this.sql(ctx)
+    const paramArray = params ? ctx.getParameters(params) : []
+
+    const rows = (await client.query(sql, paramArray)).rows
+
+    if (rows.length !== 1) {
+      throw new Error(
+        `expected exactly one row but the query returned: ${rows.length}`,
+      )
+    }
+
+    return rows[0]
   }
 
   async explain(client: DatabaseClient, params?: any): Promise<string> {

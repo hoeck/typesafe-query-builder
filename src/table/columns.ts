@@ -6,7 +6,14 @@ export function integer(name: string) {
   return column(name, value => {
     if (typeof value !== 'number') {
       throw new Error(
-        'expected a number but got: ' + inspect(value).slice(0, 128),
+        'expected an integer but got: ' + inspect(value).slice(0, 128),
+      )
+    }
+
+    if (!Number.isInteger(value) || !Number.isSafeInteger(value)) {
+      throw new Error(
+        'expected an integer but got a number with fractions or a non safe integer: ' +
+          inspect(value),
       )
     }
 
@@ -36,6 +43,21 @@ export function boolean(name: string) {
 
     return value
   })
+}
+
+export function date(name: string) {
+  return column(
+    name,
+    (value): Date => {
+      if (value instanceof Date) {
+        throw new Error(
+          'expected a boolean but got: ' + inspect(value).slice(0, 128),
+        )
+      }
+
+      return value as Date
+    },
+  )
 }
 
 export function json<T>(
