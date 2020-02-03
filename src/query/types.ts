@@ -1,4 +1,4 @@
-import { Table, TableColumnRef } from '../table'
+import { Table, TableColumnRef, TableColumnsWithDefaults } from '../table/types'
 import { TableImplementation } from '../table'
 import { BuildContext } from './buildContext'
 
@@ -66,7 +66,7 @@ export interface DatabaseClient {
     values: any[],
   ): Promise<{
     rows: Array<{ [key: string]: any }>
-    fields: Array<{ name: string; dataTypeId: number }>
+    fields: Array<{ name: string; dataTypeID: number }>
   }>
 }
 
@@ -130,6 +130,14 @@ export interface Query<T, S, P> extends Statement<S, P> {
     t2: TableColumnRef<T2, CJ, S2, PJ>,
   ): Join2<T, T2, S & NullableLeftJoin<S2>, P & PJ>
 
+  // TODO:
+  // * only generate WHERE for non-null queries and remove the possible null type from whereEq
+  // * use a separate `whereEqOrNull` or `whereNull`
+  // why? because the types get erased at runtime, we always allow null
+  // values in js and generate ... IS NULL where expressions, this results
+  // in code that will return a result for simple
+  // `query(Users).where(Users.secretAccessToken, 'token')` to return users
+  // without tokens if an attacker manages to bypass parameter checks.
   whereEq<CP, K extends string>(
     col: TableColumnRef<T, CP, any, any>,
     paramKey: K,
@@ -151,18 +159,17 @@ export interface Query<T, S, P> extends Statement<S, P> {
   // TODO: explore
   // https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING
   // for inserts across multiple tables
-  // insert all cols defined in the table
-  insert<
-    ColumnsWithDefaults extends {
-      [K in keyof T]: T[K] extends { hasDefault?: true } ? K : never
-    }[keyof T]
-  >(
+
+  // insert all cols defined in the table but allow to omit columns which have
+  // a default (that is via explicit default or because they are nullable)
+  // TODO: implement a whitelisting similar to update(...columnNames)
+  insert(
     all: '*',
   ): InsertQuery<
-    Partial<Pick<T, ColumnsWithDefaults>> & Omit<T, ColumnsWithDefaults>,
+    Partial<Pick<T, TableColumnsWithDefaults<T>>> &
+      Omit<T, TableColumnsWithDefaults<T>>,
     S
   >
-  // TODO: implement a whitelisting similar to update(...columnNames)
 
   update(all: '*'): UpdateQuery<P, Partial<T>, S>
   update<K extends keyof T>(...columnNames: K[]): UpdateQuery<P, Pick<T, K>, S>
@@ -170,13 +177,21 @@ export interface Query<T, S, P> extends Statement<S, P> {
 
 export interface InsertQuery<R, S> {
   // single row insert
-  execute(client: DatabaseClient, row: R): Promise<S>
+  // Use a separate method. When overloading a single method, the type errors
+  // get messy (sth like: 'no suitable overload found' when the row type does
+  // not match. Without overloading they read like 'property X,Y,Z are missing
+  // from row'.
+  executeOne(client: DatabaseClient, row: R): Promise<S>
 
   // multi row insert
   execute(client: DatabaseClient, row: R[]): Promise<S[]>
 }
 
 export interface UpdateQuery<P, D, S> {
+  // TODO: just update without the .execute, put the whitelist into a separate parameter:
+  // update(client: DatabaseClient, data: D): Promise<S[]>
+  // update(client: DatabaseClient, params: P, data: D): Promise<S[]>
+
   execute(client: DatabaseClient, params: P, data: D): Promise<S[]>
 }
 
@@ -206,7 +221,7 @@ export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
       | TableColumnRef<T1, CV, any, any>
       | TableColumnRef<T2, CV, any, any>
       | TableColumnRef<T3, CV, any, any>,
-    t4: TableColumnRef<T3, CV, S4, P>,
+    t4: TableColumnRef<T4, CV, S4, P>,
   ): Join4<T1, T2, T3, T4, S & S4, P>
 
   leftJoin<T4, S4, CV>(
@@ -214,7 +229,7 @@ export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
       | TableColumnRef<T1, CV, any, any>
       | TableColumnRef<T2, CV, any, any>
       | TableColumnRef<T3, CV, any, any>,
-    t4: TableColumnRef<T3, CV, S4, P>,
+    t4: TableColumnRef<T4, CV, S4, P>,
   ): Join4<T1, T2, T3, T4, S & NullableLeftJoin<S4>, P>
 
   whereEq<CP, K extends string>(
@@ -223,7 +238,31 @@ export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
   ): Join3<T1, T2, T3, S, P & { [KK in K]: CP }>
 }
 
-export interface Join4<T1, T2, T3, T4, S, P> extends Statement<S, P> {}
+export interface Join4<T1, T2, T3, T4, S, P> extends Statement<S, P> {
+  join<T5, S5, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>
+      | TableColumnRef<T4, CV, any, any>,
+    t5: TableColumnRef<T5, CV, S5, P>,
+  ): Join5<T1, T2, T3, T4, T5, S & S5, P>
+
+  leftJoin<T5, S5, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>
+      | TableColumnRef<T4, CV, any, any>,
+    t5: TableColumnRef<T5, CV, S5, P>,
+  ): Join5<T1, T2, T3, T4, T5, S & NullableLeftJoin<S5>, P>
+
+  whereEq<CP, K extends string>(
+    col: TableColumnRef<T1 | T2 | T3 | T4, CP, any, any>,
+    paramKey: K,
+  ): Join4<T1, T2, T3, T4, S, P & { [KK in K]: CP }>
+}
+
 export interface Join5<T1, T2, T3, T4, T5, S, P> extends Statement<S, P> {}
 export interface Join6<T1, T2, T3, T4, T5, T6, S, P> extends Statement<S, P> {}
 export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>

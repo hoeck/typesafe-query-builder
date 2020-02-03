@@ -1,9 +1,4 @@
-import {
-  TableImplementation,
-  column,
-  Column,
-  getTableImplementation,
-} from '../table'
+import { TableImplementation, column, Column } from '../table'
 import { QueryItem, JoinItem } from './types'
 import { BuildContext } from './buildContext'
 
@@ -268,38 +263,50 @@ export function buildColumns(
   return columns
 }
 
-export function buildInsert(table: TableImplementation, data: any) {
-  const dataList = Array.isArray(data) ? data : [data]
-  const firstItem = dataList.length ? dataList[0] : undefined
-
-  if (!firstItem) {
-    return
-  }
-
+// The insert statement must be tailored to the data we want to insert because
+// node-postgres does not allow to pass a default value for missing
+// (==undefined) column values (its using null instead).
+export function buildInsert(
+  table: TableImplementation,
+  columns: string[],
+  data: any[],
+): [string, any[]] {
   let paramCount = 0
 
-  return (
+  const insertParams: string[] = []
+  const insertValues: any[] = []
+
+  data.forEach(row => {
+    const rowParams: string[] = []
+
+    columns.forEach(col => {
+      if (row.hasOwnProperty(col) && row[col] !== undefined) {
+        paramCount += 1
+        rowParams.push('$' + paramCount)
+        insertValues.push(row[col])
+      } else {
+        rowParams.push('DEFAULT')
+      }
+    })
+
+    insertParams.push(rowParams.join(','))
+  })
+
+  const insertStatement =
     'INSERT INTO "' +
     table.tableName +
     '" (' +
-    Object.keys(firstItem)
+    columns
       .map(k => {
         return '"' + table.tableColumns[k].name + '"'
       })
       .join(',') +
     ') VALUES (' +
-    dataList
-      .map(row => {
-        return Object.keys(row).map(_ => {
-          paramCount += 1
-
-          return '$' + paramCount
-        })
-      })
-      .join('),(') +
+    insertParams.join('),(') +
     ') RETURNING ' +
     table.getSelectSql(undefined)
-  )
+
+  return [insertStatement, insertValues]
 }
 
 export function buildUpdate(

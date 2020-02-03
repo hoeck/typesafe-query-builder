@@ -37,9 +37,10 @@ describe('query', () => {
     })
 
     test('fetches with selected columns', async () => {
-      const result: Array<
-        Pick<ItemRow, 'itemId' | 'itemLabel'> & Pick<UserRow, 'userName'>
-      > = await query(items.select('itemId', 'itemLabel'))
+      const result: Array<Pick<ItemRow, 'itemId' | 'itemLabel'> &
+        Pick<UserRow, 'userName'>> = await query(
+        items.select('itemId', 'itemLabel'),
+      )
         .join(items.itemUserId, users.select('userName').userId)
         .fetch(client)
 
@@ -53,11 +54,9 @@ describe('query', () => {
     })
 
     test('fetches with selectAs', async () => {
-      const result: Array<
-        { item: Pick<ItemRow, 'itemId' | 'itemLabel'> } & {
-          user: Pick<UserRow, 'userName'>
-        }
-      > = await query(items.select('itemId', 'itemLabel').selectAs('item'))
+      const result: Array<{ item: Pick<ItemRow, 'itemId' | 'itemLabel'> } & {
+        user: Pick<UserRow, 'userName'>
+      }> = await query(items.select('itemId', 'itemLabel').selectAs('item'))
         .join(
           items.itemUserId,
           users.select('userName').selectAs('user').userId,
@@ -122,12 +121,15 @@ describe('query', () => {
           items.itemId,
           events
             .select('eventType', 'eventTimestamp')
-            .selectAsJsonAgg('itemEvents').eventItemId,
+            .selectAsJsonAgg('itemEvents', 'eventId').eventItemId,
         )
         .table()
 
       const result = await query(users.select('userId'))
-        .join(users.userId, nested.selectAsJsonAgg('items').itemUserId)
+        .join(
+          users.userId,
+          nested.selectAsJsonAgg('items', 'itemId').itemUserId,
+        )
         .fetch(client)
 
       expect(result).toEqual([
@@ -195,8 +197,9 @@ describe('query', () => {
       const result = await query(users.select('userId'))
         .leftJoin(
           users.userId,
-          items.select('itemId', 'itemLabel').selectAsJsonAgg('userItems')
-            .itemUserId,
+          items
+            .select('itemId', 'itemLabel')
+            .selectAsJsonAgg('userItems', 'itemId').itemUserId,
         )
         .fetch(client)
 
@@ -226,12 +229,16 @@ describe('query', () => {
           items.itemId,
           events
             .select('eventType', 'eventTimestamp')
-            .selectAsJsonAgg('itemEvents').eventItemId,
+            .selectAsJsonAgg('itemEvents', 'eventTimestamp', 'DESC')
+            .eventItemId,
         )
         .table()
 
       const result = await query(users.select('userId'))
-        .leftJoin(users.userId, nested.selectAsJsonAgg('items').itemUserId)
+        .leftJoin(
+          users.userId,
+          nested.selectAsJsonAgg('items', 'itemId').itemUserId,
+        )
         .fetch(client)
 
       expect(result).toEqual([
@@ -243,9 +250,9 @@ describe('query', () => {
               itemLabel: 'item-1',
               itemUserId: 1,
               itemEvents: [
-                { eventType: 'C', eventTimestamp: 10 },
-                { eventType: 'A', eventTimestamp: 20 },
                 { eventType: 'B', eventTimestamp: 30 },
+                { eventType: 'A', eventTimestamp: 20 },
+                { eventType: 'C', eventTimestamp: 10 },
                 { eventType: 'A', eventTimestamp: 0 },
               ],
             },
@@ -271,8 +278,8 @@ describe('query', () => {
               itemLabel: 'item-5',
               itemUserId: 2,
               itemEvents: [
-                { eventType: 'A', eventTimestamp: 10 },
                 { eventType: 'B', eventTimestamp: 15 },
+                { eventType: 'A', eventTimestamp: 10 },
               ],
             },
           ],

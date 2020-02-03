@@ -15,19 +15,35 @@ export function column<T>(
 export function nullable<T>(c: Column<T>): Column<T | null> {
   return {
     ...c,
-    columnValue: (value: unknown) => {
-      if (value === null) {
+    columnValue: (value: unknown): T | null => {
+      // check for both null and undefined as the default value for nullable
+      // columns is always null and undefined in inserts means `use the
+      // default`
+      if (value === null || value === undefined) {
         return null
       }
 
       return c.columnValue(value)
     },
+    // required to generate `IS NULL` where expressions
     nullable: true,
   }
 }
 
 export function hasDefault<T>(c: Column<T>): Column<T & { hasDefault?: true }> {
-  return c as any
+  return {
+    ...c,
+    columnValue: (value: unknown) => {
+      if (value === undefined) {
+        // insert filters any undefined columns but the validations runs
+        // before that step and is the only part of the column that knowns
+        // about it being optional
+        return undefined as any
+      }
+
+      return c.columnValue(value)
+    },
+  }
 }
 
 // access the tables implementation for building queries
@@ -55,9 +71,6 @@ export class TableImplementation {
   // currently selected columns, undefined == all
   selected?: string[]
 
-  // parameter object - keys are: TODO
-  params?: { [key: string]: any }
-
   // single-column projections
   projection?:
     | {
@@ -68,6 +81,7 @@ export class TableImplementation {
         type: 'jsonAgg'
         name: string
         orderBy?: string
+        direction?: 'ASC' | 'DESC'
       }
 
   // key into tableColumns when this TableImplementation acts as a TableColumn
@@ -78,11 +92,7 @@ export class TableImplementation {
   // selectAsJsonAgg
   // als: sql-functions such as avg, count, ...
 
-  constructor(
-    tableName: string,
-    tableColumns: { [key: string]: Column<any> },
-    params?: any,
-  ) {
+  constructor(tableName: string, tableColumns: { [key: string]: Column<any> }) {
     this.tableName = tableName
     this.tableColumns = tableColumns
 
@@ -188,7 +198,9 @@ export class TableImplementation {
         // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
         `coalesce(json_agg(${aliasPrefix}__json_agg_column__` +
         (this.projection.orderBy
-          ? ` ORDER BY ${aliasPrefix}"${this.tableColumns[this.projection.orderBy].name}"`
+          ? ` ORDER BY ${aliasPrefix}"${
+              this.tableColumns[this.projection.orderBy].name
+            }" ${this.projection.direction || ''}`
           : '') +
         `) FILTER (WHERE ${aliasPrefix}__json_agg_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
       )
@@ -271,13 +283,14 @@ export class TableImplementation {
   }
 
   // json_agg projection of a whole table.
-  selectAsJsonAgg(key: any, orderBy?: any): any {
+  selectAsJsonAgg(key: any, orderBy?: any, direction?: 'ASC' | 'DESC'): any {
     const res = getTableImplementation(this).copy()
 
     res.projection = {
       type: 'jsonAgg',
       name: key,
       orderBy,
+      direction,
     }
 
     return res.getTableProxy()

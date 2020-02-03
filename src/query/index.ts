@@ -8,12 +8,13 @@ import {
 } from '../table'
 import { buildSqlQuery, buildColumns, buildInsert, buildUpdate } from './build'
 import { DatabaseClient, Query, QueryItem } from './types'
+import { date } from 'table/columns'
 
 export { DatabaseClient, Statement, ResultType } from './types'
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
-export function checkAllowedColumns(
+function checkAllowedColumns(
   allowedColumnsSet: Set<string>,
   dataColumns: string[],
 ) {
@@ -28,7 +29,8 @@ export function checkAllowedColumns(
   }
 }
 
-export function validateRowData(
+// call each columns validation function for the given data
+function validateRowData(
   table: TableImplementation,
   keys: string[],
   data: any,
@@ -202,33 +204,53 @@ class QueryImplementation {
       throw new Error('expected exactly one table')
     }
 
-    return {
-      execute: async (client: DatabaseClient, data: any) => {
-        const table = this.tables[0]
-        const sql = buildInsert(this.tables[0], data)
+    // TODO:
+    //   specify a whitelist of columns that are allowed to be present in
+    //   the insert instead of using all things which are in the data
 
-        if (!sql) {
-          return []
+    const execute = async (client: DatabaseClient, data: any[]) => {
+      const table = this.tables[0]
+
+      // be picky part 2: validate the inserted data
+      data.forEach(row => {
+        validateRowData(table, Object.keys(row), row)
+      })
+
+      // collect all present columns
+      const columnSet: { [key: string]: true } = {}
+
+      data.forEach(row => {
+        for (let k in row) {
+          if (row.hasOwnProperty(k)) {
+            columnSet[k] = true
+          }
         }
+      })
 
-        const dataList = Array.isArray(data) ? data : [data]
-        const params: any[] = []
+      const columns = Object.keys(columnSet)
 
-        dataList.forEach(row => {
-          // be picky part 2: validate the inserted data
-          validateRowData(table, Object.keys(row), row)
+      const [sql, insertValues] = buildInsert(this.tables[0], columns, data)
 
-          params.push(...Object.values(row))
-        })
+      if (!sql) {
+        return []
+      }
 
-        const result = (await client.query(sql, params)).rows
+      return (await client.query(sql, insertValues)).rows
+    }
 
-        return result.length === 1 ? result[0] : result
-      },
+    const executeOne = async (client: DatabaseClient, data: any) => {
+      return (await execute(client, [data]))[0]
+    }
+
+    return {
+      execute,
+      executeOne,
     }
   }
 
   update(...columnNames: string[]) {
+    // TODO: just update without the .execute, put the whitelist into a separate parameter
+
     if (this.tables.length !== 1) {
       throw new Error('expected exactly one table')
     }
@@ -240,6 +262,12 @@ class QueryImplementation {
         const dataCtx = new BuildContext()
 
         const dataColumns = Object.keys(data)
+
+        if (!dataColumns.length) {
+          // nothing to update
+          return []
+        }
+
         const allowedCols =
           columnNames[0] === '*' ? Object.keys(data) : columnNames
 

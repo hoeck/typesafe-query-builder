@@ -31,6 +31,30 @@ export type Table<T, S, P> = {
   TableProjectionMethods<T, S, P>
 
 /**
+ * The row type of a table
+ */
+export type TableType<T> = T extends Table<infer C, any, any> ? C : never
+
+/**
+ * Helper type that resolves to a union of all columns that have defaults
+ */
+export type TableColumnsWithDefaults<T> = {
+  [K in keyof T]: null extends T[K]
+    ? K
+    : T[K] extends { hasDefault?: true }
+    ? K
+    : never
+}[keyof T]
+
+/**
+ * The row type of a table suitable for inserts.
+ */
+export type TableTypeWithDefaults<T> = Partial<
+  Pick<TableType<T>, TableColumnsWithDefaults<TableType<T>>>
+> &
+  Omit<TableType<T>, TableColumnsWithDefaults<TableType<T>>>
+
+/**
  * A column of type C that belongs to a Table<T,S,P>
  */
 // TODO: rename to TableColumn and move _C to the end
@@ -81,6 +105,7 @@ export interface TableProjectionMethods<T, S, P> {
     this: Table<T, S, P>,
     key: K,
     orderBy?: O,
+    direction?: 'ASC' | 'DESC',
   ): Table<T, { [KK in K]: S[] & { __json_agg_column__: true } }, P>
 
   /**

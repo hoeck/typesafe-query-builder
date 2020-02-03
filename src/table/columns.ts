@@ -49,13 +49,15 @@ export function date(name: string) {
   return column(
     name,
     (value): Date => {
-      if (value instanceof Date) {
+      if (!(value instanceof Date)) {
         throw new Error(
-          'expected a boolean but got: ' + inspect(value).slice(0, 128),
+          // TODO: pass an optional context object to show table name and mapped column name
+          `expected a Date for colunmn ${name} but got: ` +
+            inspect(value).slice(0, 128),
         )
       }
 
-      return value as Date
+      return value
     },
   )
 }
