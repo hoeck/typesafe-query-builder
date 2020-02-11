@@ -7,8 +7,7 @@ import {
   TableImplementation,
 } from '../table'
 import { buildSqlQuery, buildColumns, buildInsert, buildUpdate } from './build'
-import { DatabaseClient, Query, QueryItem } from './types'
-import { date } from 'table/columns'
+import { DatabaseClient, Query, QueryItem, LockMode } from './types'
 
 export { DatabaseClient, Statement, ResultType } from './types'
 
@@ -132,6 +131,18 @@ class QueryImplementation {
   //   console.log('params', params)
   //   return this
   // }
+
+  lock(lockMode: LockMode) {
+    // Does not work with json-aggregate columns at the moment bc they introduce a group-by.
+    // TODO: In this case, we need to add the FOR UPDATE in a plain subselect of the json-aggregated table.
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'lock',
+        lockMode,
+      },
+    ])
+  }
 
   table(): any {
     // table name which does not clash with some real tables

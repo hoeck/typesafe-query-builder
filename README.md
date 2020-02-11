@@ -56,6 +56,33 @@ const name: string = usersWithItems[0].name
 const label: string = usersWithItems[0].userId
 ```
 
+## Documentation
+
+TODO:
+
+- schema definitions
+  - column validations builtins/custom
+- queries
+  - fetch
+  - fetchOne
+  - caching queries
+  - building simple data fetching functions
+- selecting & projecting columns
+  - select / selectWithout
+  - selectAs
+  - selectAsJson
+  - selectAsJsonAgg
+- where
+  - whereEq
+- joins
+  - left join
+- subqueries via .table()
+- locks
+  - lockForUpdate, lockForShare
+  - locks & json aggregates
+- inserts
+- updates
+
 ## Design Decisions / Opinions
 
 - only support postgres to keep things simple and use the full power of json

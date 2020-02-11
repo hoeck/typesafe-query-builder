@@ -1,5 +1,5 @@
 import { TableImplementation, column, Column } from '../table'
-import { QueryItem, JoinItem } from './types'
+import { QueryItem, JoinItem, LockMode } from './types'
 import { BuildContext } from './buildContext'
 
 function assertNever(x: never): never {
@@ -31,6 +31,7 @@ class SqlQuery {
   }> = []
   private where: string[] = []
   private groupBy: string[] = []
+  private lock?: LockMode
 
   private aliasGenerator = new AliasGenerator()
 
@@ -85,6 +86,10 @@ class SqlQuery {
     }
   }
 
+  setLock(lockMode: LockMode) {
+    this.lock = lockMode
+  }
+
   private buildSelect() {
     return 'SELECT ' + this.select.join(',')
   }
@@ -123,6 +128,27 @@ class SqlQuery {
     return 'GROUP BY ' + this.groupBy.join(',')
   }
 
+  private buildLock() {
+    if (!this.lock) {
+      return ''
+    }
+
+    let lockStatement
+
+    switch (this.lock) {
+      case 'share':
+        lockStatement = 'SHARE'
+        break
+      case 'update':
+        lockStatement = 'UPDATE'
+        break
+      default:
+        assertNever(this.lock)
+    }
+
+    return 'FOR ' + lockStatement
+  }
+
   build(): string {
     return (
       this.buildSelect() +
@@ -133,7 +159,9 @@ class SqlQuery {
       ' ' +
       this.buildWhere() +
       ' ' +
-      this.buildGroupBy()
+      this.buildGroupBy() +
+      ' ' +
+      this.buildLock()
     )
   }
 
@@ -221,8 +249,15 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 
         break
       }
+      case 'orderBy':
+        throw new Error('orderBy is not implemented')
+      case 'whereIn':
+        throw new Error('whereIn is not implemented')
+      case 'lock':
+        sql.setLock(item.lockMode)
+        break
       default:
-      // assert-never
+        assertNever(item)
     }
   })
 
@@ -346,6 +381,7 @@ export function buildUpdate(
       case 'whereIn': // TODO
       case 'join':
       case 'orderBy':
+      case 'lock':
         throw new Error(
           `queryType is not allowed in updates: ${item.queryType}`,
         )

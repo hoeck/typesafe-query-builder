@@ -1,6 +1,5 @@
 import { Table, TableColumnRef, TableColumnsWithDefaults } from '../table/types'
 import { TableImplementation } from '../table'
-import { BuildContext } from './buildContext'
 
 /**
  * Recording parts of a query to be able to generate sql from
@@ -11,6 +10,7 @@ export type QueryItem =
   | WhereEqItem
   | WhereInItem
   | OrderByItem
+  | LockItem
 
 export interface FromItem {
   queryType: 'from'
@@ -41,6 +41,15 @@ export interface OrderByItem {
   column: TableImplementation
   direction: 'asc' | 'desc'
 }
+
+export interface LockItem {
+  queryType: 'lock'
+  lockMode: LockMode
+}
+
+// postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
+// for now only implementing those which I have used myself, there are more locking modes
+export type LockMode = 'update' | 'share'
 
 // bc. databases work with null rather than undefined
 export type NullableLeftJoin<T> = {
@@ -104,6 +113,14 @@ export interface Statement<S, P> {
     ? (client: DatabaseClient) => Promise<S>
     : (client: DatabaseClient, params: P) => Promise<S>
 
+  // TODO:
+  // - make fetchOne return undefined when nothing has been found?
+  // - or create a dedicated QueryResultException and a type predicate so we
+  //   can write a middleware that responds to not found or too-many-results
+  //   with a generic 404 message instead of coding it into every single
+  //   handler
+  //   or give this function a separate name: fetchExactlyOne, fetchPrimary, fetchById, fetchRecord, fetchSingle ... ????
+
   /**
    * Run an SQL EXPLAIN on this query.
    */
@@ -154,6 +171,11 @@ export interface Query<T, S, P> extends Statement<S, P> {
   //   literals: TemplateStringsArray,
   //   paramKeys: Array<TableColumnRef<T, any, any, any> | any>,
   // ): Query<T, S, P>
+
+  /**
+   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
+   */
+  lock(lockMode: LockMode): Query<T, S, P>
 
   // insert
   // TODO: explore
@@ -213,6 +235,8 @@ export interface Join2<T1, T2, S, P> extends Statement<S, P> {
     col: TableColumnRef<T1 | T2, CP, any, any>,
     paramKey: K,
   ): Join2<T1, T2, S, P & { [KK in K]: CP }>
+
+  lock(lockMode: LockMode): Join2<T1, T2, S, P>
 }
 
 export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
@@ -236,6 +260,8 @@ export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
     col: TableColumnRef<T1 | T2 | T3, CP, any, any>,
     paramKey: K,
   ): Join3<T1, T2, T3, S, P & { [KK in K]: CP }>
+
+  lock(lockMode: LockMode): Join3<T1, T2, T3, S, P>
 }
 
 export interface Join4<T1, T2, T3, T4, S, P> extends Statement<S, P> {
@@ -261,6 +287,8 @@ export interface Join4<T1, T2, T3, T4, S, P> extends Statement<S, P> {
     col: TableColumnRef<T1 | T2 | T3 | T4, CP, any, any>,
     paramKey: K,
   ): Join4<T1, T2, T3, T4, S, P & { [KK in K]: CP }>
+
+  lock(lockMode: LockMode): Join4<T1, T2, T3, T4, S, P>
 }
 
 export interface Join5<T1, T2, T3, T4, T5, S, P> extends Statement<S, P> {}
