@@ -74,7 +74,7 @@ class SqlQuery {
       // Null and equals check using a single javascript value.
       // Using a single parameter for null and equals check results in an
       // 'could not determine data type of parameter $N'-error.
-      // Still with two paramerts a type cast is required for the null-check
+      // Still with two parameters a type cast is required for the null-check
       // param so use text as that cast works for most types.
       this.where.push(
         `CASE WHEN ${p1}::text IS NULL THEN ${c} IS NULL ELSE ${c} = ${p2} END`,
@@ -303,13 +303,28 @@ export function buildColumns(
 // (==undefined) column values (its using null instead).
 export function buildInsert(
   table: TableImplementation,
-  columns: string[],
   data: any[],
 ): [string, any[]] {
-  let paramCount = 0
+  // collect all present columns
+  const columnSet: { [key: string]: true } = {}
 
-  const insertParams: string[] = []
-  const insertValues: any[] = []
+  data.forEach(row => {
+    for (let k in row) {
+      if (row.hasOwnProperty(k)) {
+        columnSet[k] = true
+      }
+    }
+  })
+
+  const columns = Object.keys(columnSet)
+
+  // Build the parameter placeholder value lists.
+  // The value list must contain the values for each inserted column in the
+  // *same* order. Also, according to our types, some rows may omit columns
+  // with default values - insert an SQL-`DEFAULT` in this case.
+  const insertParams: string[] = [] // placeholders: $n or DEFAULT
+  const insertValues: any[] = [] // the actual values
+  let paramCount = 0
 
   data.forEach(row => {
     const rowParams: string[] = []
@@ -320,6 +335,7 @@ export function buildInsert(
         rowParams.push('$' + paramCount)
         insertValues.push(row[col])
       } else {
+        // assume that undefined always means 'use the default'
         rowParams.push('DEFAULT')
       }
     })

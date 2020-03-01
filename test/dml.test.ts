@@ -40,9 +40,7 @@ describe('dml methods', () => {
         userName: 'foo',
       }
 
-      const insertResult = await query(users)
-        .insert('*')
-        .executeOne(client, data)
+      const insertResult = await query(users).insertOne(client, data)
 
       expect(insertResult).toEqual(data)
 
@@ -60,9 +58,7 @@ describe('dml methods', () => {
       }
 
       test('with omitting the key', async () => {
-        const insertResult = await query(users)
-          .insert('*')
-          .executeOne(client, insertData)
+        const insertResult = await query(users).insertOne(client, insertData)
 
         expect(insertResult).toEqual(expect.objectContaining(insertData))
         expect(typeof insertResult.userId).toBe('number')
@@ -78,9 +74,10 @@ describe('dml methods', () => {
           userId: undefined,
           ...insertData,
         }
-        const insertResult = await query(users)
-          .insert('*')
-          .executeOne(client, insertDataWithAdditionalUndefined)
+        const insertResult = await query(users).insertOne(
+          client,
+          insertDataWithAdditionalUndefined,
+        )
 
         expect(insertResult).toEqual(expect.objectContaining(insertData))
         expect(typeof insertResult.userId).toBe('number')
@@ -88,12 +85,10 @@ describe('dml methods', () => {
 
       test('with explicit undefined key that is actually a null', async () => {
         // this is okay bc. missing key types to the same as a key set to undefined
-        const insertResult = await query(users)
-          .insert('*')
-          .executeOne(client, {
-            ...insertData,
-            userAvatar: undefined,
-          })
+        const insertResult = await query(users).insertOne(client, {
+          ...insertData,
+          userAvatar: undefined,
+        })
 
         expect(insertResult).toEqual(
           expect.objectContaining({
@@ -105,12 +100,10 @@ describe('dml methods', () => {
 
       test('with null for a default key', async () => {
         // this is okay bc. missing key types to the same as a key set to undefined
-        const insertResult = await query(users)
-          .insert('*')
-          .executeOne(client, {
-            ...insertData,
-            userAvatar: null,
-          })
+        const insertResult = await query(users).insertOne(client, {
+          ...insertData,
+          userAvatar: null,
+        })
 
         expect(insertResult).toEqual(
           expect.objectContaining({
@@ -141,9 +134,7 @@ describe('dml methods', () => {
           userAvatar: 'f2.png',
         },
       ]
-      const insertResult = await query(users)
-        .insert('*')
-        .execute(client, data)
+      const insertResult = await query(users).insert(client, data)
 
       expect(insertResult).toHaveLength(data.length)
 
@@ -167,22 +158,24 @@ describe('dml methods', () => {
         userName: 'foo',
       }
 
-      const insertResult = await query(users.select('userId'))
-        .insert('*')
-        .executeOne(client, data)
+      const insertResult = await query(users.select('userId')).insertOne(
+        client,
+        data,
+      )
 
       expect(insertResult).toEqual({ userId: 123 })
     })
 
     test('json insert', async () => {
-      const result = await query(events.select('eventPayload'))
-        .insert('*')
-        .executeOne(client, {
+      const result = await query(events.select('eventPayload')).insertOne(
+        client,
+        {
           eventItemId: 1,
           eventPayload: { data: 'foo string payload' },
           eventTimestamp: 0,
           eventType: 'A',
-        })
+        },
+      )
 
       expect(result).toEqual({
         eventPayload: { data: 'foo string payload' },
@@ -198,9 +191,7 @@ describe('dml methods', () => {
       }
 
       await expect(
-        query(users.select('userId'))
-          .insert('*')
-          .executeOne(client, data),
+        query(users.select('userId')).insertOne(client, data),
       ).rejects.toThrow('expected a string but got: 123')
     })
 
@@ -214,22 +205,18 @@ describe('dml methods', () => {
       }
 
       await expect(
-        query(users.select('userId'))
-          .insert('*')
-          .executeOne(client, data),
+        query(users.select('userId')).insertOne(client, data),
       ).rejects.toThrow('expected an integer but got: null')
     })
 
     test('json data validation', async () => {
       await expect(
-        query(events.select('eventPayload'))
-          .insert('*')
-          .executeOne(client, {
-            eventItemId: 1,
-            eventPayload: { foo: 1 },
-            eventTimestamp: 0,
-            eventType: 'A',
-          } as any),
+        query(events.select('eventPayload')).insertOne(client, {
+          eventItemId: 1,
+          eventPayload: { foo: 1 },
+          eventTimestamp: 0,
+          eventType: 'A',
+        } as any),
       ).rejects.toThrow('expected a data:string attribute')
     })
 
@@ -242,8 +229,7 @@ describe('dml methods', () => {
     test('basic update', async () => {
       const result = await query(users)
         .whereEq(users.userId, 'id')
-        .update('*') // declare what to update
-        .execute(
+        .update(
           client,
           { id: 1 }, // update params
           {
@@ -284,8 +270,7 @@ describe('dml methods', () => {
     test('with custom returning', async () => {
       const result = await query(users.select('userEmail'))
         .whereEq(users.userId, 'id')
-        .update('*') // declare what to update
-        .execute(
+        .update(
           client,
           { id: 1 }, // update params
           {
@@ -301,15 +286,13 @@ describe('dml methods', () => {
     })
 
     test('many rows', async () => {
-      const result = await query(users.select('userId', 'userEmail'))
-        .update('*') // declare what to update
-        .execute(
-          client,
-          {},
-          {
-            userEmail: 'all@foo',
-          },
-        )
+      const result = await query(users.select('userId', 'userEmail')).update(
+        client,
+        {},
+        {
+          userEmail: 'all@foo',
+        },
+      )
 
       expect(result).toEqual([
         { userId: 1, userEmail: 'all@foo' },
@@ -321,8 +304,7 @@ describe('dml methods', () => {
     test('with whitelist', async () => {
       const result = await query(users.select('userId', 'userEmail'))
         .whereEq(users.userId, 'id')
-        .update('userEmail') // declare what to update
-        .execute(
+        .update(
           client,
           { id: 2 },
           {
@@ -338,28 +320,10 @@ describe('dml methods', () => {
       ])
     })
 
-    test('with whitelist that triggers an error', async () => {
-      await expect(
-        query(users)
-          .whereEq(users.userId, 'id')
-          .update('userEmail', 'userAvatar') // declare what to update
-          .execute(client, { id: 2 }, {
-            userEmail: 'new@foo',
-            userAvatar: 'foo.png',
-            // sneaky invalid fields
-            userName: 'NOT ALLOWED TO CHANGE YOUR NAME',
-            userId: 1000,
-          } as any),
-      ).rejects.toThrow(
-        'invalid columns in insert/update object: "userName", "userId"',
-      )
-    })
-
     test('set null', async () => {
       const result = await query(users.select('userAvatar'))
         .whereEq(users.userId, 'id')
-        .update('*') // declare what to update
-        .execute(
+        .update(
           client,
           { id: 3 },
           {
@@ -376,8 +340,7 @@ describe('dml methods', () => {
       await expect(
         query(users.select('userAvatar'))
           .whereEq(users.userId, 'id')
-          .update('*') // declare what to update
-          .execute(client, { id: 1 }, {
+          .update(client, { id: 1 }, {
             userEmail: 123,
           } as any),
       ).rejects.toThrow('expected a string but got: 123')
@@ -386,8 +349,7 @@ describe('dml methods', () => {
     test('empty update', async () => {
       const res = await query(users)
         .whereEq(users.userId, 'id')
-        .update('*')
-        .execute(client, { id: 1 }, {})
+        .update(client, { id: 1 }, {})
 
       expect(res).toEqual([])
     })

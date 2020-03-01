@@ -177,44 +177,52 @@ export interface Query<T, S, P> extends Statement<S, P> {
    */
   lock(lockMode: LockMode): Query<T, S, P>
 
-  // insert
-  // TODO: explore
-  // https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING
-  // for inserts across multiple tables
+  /// inserts
 
-  // insert all cols defined in the table but allow to omit columns which have
-  // a default (that is via explicit default or because they are nullable)
-  // TODO: implement a whitelisting similar to update(...columnNames)
-  insert(
-    all: '*',
-  ): InsertQuery<
-    Partial<Pick<T, TableColumnsWithDefaults<T>>> &
-      Omit<T, TableColumnsWithDefaults<T>>,
-    S
-  >
+  // TODO:
+  //  explore
+  //  https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING
+  //  for inserts across multiple tables
 
-  update(all: '*'): UpdateQuery<P, Partial<T>, S>
-  update<K extends keyof T>(...columnNames: K[]): UpdateQuery<P, Pick<T, K>, S>
-}
+  /**
+   * Insert rows into the table.
+   *
+   * Use defaults for all ommited columns (via explicit default or because
+   * they are nullable).
+   * Return all selected columns.
+   */
+  insert<
+    Row = Partial<Pick<T, TableColumnsWithDefaults<T>>> &
+      Omit<T, TableColumnsWithDefaults<T>>
+  >(
+    client: DatabaseClient,
+    row: Row[],
+  ): Promise<S[]>
 
-export interface InsertQuery<R, S> {
-  // single row insert
-  // Use a separate method. When overloading a single method, the type errors
-  // get messy (sth like: 'no suitable overload found' when the row type does
-  // not match. Without overloading they read like 'property X,Y,Z are missing
-  // from row'.
-  executeOne(client: DatabaseClient, row: R): Promise<S>
+  /**
+   * Single Row Insert
+   *
+   * Like insert but only insert one row and return the inserted row directly.
+   *
+   * Use a separate method. When overloading a single method, the type errors
+   * get messy (sth like: 'no suitable overload found' when the row type does
+   * not match. Without overloading they read like 'property X,Y,Z are missing
+   * from row'.
+   */
+  insertOne<
+    Row = Partial<Pick<T, TableColumnsWithDefaults<T>>> &
+      Omit<T, TableColumnsWithDefaults<T>>
+  >(
+    client: DatabaseClient,
+    row: Row,
+  ): Promise<S>
 
-  // multi row insert
-  execute(client: DatabaseClient, row: R[]): Promise<S[]>
-}
+  /// update
 
-export interface UpdateQuery<P, D, S> {
-  // TODO: just update without the .execute, put the whitelist into a separate parameter:
-  // update(client: DatabaseClient, data: D): Promise<S[]>
-  // update(client: DatabaseClient, params: P, data: D): Promise<S[]>
-
-  execute(client: DatabaseClient, params: P, data: D): Promise<S[]>
+  /**
+   * Update rows of the table
+   */
+  update(client: DatabaseClient, params: P, data: Partial<T>): Promise<S[]>
 }
 
 /**

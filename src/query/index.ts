@@ -210,98 +210,57 @@ class QueryImplementation {
 
   // DML methods
 
-  insert(_all: '*') {
+  async insert(client: DatabaseClient, data: any[]) {
     if (this.tables.length !== 1) {
+      // this should be actually prohibited by the type system
       throw new Error('expected exactly one table')
     }
 
-    // TODO:
-    //   specify a whitelist of columns that are allowed to be present in
-    //   the insert instead of using all things which are in the data
+    const table = this.tables[0]
 
-    const execute = async (client: DatabaseClient, data: any[]) => {
-      const table = this.tables[0]
+    // validate the data of each column before insertion
+    data.forEach(row => {
+      validateRowData(table, Object.keys(row), row)
+    })
 
-      // be picky part 2: validate the inserted data
-      data.forEach(row => {
-        validateRowData(table, Object.keys(row), row)
-      })
+    const [sql, insertValues] = buildInsert(this.tables[0], data)
 
-      // collect all present columns
-      const columnSet: { [key: string]: true } = {}
-
-      data.forEach(row => {
-        for (let k in row) {
-          if (row.hasOwnProperty(k)) {
-            columnSet[k] = true
-          }
-        }
-      })
-
-      const columns = Object.keys(columnSet)
-
-      const [sql, insertValues] = buildInsert(this.tables[0], columns, data)
-
-      if (!sql) {
-        return []
-      }
-
-      return (await client.query(sql, insertValues)).rows
-    }
-
-    const executeOne = async (client: DatabaseClient, data: any) => {
-      return (await execute(client, [data]))[0]
-    }
-
-    return {
-      execute,
-      executeOne,
-    }
+    return (await client.query(sql, insertValues)).rows
   }
 
-  update(...columnNames: string[]) {
-    // TODO: just update without the .execute, put the whitelist into a separate parameter
+  async insertOne(client: DatabaseClient, data: any) {
+    return (await this.insert(client, [data]))[0]
+  }
 
+  async update(client: DatabaseClient, params: any, data: any) {
     if (this.tables.length !== 1) {
+      // this should be actually prohibited by the type system
       throw new Error('expected exactly one table')
     }
 
-    return {
-      execute: async (client: DatabaseClient, params: any, data: any) => {
-        const table = this.tables[0]
-        const paramsCtx = new BuildContext()
-        const dataCtx = new BuildContext()
+    const table = this.tables[0]
+    const paramsCtx = new BuildContext() // parameters for the `WHERE` conditions
+    const dataCtx = new BuildContext() // the actual values for the update
 
-        const dataColumns = Object.keys(data)
+    const dataColumns = Object.keys(data)
 
-        if (!dataColumns.length) {
-          // nothing to update
-          return []
-        }
-
-        const allowedCols =
-          columnNames[0] === '*' ? Object.keys(data) : columnNames
-
-        // be picky about what goes into the database part 1:
-        // whitelisted columns only
-        if (columnNames[0] !== '*') {
-          checkAllowedColumns(new Set(allowedCols), dataColumns)
-        }
-
-        // be picky part 2:
-        // validate column values
-        validateRowData(table, dataColumns, data)
-
-        const sql = buildUpdate(this.query, paramsCtx, allowedCols, dataCtx)
-
-        return (
-          await client.query(
-            sql,
-            paramsCtx.getParameters(params).concat(dataCtx.getParameters(data)),
-          )
-        ).rows
-      },
+    if (!dataColumns.length) {
+      // nothing to update
+      return []
     }
+
+    // validate column values before updating the db
+    validateRowData(table, dataColumns, data)
+
+    const columns = Object.keys(data)
+    const sql = buildUpdate(this.query, paramsCtx, columns, dataCtx)
+
+    return (
+      await client.query(
+        sql,
+        paramsCtx.getParameters(params).concat(dataCtx.getParameters(data)),
+      )
+    ).rows
   }
 }
 
