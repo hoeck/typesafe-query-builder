@@ -67,7 +67,7 @@ export type WithoutJsonAggTag<T> = {
 }
 
 /**
- * The parts of the postgres client I use
+ * The parts of the postgres client required for fetching and validating queries.
  */
 export interface DatabaseClient {
   query(
@@ -114,8 +114,8 @@ export interface Statement<S, P> {
     : (client: DatabaseClient, params: P) => Promise<S>
 
   // TODO:
-  // - make fetchOne return undefined when nothing has been found?
-  // - or create a dedicated QueryResultException and a type predicate so we
+  // - fetchFirst - fetchOne without throwing, returns undefined if result was empty
+  // - create a dedicated QueryResultException and a type predicate so we
   //   can write a middleware that responds to not found or too-many-results
   //   with a generic 404 message instead of coding it into every single
   //   handler
@@ -155,17 +155,25 @@ export interface Query<T, S, P> extends Statement<S, P> {
   // in code that will return a result for simple
   // `query(Users).where(Users.secretAccessToken, 'token')` to return users
   // without tokens if an attacker manages to bypass parameter checks.
+
+  /**
+   * Append a WHERE col = value condition.
+   *
+   * Multiple `where` conditions are combined with an SQL `AND`
+   */
   whereEq<CP, K extends string>(
     col: TableColumnRef<T, CP, any, any>,
     paramKey: K,
   ): Query<T, S, P & { [KK in K]: CP }>
 
-  // TODO:
-  // whereIn<CP, K extends string>(
-  //   col: TableColumnRef<T, CP, any, any>,
-  //   paramKey: K,
-  // ): Query<T, S, P & { [KK in K]: CP[] }>
-  //
+  /**
+   * Append a WHERE col IN (value1, value2, ...) condition.
+   */
+  whereIn<CP, K extends string>(
+    col: TableColumnRef<T, CP, any, any>,
+    paramKey: K,
+  ): Query<T, S, P & { [KK in K]: CP[] }>
+
   // // as a template literal: whereSql`...`
   // whereSql(
   //   literals: TemplateStringsArray,

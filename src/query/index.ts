@@ -13,21 +13,6 @@ export { DatabaseClient, Statement, ResultType } from './types'
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
-function checkAllowedColumns(
-  allowedColumnsSet: Set<string>,
-  dataColumns: string[],
-) {
-  const invalidColumns = dataColumns.filter(k => !allowedColumnsSet.has(k))
-
-  if (invalidColumns.length) {
-    throw new Error(
-      'invalid columns in insert/update object: "' +
-        invalidColumns.join('", "') +
-        '"',
-    )
-  }
-}
-
 // call each columns validation function for the given data
 function validateRowData(
   table: TableImplementation,
@@ -102,19 +87,16 @@ class QueryImplementation {
     ])
   }
 
-  // whereIn<CR extends TableColumnRef<T, any, S>, CV extends CR['columnType']>(
-  //   col: CR,
-  //   values: CV[],
-  // ): Query<T,S, P & { {
-  //   return new Query(this.t, [
-  //     ...this.query,
-  //     {
-  //       queryType: 'whereIn',
-  //       col,
-  //       values,
-  //     },
-  //   ])
-  // }
+  whereIn(column: AnyTableColumnRef, paramKey: string) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'whereIn',
+        column: getTableImplementation(column),
+        paramKey,
+      },
+    ])
+  }
 
   // whereSql(
   //   literals: TemplateStringsArray,

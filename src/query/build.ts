@@ -86,6 +86,17 @@ class SqlQuery {
     }
   }
 
+  addWhereIn(columnSql: string, paramKey: string) {
+    const c = columnSql
+    const p = this.ctx.getNextParameter(paramKey)
+
+    // Use an array comparison function (instead of IN) so we can pass
+    // parameters as a simple json array in a simple arg without having to
+    // know how long the arguments are.
+    // see https://www.postgresql.org/docs/current/functions-comparisons.html
+    this.where.push(`${c} = ANY(${p})`)
+  }
+
   setLock(lockMode: LockMode) {
     this.lock = lockMode
   }
@@ -249,10 +260,16 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 
         break
       }
+      case 'whereIn': {
+        const table = item.column
+        const alias = sql.getAlias(table.tableName)
+
+        sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
+
+        break
+      }
       case 'orderBy':
         throw new Error('orderBy is not implemented')
-      case 'whereIn':
-        throw new Error('whereIn is not implemented')
       case 'lock':
         sql.setLock(item.lockMode)
         break
@@ -394,7 +411,15 @@ export function buildUpdate(
         }
         break
 
-      case 'whereIn': // TODO
+      case 'whereIn': {
+        const table = item.column
+        const alias = sql.getAlias(table.tableName)
+
+        sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
+
+        break
+      }
+
       case 'join':
       case 'orderBy':
       case 'lock':

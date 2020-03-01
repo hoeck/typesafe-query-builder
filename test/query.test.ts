@@ -1,19 +1,5 @@
 import { query } from '../src'
-import {
-  EventRow,
-  EventTypeRow,
-  ItemRow,
-  UserRow,
-  client,
-  emptyTable,
-  eventTypes,
-  events,
-  items,
-  users,
-} from './testSchema'
-
-// get rid of 'unused variable' warnings
-function use(_x: any) {}
+import { UserRow, client, emptyTable, users } from './testSchema'
 
 describe('query', () => {
   describe('fetch and selections', () => {
@@ -176,31 +162,6 @@ describe('query', () => {
       ).fetch(client)
 
       expect(result).toEqual([{ empty: [] }])
-    })
-  })
-
-  describe('where conditions', () => {
-    test('equals', async () => {
-      const result = await query(users.select('userName'))
-        .whereEq(users.userId, 'id')
-        .fetch(client, {
-          id: 2,
-        })
-
-      expect(result).toEqual([{ userName: 'user-c' }])
-    })
-
-    test('is null', async () => {
-      const result = await query(users.select('userName', 'userAvatar'))
-        .whereEq(users.userAvatar, 'avatar')
-        .fetch(client, {
-          avatar: null,
-        })
-
-      expect(result).toEqual([
-        { userName: 'user-a', userAvatar: null },
-        { userName: 'user-c', userAvatar: null },
-      ])
     })
   })
 
