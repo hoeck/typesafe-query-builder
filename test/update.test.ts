@@ -5,7 +5,7 @@ import { client, users } from './testSchema'
 describe('update', () => {
   async function queryUsers(ids: number[]) {
     const sql =
-      'SELECT id as "userId", avatar as "userAvatar", email as "userEmail", name as "userName" FROM users WHERE id = ANY($1::int[]) ORDER BY id'
+      'SELECT id as "userId", avatar as "userAvatar", email as "userEmail", name as "userName", active as "userActive" FROM users WHERE id = ANY($1::int[]) ORDER BY id'
 
     const rows = (await client.query(sql, [ids])).rows
 
@@ -33,6 +33,7 @@ describe('update', () => {
 
     expect(result).toEqual([
       {
+        userActive: null,
         userAvatar: null,
         userEmail: 'new@foo',
         userId: 1,
@@ -69,17 +70,20 @@ describe('update', () => {
         { ids: [1, 2] }, // update params
         {
           userEmail: 'new@foo',
+          userActive: new Date('2023-03-03'),
         },
       )
 
     expect(result).toEqual([
       {
+        userActive: new Date('2023-03-03'),
         userAvatar: null,
         userEmail: 'new@foo',
         userId: 1,
         userName: 'user-a',
       },
       {
+        userActive: new Date('2023-03-03'),
         userAvatar: null,
         userEmail: 'new@foo',
         userId: 2,

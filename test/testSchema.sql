@@ -8,15 +8,16 @@ CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   email TEXT NOT NULL,
-  avatar TEXT
+  avatar TEXT,
+  active TIMESTAMPTZ
 );
 
 INSERT INTO users
-  (id, name, email, avatar)
+  (id, name, email, avatar, active)
 VALUES
-  (1, 'user-a', 'a@user', NULL),
-  (2, 'user-c', 'c@user', NULL),
-  (3, 'user-b', 'b@user', 'image.png');
+  (1, 'user-a', 'a@user', NULL, NULL),
+  (2, 'user-c', 'c@user', NULL, NULL),
+  (3, 'user-b', 'b@user', 'image.png', '2016-01-16 10:00:00');
 
 SELECT pg_catalog.setval('users_id_seq', 4, false);
 

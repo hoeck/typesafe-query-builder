@@ -5,7 +5,7 @@ import { client, events, users } from './testSchema'
 describe('insert', () => {
   async function queryUsers(ids: number[]) {
     const sql =
-      'SELECT id as "userId", avatar as "userAvatar", email as "userEmail", name as "userName" FROM users WHERE id = ANY($1::int[]) ORDER BY id'
+      'SELECT id as "userId", avatar as "userAvatar", email as "userEmail", name as "userName", active as "userActive" FROM users WHERE id = ANY($1::int[]) ORDER BY id'
 
     const rows = (await client.query(sql, [ids])).rows
 
@@ -26,6 +26,7 @@ describe('insert', () => {
       userAvatar: 'foo.png',
       userEmail: 'foo@foo',
       userName: 'foo',
+      userActive: new Date('2020-02-02'),
     }
 
     const insertResult = await query(users).insertOne(client, data)

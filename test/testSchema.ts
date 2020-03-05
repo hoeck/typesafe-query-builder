@@ -40,6 +40,7 @@ export interface UserRow {
   userName: string
   userEmail: string
   userAvatar: string | null
+  userActive: Date | null
 }
 
 export const users = table('users', {
@@ -47,6 +48,7 @@ export const users = table('users', {
   userName: string('name'),
   userEmail: string('email'),
   userAvatar: nullable(string('avatar')),
+  userActive: nullable(date('active')),
 })
 
 export interface ItemRow {

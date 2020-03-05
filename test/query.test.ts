@@ -12,18 +12,21 @@ describe('query', () => {
           userName: 'user-a',
           userEmail: 'a@user',
           userAvatar: null,
+          userActive: null,
         },
         {
           userId: 2,
           userName: 'user-c',
           userEmail: 'c@user',
           userAvatar: null,
+          userActive: null,
         },
         {
           userId: 3,
           userName: 'user-b',
           userEmail: 'b@user',
           userAvatar: 'image.png',
+          userActive: new Date('2016-01-16T10:00:00.000Z'),
         },
       ])
     })
@@ -56,6 +59,7 @@ describe('query', () => {
             userName: 'user-a',
             userEmail: 'a@user',
             userAvatar: null,
+            userActive: null,
           },
         },
         {
@@ -64,6 +68,7 @@ describe('query', () => {
             userName: 'user-c',
             userEmail: 'c@user',
             userAvatar: null,
+            userActive: null,
           },
         },
         {
@@ -72,25 +77,27 @@ describe('query', () => {
             userName: 'user-b',
             userEmail: 'b@user',
             userAvatar: 'image.png',
+            userActive: new Date('2016-01-16T10:00:00.000Z'),
           },
         },
       ])
     })
 
-    test('with selectAs and fromJson Date conversion', async () => {
-      const result = await query(events.selectAs('events'))
-        .whereEq(events.eventId, 'id')
-        .fetch(client, { id: 2 })
+    test('with selectAs and fromJson Date conversion of a nullable date', async () => {
+      const result = await query(
+        users.select('userId', 'userActive').selectAs('users'),
+      ).fetch(client)
 
-      expect(result[0]).toEqual({
-        events: {
-          eventId: 2,
-          eventItemId: 1,
-          eventType: 'C',
-          eventTimestamp: new Date('2016-03-01 17:30:00Z'), // real date object, even tough we became a string from postgres
-          eventPayload: null,
+      expect(result).toEqual([
+        { users: { userId: 1, userActive: null } },
+        { users: { userId: 2, userActive: null } },
+        {
+          users: {
+            userId: 3,
+            userActive: new Date('2016-01-16T10:00:00.000Z'),
+          },
         },
-      })
+      ])
     })
 
     test('with select and selectAs', async () => {
@@ -118,18 +125,21 @@ describe('query', () => {
               userName: 'user-a',
               userEmail: 'a@user',
               userAvatar: null,
+              userActive: null,
             },
             {
               userId: 2,
               userName: 'user-c',
               userEmail: 'c@user',
               userAvatar: null,
+              userActive: null,
             },
             {
               userId: 3,
               userName: 'user-b',
               userEmail: 'b@user',
               userAvatar: 'image.png',
+              userActive: new Date('2016-01-16T10:00:00.000Z'),
             },
           ],
         },
@@ -265,6 +275,25 @@ describe('query', () => {
         userName: 'user-c',
         userEmail: 'c@user',
         userAvatar: null,
+        userActive: null,
+      })
+    })
+
+    test('returns exactly one row when using json', async () => {
+      const result: { theUser: UserRow } = await query(
+        users.selectAs('theUser'),
+      )
+        .whereEq(users.userId, 'id')
+        .fetchOne(client, { id: 2 })
+
+      expect(result).toEqual({
+        theUser: {
+          userId: 2,
+          userName: 'user-c',
+          userEmail: 'c@user',
+          userAvatar: null,
+          userActive: null,
+        },
       })
     })
 

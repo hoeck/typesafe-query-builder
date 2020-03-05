@@ -3,7 +3,7 @@ import { Column, Table } from './types'
 export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
 
 /**
- * column constructor
+ * Column constructor
  */
 export function column<T>(
   name: string,
@@ -13,7 +13,14 @@ export function column<T>(
   return { columnValue: validator, name, fromJson }
 }
 
+/**
+ * Create a column which is nullable.
+ *
+ * That means it can hold `null` and also uses null as its default.
+ */
 export function nullable<T>(c: Column<T>): Column<T | null> {
+  const { fromJson, columnValue } = c
+
   return {
     ...c,
     columnValue: (value: unknown): T | null => {
@@ -24,13 +31,29 @@ export function nullable<T>(c: Column<T>): Column<T | null> {
         return null
       }
 
-      return c.columnValue(value)
+      return columnValue(value)
     },
+
     // required to generate `IS NULL` where expressions
     nullable: true,
+
+    fromJson: fromJson
+      ? (value: any) => {
+          if (value === null) {
+            return null
+          }
+
+          return fromJson(value)
+        }
+      : undefined,
   }
 }
 
+/**
+ * Create a column which has a default.
+ *
+ * Columns with defaults can be ommitted in insert queries.
+ */
 export function hasDefault<T>(c: Column<T>): Column<T & { hasDefault?: true }> {
   return {
     ...c,
