@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "license": "MIT",
   "author": "Erik Soehnel",
-  "repository": "github:/hoeck/typesafe-query-builder",
+  "repository": "github:hoeck/typesafe-query-builder",
   "main": "dist/index.js",
   "module": "dist/typesafe-query-builder.esm.js",
   "typings": "dist/index.d.ts",
