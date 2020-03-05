@@ -214,6 +214,39 @@ class SqlQuery {
   }
 }
 
+// returns a function which will convert a row from the database into what is
+// actually declared in the schema, e.g. string-formatted-dates (bc they where
+// selected via a json query) into real javascript Date objects.
+export function buildResultConverter(query: QueryItem[]) {
+  const converters: Array<(row: any) => void> = []
+
+  query.forEach(item => {
+    switch (item.queryType) {
+      case 'from':
+        {
+          const { table } = item
+
+          converters.push(table.getResultConverter())
+        }
+        break
+      case 'join': {
+        const { column2: table2 } = item
+
+        // table 1 is already present in the query so we don't need to add its
+        // result converter again
+        converters.push(table2.getResultConverter())
+
+        break
+      }
+      default:
+      // ignore all other query item types because they do not introduce new
+      // tables/columns into the query
+    }
+  })
+
+  return (row: any) => converters.forEach(c => c(row))
+}
+
 export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
   const sql = new SqlQuery(ctx)
 
@@ -293,7 +326,10 @@ export function buildColumns(
         const { table } = item
 
         table.getColumns().forEach(c => {
-          columns[c] = column(c, undefined as any)
+          // subselect-columns are never used for insertion
+          const validator: any = undefined
+
+          columns[c] = column(c, validator)
         })
 
         break
@@ -302,13 +338,17 @@ export function buildColumns(
         const { column2: table2 } = item
 
         table2.getColumns().forEach(c => {
-          columns[c] = column(c, undefined as any)
+          // subselect-columns are never used for insertion
+          const validator: any = undefined
+
+          columns[c] = column(c, validator)
         })
 
         break
       }
       default:
-      // assert-never
+      // ignore all other query item types, we only care about the ones that
+      // modify column type information
     }
   })
 

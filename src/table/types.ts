@@ -11,6 +11,14 @@ export interface Column<T> {
   // whether this column can contain nulls (needed when creating the query as
   // the type information in T is gone at runtime)
   nullable?: boolean
+
+  // optional serialization from basic types - required for data types that
+  // are represented in the database but are just 'strings' when selected via
+  // json such as SQL timestamps
+  fromJson?: (value: unknown) => T // converts the selected value from json
+
+  // TODO: also support a toJson but figure out how that works with non-json columns
+  // toJson?: (value: T) => string | number | null | undefined | boolean, // convert into json
 }
 
 /**

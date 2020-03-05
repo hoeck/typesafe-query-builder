@@ -1,8 +1,8 @@
 /**
  * Tracks the dollar parameters and maps them to keys.
  *
- * Postgres only supports positional arguments in queries.  So we need to
- * track them when the query is build at the end as we want our parameter type
+ * Postgres only supports positional arguments in queries. So we need to
+ * track them when the query is built at the end as we want our parameter type
  * to be an object so it works across subqueries and is mergable.
  */
 export class BuildContext {

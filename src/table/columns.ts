@@ -59,6 +59,18 @@ export function date(name: string) {
 
       return value
     },
+    (value): Date => {
+      if (value instanceof Date) {
+        return value
+      }
+
+      // postgres serializes timestamps into strings when selected via json functions
+      if (typeof value === 'string') {
+        return new Date(value)
+      }
+
+      throw new Error('cannot read Date from ' + inspect(value).slice(0, 128))
+    },
   )
 }
 

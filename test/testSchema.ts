@@ -1,13 +1,14 @@
 import { Client } from 'pg'
 
 import {
-  table,
-  integer,
-  string,
   boolean,
-  nullable,
+  date,
   hasDefault,
+  integer,
   json,
+  nullable,
+  string,
+  table,
 } from '../src'
 
 // enable "deep" console.log
@@ -66,7 +67,7 @@ export interface EventRow {
   eventId: number
   eventItemId: number
   eventType: string
-  eventTimestamp: number
+  eventTimestamp: Date
   eventPayload: { data: string } | null
 }
 
@@ -74,7 +75,7 @@ export const events = table('events', {
   eventId: hasDefault(integer('id')),
   eventItemId: integer('item_id'),
   eventType: string('type'),
-  eventTimestamp: integer('timestamp'),
+  eventTimestamp: date('timestamp'),
 
   // ad hoc runtype
   // in a real setup I would use a runtype library for this

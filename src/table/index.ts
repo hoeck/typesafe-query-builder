@@ -7,9 +7,10 @@ export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
  */
 export function column<T>(
   name: string,
-  validator: (value: unknown) => T,
+  validator: (value: unknown) => T, // checks/converts the datatype when inserting a column
+  fromJson?: (value: unknown) => T, // converts the selected value from json
 ): Column<T> {
-  return { columnValue: validator, name }
+  return { columnValue: validator, name, fromJson }
 }
 
 export function nullable<T>(c: Column<T>): Column<T | null> {
@@ -65,6 +66,11 @@ export class TableImplementation {
   // the final query is assembled
   tableQuery?: (ctx: BuildContext) => string
 
+  // same as tableQuery: custom result converter function to use when this
+  // table is a subselect: TODO: better naming: explicit 'subselect' prefix in
+  // these names
+  tableResultConverter?: (row: any) => void
+
   // all columns available in this table to use in selection, projection, where, etc.
   tableColumns: { [key: string]: Column<any> }
 
@@ -107,6 +113,7 @@ export class TableImplementation {
     res.projection = this.projection
     res.referencedColumn = this.referencedColumn
     res.tableQuery = this.tableQuery
+    res.tableResultConverter = this.tableResultConverter
 
     return res
   }
@@ -245,6 +252,78 @@ export class TableImplementation {
 
   needsGroupBy() {
     return !!(this.projection && this.projection.type === 'jsonAgg')
+  }
+
+  // turn any Date columns selected via pg json functions into into real dates
+  // (because while being selected as json, postgres converts them to strings
+  // first so they fit into the json column)
+  // so basically this is a custom datatype serialization on top of what
+  // node-postgres already provides
+  getResultConverter() {
+    if (this.tableResultConverter) {
+      // This table is a wrapper around a query so it has no useful column
+      // information because they're hidden behind a subselect.
+      // We have to use the provided converter function.
+      const converter = this.tableResultConverter
+
+      if (this.projection === undefined) {
+        return converter
+      } else if (this.projection.type === 'jsonBuildObject') {
+        const key = this.projection.name
+
+        return (row: any) => converter(row[key])
+      } else if (this.projection.type === 'jsonAgg') {
+        const key = this.projection.name
+
+        // json agg -> key is an array of the joined rows
+        return (row: any) => row[key].forEach(converter)
+      } else {
+        throw new Error('invalid projection type')
+      }
+    }
+
+    // collect the `fromJson` method from each column
+    const columnConverters = (this.selected || Object.keys(this.tableColumns))
+      .map(name => [name, this.tableColumns[name].fromJson])
+      .filter((x: any): x is [string, (v: any) => void] => x[1])
+
+    // not a single selected column needs a result conversion
+    if (columnConverters.length === 0) {
+      return () => {} // nothing to do
+    }
+
+    // return a function that converts fields of a single row *in-place* (to
+    // save on memory allocations)
+
+    if (this.projection === undefined) {
+      return (row: any) => {
+        columnConverters.forEach(([name, fromJson]) => {
+          row[name] = fromJson(row[name])
+        })
+      }
+    } else if (this.projection.type === 'jsonBuildObject') {
+      const key = this.projection.name
+
+      return (row: any) => {
+        columnConverters.forEach(([name, fromJson]) => {
+          // plain json projection: all selected columns are grouped below `key`
+          row[key][name] = fromJson(row[key][name])
+        })
+      }
+    } else if (this.projection.type === 'jsonAgg') {
+      const key = this.projection.name
+
+      return (row: any) => {
+        columnConverters.forEach(([name, fromJson]) => {
+          // json agg -> key is an array of the joined rows
+          row[key].forEach((aggregatedRow: any) => {
+            aggregatedRow[name] = fromJson(aggregatedRow[name])
+          })
+        })
+      }
+    } else {
+      throw new Error('invalid projection type')
+    }
   }
 
   /// TableProjectionMethods implementation

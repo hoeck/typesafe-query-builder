@@ -141,10 +141,22 @@ describe('query', () => {
               itemLabel: 'item-1',
               itemUserId: 1,
               itemEvents: [
-                { eventType: 'A', eventTimestamp: 0 },
-                { eventType: 'C', eventTimestamp: 10 },
-                { eventType: 'A', eventTimestamp: 20 },
-                { eventType: 'B', eventTimestamp: 30 },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2016-01-12T19:20:00+00:00'),
+                },
+                {
+                  eventType: 'C',
+                  eventTimestamp: new Date('2016-03-01T17:30:00+00:00'),
+                },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2017-02-12T12:00:00+00:00'),
+                },
+                {
+                  eventType: 'B',
+                  eventTimestamp: new Date('2017-06-12T15:20:00+00:00'),
+                },
               ],
             },
             // items without events are mising bc this is not a left join
@@ -158,9 +170,18 @@ describe('query', () => {
               itemLabel: 'item-4',
               itemUserId: 2,
               itemEvents: [
-                { eventType: 'A', eventTimestamp: 10 },
-                { eventType: 'B', eventTimestamp: 50 },
-                { eventType: 'C', eventTimestamp: 80 },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2018-07-12T15:20:00+00:00'),
+                },
+                {
+                  eventType: 'B',
+                  eventTimestamp: new Date('2018-08-12T01:50:00+00:00'),
+                },
+                {
+                  eventType: 'C',
+                  eventTimestamp: new Date('2019-01-12T19:50:00+00:00'),
+                },
               ],
             },
             {
@@ -168,8 +189,14 @@ describe('query', () => {
               itemLabel: 'item-5',
               itemUserId: 2,
               itemEvents: [
-                { eventType: 'A', eventTimestamp: 10 },
-                { eventType: 'B', eventTimestamp: 15 },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2020-11-08T22:45:00+00:00'),
+                },
+                {
+                  eventType: 'B',
+                  eventTimestamp: new Date('2022-10-05T09:20:00+00:00'),
+                },
               ],
             },
           ],
@@ -250,10 +277,22 @@ describe('query', () => {
               itemLabel: 'item-1',
               itemUserId: 1,
               itemEvents: [
-                { eventType: 'B', eventTimestamp: 30 },
-                { eventType: 'A', eventTimestamp: 20 },
-                { eventType: 'C', eventTimestamp: 10 },
-                { eventType: 'A', eventTimestamp: 0 },
+                {
+                  eventType: 'B',
+                  eventTimestamp: new Date('2017-06-12T15:20:00.000Z'),
+                },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2017-02-12T12:00:00.000Z'),
+                },
+                {
+                  eventType: 'C',
+                  eventTimestamp: new Date('2016-03-01T17:30:00.000Z'),
+                },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2016-01-12T19:20:00.000Z'),
+                },
               ],
             },
             { itemId: 2, itemLabel: 'item-2', itemUserId: 1, itemEvents: [] }, // <- empty itemEvents bc of left join
@@ -268,9 +307,18 @@ describe('query', () => {
               itemLabel: 'item-4',
               itemUserId: 2,
               itemEvents: [
-                { eventType: 'C', eventTimestamp: 80 },
-                { eventType: 'B', eventTimestamp: 50 },
-                { eventType: 'A', eventTimestamp: 10 },
+                {
+                  eventType: 'C',
+                  eventTimestamp: new Date('2019-01-12T19:50:00.000Z'),
+                },
+                {
+                  eventType: 'B',
+                  eventTimestamp: new Date('2018-08-12T01:50:00.000Z'),
+                },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2018-07-12T15:20:00.000Z'),
+                },
               ],
             },
             {
@@ -278,8 +326,14 @@ describe('query', () => {
               itemLabel: 'item-5',
               itemUserId: 2,
               itemEvents: [
-                { eventType: 'B', eventTimestamp: 15 },
-                { eventType: 'A', eventTimestamp: 10 },
+                {
+                  eventType: 'B',
+                  eventTimestamp: new Date('2022-10-05T09:20:00.000Z'),
+                },
+                {
+                  eventType: 'A',
+                  eventTimestamp: new Date('2020-11-08T22:45:00.000Z'),
+                },
               ],
             },
           ],

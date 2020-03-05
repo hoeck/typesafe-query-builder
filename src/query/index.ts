@@ -6,7 +6,13 @@ import {
   getTableImplementation,
   TableImplementation,
 } from '../table'
-import { buildSqlQuery, buildColumns, buildInsert, buildUpdate } from './build'
+import {
+  buildSqlQuery,
+  buildColumns,
+  buildInsert,
+  buildUpdate,
+  buildResultConverter,
+} from './build'
 import { DatabaseClient, Query, QueryItem, LockMode } from './types'
 
 export { DatabaseClient, Statement, ResultType } from './types'
@@ -139,7 +145,7 @@ class QueryImplementation {
 
     const tableImplementation = new TableImplementation(
       tableName,
-      buildColumns(this.query),
+      buildColumns(this.query), // TODO: resultconversion!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
     )
 
     // to be able to generate postgres positional arguments and map them to
@@ -148,6 +154,8 @@ class QueryImplementation {
     tableImplementation.tableQuery = (ctx: BuildContext) => {
       return buildSqlQuery(this.query, ctx)
     }
+
+    tableImplementation.tableResultConverter = buildResultConverter(this.query)
 
     return tableImplementation.getTableProxy() as any
   }
@@ -160,14 +168,20 @@ class QueryImplementation {
     const ctx = new BuildContext()
     const sql = this.sql(ctx)
     const paramArray = params ? ctx.getParameters(params) : []
+    const resultConverter = buildResultConverter(this.query)
 
-    return (await client.query(sql, paramArray)).rows
+    const result = (await client.query(sql, paramArray)).rows
+
+    result.forEach(row => resultConverter(row))
+
+    return result
   }
 
   async fetchOne(client: DatabaseClient, params?: any): Promise<any> {
     const ctx = new BuildContext()
     const sql = this.sql(ctx)
     const paramArray = params ? ctx.getParameters(params) : []
+    const resultConverter = buildResultConverter(this.query)
 
     const rows = (await client.query(sql, paramArray)).rows
 
@@ -176,6 +190,8 @@ class QueryImplementation {
         `expected exactly one row but the query returned: ${rows.length}`,
       )
     }
+
+    resultConverter(rows[0])
 
     return rows[0]
   }

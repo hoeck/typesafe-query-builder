@@ -40,22 +40,22 @@ CREATE TABLE events (
   id SERIAL PRIMARY KEY,
   item_id INTEGER NOT NULL,
   type TEXT NOT NULL,
-  timestamp INTEGER NOT NULL,
+  timestamp TIMESTAMPTZ NOT NULL,
   payload JSON
 );
 
 INSERT INTO events
   (item_id, type, timestamp, payload)
 VALUES
-  (1, 'A', 0, null),
-  (1, 'C', 10, null),
-  (1, 'A', 20, null),
-  (1, 'B', 30, null),
-  (4, 'A', 10, null),
-  (4, 'B', 50, '{"data": "asdf"}'),
-  (4, 'C', 80, null),
-  (5, 'A', 10, null),
-  (5, 'B', 15, null);
+  (1, 'A', '2016-01-12 19:20:00', null),
+  (1, 'C', '2016-03-01 17:30:00', null),
+  (1, 'A', '2017-02-12 12:00:00', null),
+  (1, 'B', '2017-06-12 15:20:00', null),
+  (4, 'A', '2018-07-12 15:20:00', null),
+  (4, 'B', '2018-08-12 01:50:00', '{"data": "asdf"}'),
+  (4, 'C', '2019-01-12 19:50:00', null),
+  (5, 'A', '2020-11-08 22:45:00', null),
+  (5, 'B', '2022-10-05 09:20:00', null);
 
 CREATE TABLE event_types (
   type TEXT PRIMARY KEY,

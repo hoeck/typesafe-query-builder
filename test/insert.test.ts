@@ -160,7 +160,7 @@ describe('insert', () => {
       {
         eventItemId: 1,
         eventPayload: { data: 'foo string payload' },
-        eventTimestamp: 0,
+        eventTimestamp: new Date(),
         eventType: 'A',
       },
     )
@@ -202,7 +202,7 @@ describe('insert', () => {
       query(events.select('eventPayload')).insertOne(client, {
         eventItemId: 1,
         eventPayload: { foo: 1 },
-        eventTimestamp: 0,
+        eventTimestamp: new Date(),
         eventType: 'A',
       } as any),
     ).rejects.toThrow('expected a data:string attribute')

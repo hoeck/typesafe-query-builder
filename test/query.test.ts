@@ -1,5 +1,5 @@
 import { query } from '../src'
-import { UserRow, client, emptyTable, users } from './testSchema'
+import { UserRow, client, emptyTable, users, events } from './testSchema'
 
 describe('query', () => {
   describe('fetch and selections', () => {
@@ -77,6 +77,22 @@ describe('query', () => {
       ])
     })
 
+    test('with selectAs and fromJson Date conversion', async () => {
+      const result = await query(events.selectAs('events'))
+        .whereEq(events.eventId, 'id')
+        .fetch(client, { id: 2 })
+
+      expect(result[0]).toEqual({
+        events: {
+          eventId: 2,
+          eventItemId: 1,
+          eventType: 'C',
+          eventTimestamp: new Date('2016-03-01 17:30:00Z'), // real date object, even tough we became a string from postgres
+          eventPayload: null,
+        },
+      })
+    })
+
     test('with select and selectAs', async () => {
       const result = await query(users.select('userId').selectAs('user')).fetch(
         client,
@@ -114,6 +130,55 @@ describe('query', () => {
               userName: 'user-b',
               userEmail: 'b@user',
               userAvatar: 'image.png',
+            },
+          ],
+        },
+      ])
+    })
+
+    test('with selectAsJsonAgg and fromJson Date conversion', async () => {
+      const result = await query(
+        events.select('eventId', 'eventTimestamp').selectAsJsonAgg('events'),
+      ).fetch(client)
+
+      expect(result).toEqual([
+        {
+          events: [
+            {
+              eventId: 1,
+              eventTimestamp: new Date('2016-01-12T19:20:00.000Z'),
+            },
+            {
+              eventId: 2,
+              eventTimestamp: new Date('2016-03-01T17:30:00.000Z'),
+            },
+            {
+              eventId: 3,
+              eventTimestamp: new Date('2017-02-12T12:00:00.000Z'),
+            },
+            {
+              eventId: 4,
+              eventTimestamp: new Date('2017-06-12T15:20:00.000Z'),
+            },
+            {
+              eventId: 5,
+              eventTimestamp: new Date('2018-07-12T15:20:00.000Z'),
+            },
+            {
+              eventId: 6,
+              eventTimestamp: new Date('2018-08-12T01:50:00.000Z'),
+            },
+            {
+              eventId: 7,
+              eventTimestamp: new Date('2019-01-12T19:50:00.000Z'),
+            },
+            {
+              eventId: 8,
+              eventTimestamp: new Date('2020-11-08T22:45:00.000Z'),
+            },
+            {
+              eventId: 9,
+              eventTimestamp: new Date('2022-10-05T09:20:00.000Z'),
             },
           ],
         },
