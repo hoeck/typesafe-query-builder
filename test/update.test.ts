@@ -1,6 +1,6 @@
 import { query } from '../src'
 
-import { client, users } from './testSchema'
+import { client, users } from './helpers'
 
 describe('update', () => {
   async function queryUsers(ids: number[]) {

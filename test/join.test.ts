@@ -1,15 +1,5 @@
 import { query } from '../src'
-import {
-  EventRow,
-  EventTypeRow,
-  ItemRow,
-  UserRow,
-  client,
-  eventTypes,
-  events,
-  items,
-  users,
-} from './testSchema'
+import { ItemRow, UserRow, client, events, items, users } from './helpers'
 
 // get rid of 'unused variable' warnings
 function use(_x: any) {}

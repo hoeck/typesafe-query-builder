@@ -16,7 +16,7 @@
     "build": "tsdx build",
     "test": "tsdx test",
     "lint": "tsdx lint",
-    "test-database:start": "docker run --rm -e POSTGRES_PASSWORD=password --publish 54321:5432 --volume $PWD/test:/docker-entrypoint-initdb.d postgres:latest",
+    "test-database:start": "docker run --rm -e POSTGRES_PASSWORD=password --publish 54321:5432 --volume $PWD/test/helpers:/docker-entrypoint-initdb.d postgres:latest",
     "test-database:psql": "docker run --network=host --rm -it -e PGPASSWORD=password postgres:latest psql --port=54321 --host=127.0.0.1 --user=postgres test_schema"
   },
   "peerDependencies": {},

@@ -9,7 +9,7 @@ import {
   nullable,
   string,
   table,
-} from '../src'
+} from '../../src'
 
 // enable "deep" console.log
 require('util').inspect.defaultOptions.depth = null

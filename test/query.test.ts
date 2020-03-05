@@ -1,5 +1,5 @@
 import { query } from '../src'
-import { UserRow, client, emptyTable, users, events } from './testSchema'
+import { UserRow, client, emptyTable, users, events } from './helpers'
 
 describe('query', () => {
   describe('fetch and selections', () => {

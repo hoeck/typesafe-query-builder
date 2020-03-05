@@ -1,5 +1,5 @@
 import { query } from '../src'
-import { client, users } from './testSchema'
+import { client, users } from './helpers'
 
 describe('where conditions', () => {
   describe('whereEq', () => {
