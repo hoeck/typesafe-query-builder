@@ -117,3 +117,21 @@ TODO:
 `yarn test-database:psql` to start a psql connected to the test-database
 
 `yarn test` to run the tests in watch mode
+
+## Similar Projects
+
+* [Mostly ORMLess](https://github.com/jawj/mostly-ormless/blob/master/README.md)
+  - Write sql using template strings and typed schema objects for type inferrence.
+* [tsql](https://github.com/AnyhowStep/tsql)
+* [massivejs](https://massivejs.org)
+* [Prisma 2](https://www.prisma.io)
+* [ts-typed-sql](https://github.com/phiresky/ts-typed-sql)
+  - Unmaintained, 2018
+* [mammoth](https://github.com/Ff00ff/mammoth)
+  - basically same as this project minus the json_agg
+* [vulcyn](https://github.com/travigd/vulcyn)
+  - like a really basic version of mammoth or this project
+  - seems unmaintained
+* [pgtyped](https://github.com/adelsz/pgtyped)
+  - different (but awesome) approach: parse sql queries in your code and
+    generate types for them
