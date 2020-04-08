@@ -328,6 +328,11 @@ export class TableImplementation {
       const key = this.projection.name
 
       return (row: any) => {
+        if (row[key] === null) {
+          // null caused by a left joins and missing data
+          return
+        }
+
         columnConverters.forEach(([name, fromJson]) => {
           // plain json projection: all selected columns are grouped below `key`
           row[key][name] = fromJson(row[key][name])
