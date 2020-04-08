@@ -199,12 +199,12 @@ export interface Query<T, S, P> extends Statement<S, P> {
    * they are nullable).
    * Return all selected columns.
    */
-  insert<
-    Row = Partial<Pick<T, TableColumnsWithDefaults<T>>> &
-      Omit<T, TableColumnsWithDefaults<T>>
-  >(
+  insert(
     client: DatabaseClient,
-    row: Row[],
+    row: Array<
+      Partial<Pick<T, TableColumnsWithDefaults<T>>> &
+        Omit<T, TableColumnsWithDefaults<T>>
+    >,
   ): Promise<S[]>
 
   /**
@@ -217,12 +217,10 @@ export interface Query<T, S, P> extends Statement<S, P> {
    * not match. Without overloading they read like 'property X,Y,Z are missing
    * from row'.
    */
-  insertOne<
-    Row = Partial<Pick<T, TableColumnsWithDefaults<T>>> &
-      Omit<T, TableColumnsWithDefaults<T>>
-  >(
+  insertOne(
     client: DatabaseClient,
-    row: Row,
+    row: Partial<Pick<T, TableColumnsWithDefaults<T>>> &
+      Omit<T, TableColumnsWithDefaults<T>>,
   ): Promise<S>
 
   /// update
