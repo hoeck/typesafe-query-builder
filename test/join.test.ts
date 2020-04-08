@@ -196,6 +196,25 @@ describe('query', () => {
       ])
     })
 
+    test.only('fetching json aggregates over non-primary keys', async () => {
+      const nested = query(items.select('itemLabel'))
+        .join(items.itemId, events.select('eventTimestamp').eventItemId)
+        .join(events.eventType, eventTypes.selectAs('foo').type)
+        .table()
+
+      const result = await query(users)
+        .leftJoin(users.userEmail, events.selectAsJsonAgg('items').eventType)
+        .fetch(client)
+
+      console.log(
+        query(users)
+          .leftJoin(users.userEmail, nested.selectAsJsonAgg('items').itemLabel)
+          .sql(),
+      )
+
+      expect(result).toEqual([])
+    })
+
     test('fetches left joins', async () => {
       const result = await query(users.select('userName'))
         .leftJoin(users.userId, items.select('itemId', 'itemLabel').itemUserId)
