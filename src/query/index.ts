@@ -145,7 +145,7 @@ class QueryImplementation {
 
     const tableImplementation = new TableImplementation(
       tableName,
-      buildColumns(this.query), // TODO: resultconversion!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+      buildColumns(this.query),
     )
 
     // to be able to generate postgres positional arguments and map them to
