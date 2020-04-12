@@ -116,10 +116,6 @@ class SqlQuery {
       )
     }
 
-    if (params.length === 0) {
-      assert.fail('SqlQuery.createSqlFragmentString: params must be 1 or two')
-    }
-
     const res: string[] = []
 
     for (const i in params) {
@@ -146,6 +142,7 @@ class SqlQuery {
 
     const sqlExpressions = fragments.map((f, i) => {
       if (f.column) {
+        // fragment contains a column expression ...
         const colSql = columnsSql[i]
 
         if (!colSql) {
@@ -153,22 +150,28 @@ class SqlQuery {
         }
 
         if (f.paramKey) {
+          // ... and a parameter expression ...
           const p = this.ctx.getNextParameter(f.paramKey)
 
           if (f.columnFirst) {
+            // ... and the col expression comes first
             return this.createSqlFragmentString(f.literals, [colSql, p])
           } else {
+            // ... and the parameter expression comes first
             return this.createSqlFragmentString(f.literals, [p, colSql])
           }
         } else {
+          // ... and nothing else
           return this.createSqlFragmentString(f.literals, [colSql])
         }
       } else if (f.paramKey) {
+        // fragment only contains a parameter expression
         const p = this.ctx.getNextParameter(f.paramKey)
 
         return this.createSqlFragmentString(f.literals, [p])
       } else {
-        assert.fail('SqlQuery: neither colSql nor paramkey are defined')
+        // constant string only
+        return this.createSqlFragmentString(f.literals, [])
       }
     })
 

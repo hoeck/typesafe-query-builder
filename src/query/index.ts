@@ -73,7 +73,7 @@ export function sql(
 ) {
   let column: any
   let paramKey: any
-  let columnFirst: any
+  let columnFirst: boolean = false
 
   if (typeof param1 === 'string') {
     paramKey = param1
@@ -97,6 +97,8 @@ export function sql(
         throw new Error('expected param2 to be undefined')
       }
     }
+  } else if (param1 === undefined && param2 === undefined) {
+    /* sql literal */
   } else {
     assert.fail(`no matching parameters in sql fragment`)
   }
