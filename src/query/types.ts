@@ -9,6 +9,7 @@ export type QueryItem =
   | JoinItem
   | WhereEqItem
   | WhereInItem
+  | WhereSqlItem
   | OrderByItem
   | LockItem
 
@@ -34,6 +35,11 @@ export interface WhereInItem {
   queryType: 'whereIn'
   column: TableImplementation
   paramKey: string
+}
+
+export interface WhereSqlItem {
+  queryType: 'whereSql'
+  fragments: SqlFragmentImplementation[]
 }
 
 export interface OrderByItem {
@@ -79,8 +85,34 @@ export interface DatabaseClient {
   }>
 }
 
-export interface LiteralSqlParameter {
-  paramKey: string
+/**
+ * Encode type params of an sql snippet used in custom where conditions.
+ */
+export interface SqlFragment<T, K extends string | never, C> {
+  // the column used in the fragment
+  column: TableColumnRef<T, any, any, any> | undefined
+
+  // when true the column appears first in the template string, must be false if column is undefined
+  columnFirst: boolean
+
+  // the name of the parameter (optional null)
+  paramKey: K
+
+  // value attribute to keep the type of paramKey
+  paramValue: C
+
+  // TemplateStringsArray.raw
+  literals: string[]
+}
+
+/**
+ * The part of the SqlFragment that is used in the query builder.
+ */
+export interface SqlFragmentImplementation {
+  column: TableImplementation | undefined
+  columnFirst: boolean
+  paramKey: string | null
+  literals: string[]
 }
 
 /**
@@ -132,6 +164,19 @@ export interface Statement<S, P> {
  */
 export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 
+// TODO: instead of repeating where* definitions for each join-class, define
+// them once and inherit it in joins because joins and wheres are not mixed
+// anyway so after the first where() there will only be other wheres,
+// orderbys, locks and finally a fetch and no join
+// Plus points:
+//   - ensure that query(x).where().update() is possible but not query(x).join(y).where().update()
+//   - ensure that query(x).insert() is possible but not query(x).where().insert()
+//export interface QueryBottom extends Statement {
+//  whereEq(): QueryBottom
+//  whereIn(): QueryBottom
+//  whereSql(): QueryBottom
+//}
+
 /**
  * Query for a single table ("select * from table")
  */
@@ -147,7 +192,7 @@ export interface Query<T, S, P> extends Statement<S, P> {
     t2: TableColumnRef<T2, CJ, S2, PJ>,
   ): Join2<T, T2, S & NullableLeftJoin<S2>, P & PJ>
 
-  // TODO:
+  // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq
   // * use a separate `whereEqOrNull` or `whereNull`
   // why? because the types get erased at runtime, we always allow null
@@ -155,6 +200,8 @@ export interface Query<T, S, P> extends Statement<S, P> {
   // in code that will return a result for simple
   // `query(Users).where(Users.secretAccessToken, 'token')` to return users
   // without tokens if an attacker manages to bypass parameter checks.
+  // or maybe use the strict where version by default (no automatic 'IS NULL' checks)
+  // and provide a separate whereEqUniversal or whereEqInclusive that does auto null checks
 
   /**
    * Append a WHERE col = value condition.
@@ -174,11 +221,82 @@ export interface Query<T, S, P> extends Statement<S, P> {
     paramKey: K,
   ): Query<T, S, P & { [KK in K]: CP[] }>
 
-  // // as a template literal: whereSql`...`
-  // whereSql(
+  /**
+   * SQL where condition using template literals.
+   */
+  // whereSql<K extends string>(
   //   literals: TemplateStringsArray,
-  //   paramKeys: Array<TableColumnRef<T, any, any, any> | any>,
-  // ): Query<T, S, P>
+  //   ...paramKeys: Array<TableColumnRef<T, any, any, any> | K>
+  // ): Query<T, S, P & { [KK in K]: any }>
+  whereSql<K1 extends string, C1>(
+    sqlFragment: SqlFragment<T, K1, C1>,
+  ): Query<T, S, P & { [KK in K1]: C1 }>
+  whereSql<K1 extends string, K2 extends string, C1, C2>(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+  ): Query<T, S, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }>
+  whereSql<K1 extends string, K2 extends string, K3 extends string, C1, C2, C3>(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+    sqlFragment3: SqlFragment<T, K3, C3>,
+  ): Query<
+    T,
+    S,
+    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 }
+  >
+  whereSql<
+    K1 extends string,
+    K2 extends string,
+    K3 extends string,
+    K4 extends string,
+    C1,
+    C2,
+    C3,
+    C4
+  >(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+    sqlFragment3: SqlFragment<T, K3, C3>,
+    sqlFragment4: SqlFragment<T, K4, C4>,
+  ): Query<
+    T,
+    S,
+    P &
+      { [KK in K1]: C1 } &
+      { [KK in K2]: C2 } &
+      { [KK in K3]: C3 } &
+      { [KK in K4]: C4 }
+  >
+  whereSql<
+    K1 extends string,
+    K2 extends string,
+    K3 extends string,
+    K4 extends string,
+    K5 extends string,
+    C1,
+    C2,
+    C3,
+    C4,
+    C5
+  >(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+    sqlFragment3: SqlFragment<T, K3, C3>,
+    sqlFragment4: SqlFragment<T, K4, C4>,
+    sqlFragment5: SqlFragment<T, K5, C5>,
+  ): Query<
+    T,
+    S,
+    P &
+      { [KK in K1]: C1 } &
+      { [KK in K2]: C2 } &
+      { [KK in K3]: C3 } &
+      { [KK in K4]: C4 } &
+      { [KK in K5]: C5 }
+  >
+  whereSql(
+    ...sqlFragments: Array<SqlFragment<any, any, any>>
+  ): Query<T, S, P & { [key: string]: any }>
 
   /**
    * Add a row lock statement to the query (e.g. 'FOR UPDATE')

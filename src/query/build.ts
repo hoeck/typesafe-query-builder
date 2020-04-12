@@ -1,5 +1,13 @@
+import * as assert from 'assert'
+
 import { TableImplementation, column, Column } from '../table'
-import { QueryItem, JoinItem, LockMode } from './types'
+import {
+  QueryItem,
+  JoinItem,
+  LockMode,
+  SqlFragment,
+  SqlFragmentImplementation,
+} from './types'
 import { BuildContext } from './buildContext'
 
 function assertNever(x: never): never {
@@ -95,6 +103,76 @@ class SqlQuery {
     // know how long the arguments are.
     // see https://www.postgresql.org/docs/current/functions-comparisons.html
     this.where.push(`${c} = ANY(${p})`)
+  }
+
+  // given the template-string-fragments and some strings, interpolate them
+  // into a single resulting string
+  private createSqlFragmentString(literals: string[], params: string[]) {
+    if (literals.length - 1 !== params.length) {
+      assert.fail(
+        `SqlQuery: not enough parameters (${
+          params.length
+        }) for template literal strings array: ${JSON.stringify(literals)}`,
+      )
+    }
+
+    if (params.length === 0) {
+      assert.fail('SqlQuery.createSqlFragmentString: params must be 1 or two')
+    }
+
+    const res: string[] = []
+
+    for (const i in params) {
+      res.push(literals[i])
+      res.push(params[i])
+    }
+
+    res.push(literals[literals.length - 1])
+
+    return res.join('')
+  }
+
+  addWhereSql(
+    fragments: SqlFragmentImplementation[],
+    columnsSql: (string | undefined)[],
+  ) {
+    if (!fragments.length) {
+      return
+    }
+
+    if (fragments.length !== columnsSql.length) {
+      assert.fail('SqlQuery: fragments and columnsSql must be the same length')
+    }
+
+    const sqlExpressions = fragments.map((f, i) => {
+      if (f.column) {
+        const colSql = columnsSql[i]
+
+        if (!colSql) {
+          assert.fail(`SqlQuery: columnSql at ${i} is undefined`)
+        }
+
+        if (f.paramKey) {
+          const p = this.ctx.getNextParameter(f.paramKey)
+
+          if (f.columnFirst) {
+            return this.createSqlFragmentString(f.literals, [colSql, p])
+          } else {
+            return this.createSqlFragmentString(f.literals, [p, colSql])
+          }
+        } else {
+          return this.createSqlFragmentString(f.literals, [colSql])
+        }
+      } else if (f.paramKey) {
+        const p = this.ctx.getNextParameter(f.paramKey)
+
+        return this.createSqlFragmentString(f.literals, [p])
+      } else {
+        assert.fail('SqlQuery: neither colSql nor paramkey are defined')
+      }
+    })
+
+    this.where.push(`(${sqlExpressions.join(' ')})`)
   }
 
   setLock(lockMode: LockMode) {
@@ -301,6 +379,23 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 
         break
       }
+      case 'whereSql': {
+        // aliases for each table referenced in the fragment
+        const columnsSql = item.fragments.map(f => {
+          if (!f.column) {
+            return
+          }
+
+          const table = f.column
+          const alias = sql.getAlias(table.tableName)
+
+          return table.getReferencedColumnSql(alias)
+        })
+
+        sql.addWhereSql(item.fragments, columnsSql)
+
+        break
+      }
       case 'orderBy':
         throw new Error('orderBy is not implemented')
       case 'lock':
@@ -456,6 +551,23 @@ export function buildUpdate(
         const alias = sql.getAlias(table.tableName)
 
         sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
+
+        break
+      }
+
+      case 'whereSql': {
+        // aliases for each table referenced in the fragment
+        const columnsSql = item.fragments.map(f => {
+          if (!f.column) {
+            return
+          }
+          const table = f.column
+          const alias = sql.getAlias(table.tableName)
+
+          return table.getReferencedColumnSql(alias)
+        })
+
+        sql.addWhereSql(item.fragments, columnsSql)
 
         break
       }

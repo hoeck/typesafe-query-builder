@@ -1,4 +1,4 @@
-import { query } from '../src'
+import { query, sql } from '../src'
 import { client, users } from './helpers'
 
 describe('where conditions', () => {
@@ -66,6 +66,22 @@ describe('where conditions', () => {
         })
 
       expect(result).toEqual([{ userName: 'user-b' }])
+    })
+  })
+
+  describe('whereSql', () => {
+    test.only('simple equals', async () => {
+      const result = await query(users.select('userName'))
+        .whereSql(
+          sql`${'avatar'} = ${users.userAvatar}`,
+          sql`OR ${users.userId} = ${'id'}`,
+        )
+        .fetch(client, {
+          avatar: 'image.png',
+          id: 1,
+        })
+
+      expect(result.map(x => x.userName).sort()).toEqual(['user-a', 'user-b'])
     })
   })
 })

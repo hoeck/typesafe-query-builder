@@ -1,10 +1,13 @@
+import assert from 'assert'
 import crypto from 'crypto'
+
 import { BuildContext } from './buildContext'
 import {
   Table,
   TableColumnRef,
   getTableImplementation,
   TableImplementation,
+  column,
 } from '../table'
 import {
   buildSqlQuery,
@@ -13,9 +16,99 @@ import {
   buildUpdate,
   buildResultConverter,
 } from './build'
-import { DatabaseClient, Query, QueryItem, LockMode } from './types'
+import {
+  DatabaseClient,
+  Query,
+  QueryItem,
+  LockMode,
+  SqlFragment,
+} from './types'
 
 export { DatabaseClient, Statement, ResultType } from './types'
+
+/**
+ * SqlFragment from template-string constructor
+ *
+ * Allows to express a bit of an sql query that optionally contains a single
+ * reference to a table column and an optional single reference to a paramter
+ * key.
+ *
+ * Examples:
+ *
+ *   sql`${table.column} IS NULL`
+ *   sql`${table.column} >= ${key}`
+ *
+ * If you need more than 1 parameter key, pass multiple sql fragments to the method, e.g. whereSql:
+ *
+ *   whereSql(
+ *     sql`${table.column} BETWEEN ${low}`,
+ *     sql`AND ${high}`,
+ *   )
+ */
+export function sql<T>(
+  literals: TemplateStringsArray,
+): SqlFragment<T, never, never>
+export function sql<T, K extends string, C = any>(
+  literals: TemplateStringsArray,
+  param1: K,
+): SqlFragment<T, K, C>
+export function sql<T>(
+  literals: TemplateStringsArray,
+  param1: TableColumnRef<T, any, any, any>,
+): SqlFragment<T, never, never>
+export function sql<T, K extends string, C = any>(
+  literals: TemplateStringsArray,
+  param1: K,
+  param2: TableColumnRef<T, any, any, any>,
+): SqlFragment<T, K, C>
+export function sql<T, K extends string, C = any>(
+  literals: TemplateStringsArray,
+  param1: TableColumnRef<T, any, any, any>,
+  param2: K,
+): SqlFragment<T, K, C>
+export function sql(
+  literals: TemplateStringsArray,
+  param1?: any,
+  param2?: any,
+) {
+  let column: any
+  let paramKey: any
+  let columnFirst: any
+
+  if (typeof param1 === 'string') {
+    paramKey = param1
+    columnFirst = false
+
+    if (param2 instanceof TableImplementation) {
+      column = param2
+    } else {
+      if (param2 !== undefined) {
+        throw new Error('expected param2 to be undefined')
+      }
+    }
+  } else if (param1 instanceof TableImplementation) {
+    column = param1
+    columnFirst = true
+
+    if (typeof param2 === 'string') {
+      paramKey = param2
+    } else {
+      if (param2 !== undefined) {
+        throw new Error('expected param2 to be undefined')
+      }
+    }
+  } else {
+    assert.fail(`no matching parameters in sql fragment`)
+  }
+
+  return {
+    column,
+    columnFirst,
+    paramKey,
+    // the paramValue attribute is only used in the typesystem
+    literals: literals.raw,
+  } as any
+}
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
@@ -104,21 +197,20 @@ class QueryImplementation {
     ])
   }
 
-  // whereSql(
-  //   literals: TemplateStringsArray,
-  //   ...params: Array<
-  //     | TableColumnRef<S, any, T>
-  //     | string
-  //     | number
-  //     | boolean
-  //     | string[]
-  //     | number[]
-  //   >
-  // ) {
-  //   console.log('literals', literals)
-  //   console.log('params', params)
-  //   return this
-  // }
+  whereSql(...params: Array<SqlFragment<any, any, any>>) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'whereSql',
+        fragments: params.map(f => ({
+          column: f.column ? getTableImplementation(f.column) : undefined,
+          columnFirst: f.columnFirst,
+          literals: f.literals,
+          paramKey: f.paramKey,
+        })),
+      },
+    ])
+  }
 
   lock(lockMode: LockMode) {
     // Does not work with json-aggregate columns at the moment bc they introduce a group-by.
