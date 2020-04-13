@@ -223,7 +223,7 @@ export class TableImplementation {
       )
     } else if (this.projection.type === 'jsonAgg') {
       return (
-        // for left joins with mission values, make postgres return an
+        // for left joins with missing values, make postgres return an
         // empty json array [] instead of [null]
         // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
         `coalesce(json_agg(${aliasPrefix}__json_agg_column__` +
