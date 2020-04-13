@@ -171,26 +171,17 @@ export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 // Plus points:
 //   - ensure that query(x).where().update() is possible but not query(x).join(y).where().update()
 //   - ensure that query(x).insert() is possible but not query(x).where().insert()
-//export interface QueryBottom extends Statement {
-//  whereEq(): QueryBottom
-//  whereIn(): QueryBottom
-//  whereSql(): QueryBottom
-//}
-
-/**
- * Query for a single table ("select * from table")
- */
-export interface Query<T, S, P> extends Statement<S, P> {
-  // plain join
-  join<T2, S2, CJ, PJ>(
-    t1: TableColumnRef<T, CJ, any, any>,
-    t2: TableColumnRef<T2, CJ, S2, PJ>,
-  ): Join2<T, T2, S & S2, P & PJ>
-
-  leftJoin<T2, S2, CJ, PJ>(
-    t1: TableColumnRef<T, CJ, any, any>,
-    t2: TableColumnRef<T2, CJ, S2, PJ>,
-  ): Join2<T, T2, S & NullableLeftJoin<S2>, P & PJ>
+//
+// Type params:
+//   T .. (union) of all tables present in the query
+//   S .. the selected data
+//   P .. parameters used when fetching the query
+//   U .. the type returned by .update (defaults to never bc only queries without  joins but with wheres are allowed to have an update method)
+export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
+  /**
+   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
+   */
+  lock(lockMode: LockMode): QueryBottom<T, S, P, U>
 
   // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq
@@ -211,7 +202,7 @@ export interface Query<T, S, P> extends Statement<S, P> {
   whereEq<CP, K extends string>(
     col: TableColumnRef<T, CP, any, any>,
     paramKey: K,
-  ): Query<T, S, P & { [KK in K]: CP }>
+  ): QueryBottom<T, S, P & { [KK in K]: CP }, U>
 
   /**
    * Append a WHERE col IN (value1, value2, ...) condition.
@@ -219,30 +210,27 @@ export interface Query<T, S, P> extends Statement<S, P> {
   whereIn<CP, K extends string>(
     col: TableColumnRef<T, CP, any, any>,
     paramKey: K,
-  ): Query<T, S, P & { [KK in K]: CP[] }>
+  ): QueryBottom<T, S, P & { [KK in K]: CP[] }, U>
 
   /**
-   * SQL where condition using template literals.
+   * Universal SQL where condition using template literals.
    */
-  // whereSql<K extends string>(
-  //   literals: TemplateStringsArray,
-  //   ...paramKeys: Array<TableColumnRef<T, any, any, any> | K>
-  // ): Query<T, S, P & { [KK in K]: any }>
   whereSql<K1 extends string, C1>(
     sqlFragment: SqlFragment<T, K1, C1>,
-  ): Query<T, S, P & { [KK in K1]: C1 }>
+  ): QueryBottom<T, S, P & { [KK in K1]: C1 }, U>
   whereSql<K1 extends string, K2 extends string, C1, C2>(
     sqlFragment1: SqlFragment<T, K1, C1>,
     sqlFragment2: SqlFragment<T, K2, C2>,
-  ): Query<T, S, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }>
+  ): QueryBottom<T, S, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }, U>
   whereSql<K1 extends string, K2 extends string, K3 extends string, C1, C2, C3>(
     sqlFragment1: SqlFragment<T, K1, C1>,
     sqlFragment2: SqlFragment<T, K2, C2>,
     sqlFragment3: SqlFragment<T, K3, C3>,
-  ): Query<
+  ): QueryBottom<
     T,
     S,
-    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 }
+    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 },
+    U
   >
   whereSql<
     K1 extends string,
@@ -258,14 +246,15 @@ export interface Query<T, S, P> extends Statement<S, P> {
     sqlFragment2: SqlFragment<T, K2, C2>,
     sqlFragment3: SqlFragment<T, K3, C3>,
     sqlFragment4: SqlFragment<T, K4, C4>,
-  ): Query<
+  ): QueryBottom<
     T,
     S,
     P &
       { [KK in K1]: C1 } &
       { [KK in K2]: C2 } &
       { [KK in K3]: C3 } &
-      { [KK in K4]: C4 }
+      { [KK in K4]: C4 },
+    U
   >
   whereSql<
     K1 extends string,
@@ -284,7 +273,7 @@ export interface Query<T, S, P> extends Statement<S, P> {
     sqlFragment3: SqlFragment<T, K3, C3>,
     sqlFragment4: SqlFragment<T, K4, C4>,
     sqlFragment5: SqlFragment<T, K5, C5>,
-  ): Query<
+  ): QueryBottom<
     T,
     S,
     P &
@@ -292,16 +281,40 @@ export interface Query<T, S, P> extends Statement<S, P> {
       { [KK in K2]: C2 } &
       { [KK in K3]: C3 } &
       { [KK in K4]: C4 } &
-      { [KK in K5]: C5 }
+      { [KK in K5]: C5 },
+    U
   >
   whereSql(
     ...sqlFragments: Array<SqlFragment<any, any, any>>
-  ): Query<T, S, P & { [key: string]: any }>
+  ): QueryBottom<T, S, P & { [key: string]: any }, U>
+
+  /// update
 
   /**
-   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
+   * Update rows of the table
    */
-  lock(lockMode: LockMode): Query<T, S, P>
+  update(client: DatabaseClient, params: P, data: Partial<T>): U
+}
+
+/**
+ * Query for a single table ("select * from table")
+ */
+export interface Query<T, S, P> extends QueryBottom<T, S, P, Promise<S[]>> {
+  /**
+   * JOIN this query with another table T2.
+   */
+  join<T2, S2, CJ, PJ>(
+    t1: TableColumnRef<T, CJ, any, any>,
+    t2: TableColumnRef<T2, CJ, S2, PJ>,
+  ): Join2<T, T2, S & S2, P & PJ>
+
+  /**
+   * LEFT JOIN this query with another table T2.
+   */
+  leftJoin<T2, S2, CJ, PJ>(
+    t1: TableColumnRef<T, CJ, any, any>,
+    t2: TableColumnRef<T2, CJ, S2, PJ>,
+  ): Join2<T, T2, S & NullableLeftJoin<S2>, P & PJ>
 
   /// inserts
 
@@ -313,8 +326,9 @@ export interface Query<T, S, P> extends Statement<S, P> {
   /**
    * Insert rows into the table.
    *
-   * Use defaults for all ommited columns (via explicit default or because
+   * Use defaults for all ommited columns (via explicit hasDefault or because
    * they are nullable).
+   *
    * Return all selected columns.
    */
   insert(
@@ -325,34 +339,27 @@ export interface Query<T, S, P> extends Statement<S, P> {
     >,
   ): Promise<S[]>
 
+  // Use a separate method for inserting one row only and no method overloading:
+  // When overloading a single method, the type errors get messy (sth like:
+  // 'no suitable overload found' when the row type does not match.
+  // Without overloading they read like 'property X,Y,Z are missing from row'.
+
   /**
-   * Single Row Insert
+   * Single row Insert
    *
    * Like insert but only insert one row and return the inserted row directly.
-   *
-   * Use a separate method. When overloading a single method, the type errors
-   * get messy (sth like: 'no suitable overload found' when the row type does
-   * not match. Without overloading they read like 'property X,Y,Z are missing
-   * from row'.
    */
   insertOne(
     client: DatabaseClient,
     row: Partial<Pick<T, TableColumnsWithDefaults<T>>> &
       Omit<T, TableColumnsWithDefaults<T>>,
   ): Promise<S>
-
-  /// update
-
-  /**
-   * Update rows of the table
-   */
-  update(client: DatabaseClient, params: P, data: Partial<T>): Promise<S[]>
 }
 
 /**
  * Join over two tables
  */
-export interface Join2<T1, T2, S, P> extends Statement<S, P> {
+export interface Join2<T1, T2, S, P> extends QueryBottom<T1 | T2, S, P> {
   join<T3, S3, CV>(
     t: TableColumnRef<T1, CV, any, any> | TableColumnRef<T2, CV, any, any>,
     t3: TableColumnRef<T3, CV, S3, P>,
@@ -362,16 +369,10 @@ export interface Join2<T1, T2, S, P> extends Statement<S, P> {
     t: TableColumnRef<T1, CV, any, any> | TableColumnRef<T2, CV, any, any>,
     t3: TableColumnRef<T3, CV, S3, P>,
   ): Join3<T1, T2, T3, S & NullableLeftJoin<S3>, P>
-
-  whereEq<CP, K extends string>(
-    col: TableColumnRef<T1 | T2, CP, any, any>,
-    paramKey: K,
-  ): Join2<T1, T2, S, P & { [KK in K]: CP }>
-
-  lock(lockMode: LockMode): Join2<T1, T2, S, P>
 }
 
-export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
+export interface Join3<T1, T2, T3, S, P>
+  extends QueryBottom<T1 | T2 | T3, S, P> {
   join<T4, S4, CV>(
     t:
       | TableColumnRef<T1, CV, any, any>
@@ -387,16 +388,10 @@ export interface Join3<T1, T2, T3, S, P> extends Statement<S, P> {
       | TableColumnRef<T3, CV, any, any>,
     t4: TableColumnRef<T4, CV, S4, P>,
   ): Join4<T1, T2, T3, T4, S & NullableLeftJoin<S4>, P>
-
-  whereEq<CP, K extends string>(
-    col: TableColumnRef<T1 | T2 | T3, CP, any, any>,
-    paramKey: K,
-  ): Join3<T1, T2, T3, S, P & { [KK in K]: CP }>
-
-  lock(lockMode: LockMode): Join3<T1, T2, T3, S, P>
 }
 
-export interface Join4<T1, T2, T3, T4, S, P> extends Statement<S, P> {
+export interface Join4<T1, T2, T3, T4, S, P>
+  extends QueryBottom<T1 | T2 | T3 | T4, S, P> {
   join<T5, S5, CV>(
     t:
       | TableColumnRef<T1, CV, any, any>
@@ -414,16 +409,55 @@ export interface Join4<T1, T2, T3, T4, S, P> extends Statement<S, P> {
       | TableColumnRef<T4, CV, any, any>,
     t5: TableColumnRef<T5, CV, S5, P>,
   ): Join5<T1, T2, T3, T4, T5, S & NullableLeftJoin<S5>, P>
-
-  whereEq<CP, K extends string>(
-    col: TableColumnRef<T1 | T2 | T3 | T4, CP, any, any>,
-    paramKey: K,
-  ): Join4<T1, T2, T3, T4, S, P & { [KK in K]: CP }>
-
-  lock(lockMode: LockMode): Join4<T1, T2, T3, T4, S, P>
 }
 
-export interface Join5<T1, T2, T3, T4, T5, S, P> extends Statement<S, P> {}
-export interface Join6<T1, T2, T3, T4, T5, T6, S, P> extends Statement<S, P> {}
+export interface Join5<T1, T2, T3, T4, T5, S, P>
+  extends QueryBottom<T1 | T2 | T3 | T4 | T5, S, P> {
+  join<T6, S6, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>
+      | TableColumnRef<T4, CV, any, any>
+      | TableColumnRef<T5, CV, any, any>,
+    t6: TableColumnRef<T6, CV, S6, P>,
+  ): Join6<T1, T2, T3, T4, T5, T6, S & S6, P>
+
+  leftJoin<T6, S6, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>
+      | TableColumnRef<T4, CV, any, any>
+      | TableColumnRef<T5, CV, any, any>,
+    t6: TableColumnRef<T6, CV, S6, P>,
+  ): Join6<T1, T2, T3, T4, T5, T6, S & NullableLeftJoin<S6>, P>
+}
+
+export interface Join6<T1, T2, T3, T4, T5, T6, S, P>
+  extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6, S, P> {
+  join<T7, S7, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>
+      | TableColumnRef<T4, CV, any, any>
+      | TableColumnRef<T5, CV, any, any>
+      | TableColumnRef<T6, CV, any, any>,
+    t7: TableColumnRef<T7, CV, S7, P>,
+  ): Join7<T1, T2, T3, T4, T5, T6, T7, S & S7, P>
+
+  leftJoin<T7, S7, CV>(
+    t:
+      | TableColumnRef<T1, CV, any, any>
+      | TableColumnRef<T2, CV, any, any>
+      | TableColumnRef<T3, CV, any, any>
+      | TableColumnRef<T4, CV, any, any>
+      | TableColumnRef<T5, CV, any, any>
+      | TableColumnRef<T6, CV, any, any>,
+    t7: TableColumnRef<T7, CV, S7, P>,
+  ): Join7<T1, T2, T3, T4, T5, T6, T7, S & NullableLeftJoin<S7>, P>
+}
+
 export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>
-  extends Statement<S, P> {}
+  extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6 | T7, S, P> {}
