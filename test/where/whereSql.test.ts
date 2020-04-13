@@ -100,29 +100,4 @@ describe('whereSql', () => {
       expect(result.map(x => x.userName).sort()).toEqual(['user-a'])
     })
   })
-
-  describe('updates', () => {
-    test('update with whereSql', async () => {
-      const result = await query(users.select('userId', 'userEmail'))
-        .whereSql(sql`${users.userId} > ${'id'}`)
-        .update(
-          client,
-          { id: 1 }, // update params
-          {
-            userEmail: 'new@foo',
-          },
-        )
-
-      expect(result.sort((a, b) => a.userId - b.userId)).toEqual([
-        {
-          userId: 2,
-          userEmail: 'new@foo',
-        },
-        {
-          userId: 3,
-          userEmail: 'new@foo',
-        },
-      ])
-    })
-  })
 })
