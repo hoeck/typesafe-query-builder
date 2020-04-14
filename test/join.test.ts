@@ -1,12 +1,20 @@
 import { query } from '../src'
-import { ItemRow, UserRow, client, events, items, users } from './helpers'
+import {
+  ItemRow,
+  UserRow,
+  client,
+  events,
+  eventTypes,
+  items,
+  users,
+} from './helpers'
 
 // get rid of 'unused variable' warnings
 function use(_x: any) {}
 
 describe('query', () => {
   describe('1 join', () => {
-    test('fetches a plain join', async () => {
+    test('fetching a plain join', async () => {
       const result: Array<ItemRow & UserRow> = await query(items)
         .join(items.itemUserId, users.userId)
         .fetch(client)
@@ -27,7 +35,7 @@ describe('query', () => {
       expect(result.length).toBe(5)
     })
 
-    test('fetches with selected columns', async () => {
+    test('fetching with selected columns', async () => {
       const result: Array<Pick<ItemRow, 'itemId' | 'itemLabel'> &
         Pick<UserRow, 'userName'>> = await query(
         items.select('itemId', 'itemLabel'),
@@ -44,7 +52,7 @@ describe('query', () => {
       ])
     })
 
-    test('fetches with selectAs', async () => {
+    test('fetching with selectAs', async () => {
       const result: Array<{ item: Pick<ItemRow, 'itemId' | 'itemLabel'> } & {
         user: Pick<UserRow, 'userName'>
       }> = await query(items.select('itemId', 'itemLabel').selectAs('item'))
@@ -78,7 +86,7 @@ describe('query', () => {
       ])
     })
 
-    test('fetches json aggregates', async () => {
+    test('fetching json aggregates', async () => {
       const result = await query(users.select('userId'))
         .join(
           users.userId,
@@ -106,7 +114,7 @@ describe('query', () => {
       ])
     })
 
-    test('fetches nested json aggregates', async () => {
+    test('fetching nested json aggregates', async () => {
       const nested = query(items.select('itemId', 'itemLabel', 'itemUserId'))
         .join(
           items.itemId,
@@ -196,26 +204,39 @@ describe('query', () => {
       ])
     })
 
-    test.only('fetching json aggregates over non-primary keys', async () => {
-      const nested = query(items.select('itemLabel'))
-        .join(items.itemId, events.select('eventTimestamp').eventItemId)
-        .join(events.eventType, eventTypes.selectAs('foo').type)
-        .table()
-
-      const result = await query(users)
-        .leftJoin(users.userEmail, events.selectAsJsonAgg('items').eventType)
+    test('fetching json aggregates joined over non-primary keys', async () => {
+      const result = await query(items.select('itemLabel'))
+        .join(
+          items.itemUserId,
+          users.select('userEmail', 'userId').selectAsJsonAgg('users').userId,
+        )
         .fetch(client)
 
-      console.log(
-        query(users)
-          .leftJoin(users.userEmail, nested.selectAsJsonAgg('items').itemLabel)
-          .sql(),
-      )
-
-      expect(result).toEqual([])
+      expect(result).toEqual([
+        {
+          itemLabel: 'item-1',
+          users: [{ userEmail: 'a@user', userId: 1 }],
+        },
+        {
+          itemLabel: 'item-2',
+          users: [{ userEmail: 'a@user', userId: 1 }],
+        },
+        {
+          itemLabel: 'item-3',
+          users: [{ userEmail: 'c@user', userId: 2 }],
+        },
+        {
+          itemLabel: 'item-4',
+          users: [{ userEmail: 'c@user', userId: 2 }],
+        },
+        {
+          itemLabel: 'item-5',
+          users: [{ userEmail: 'c@user', userId: 2 }],
+        },
+      ])
     })
 
-    test('fetches left joins', async () => {
+    test('fetching left joins', async () => {
       const result = await query(users.select('userName'))
         .leftJoin(users.userId, items.select('itemId', 'itemLabel').itemUserId)
         .fetch(client)
@@ -230,7 +251,7 @@ describe('query', () => {
       ])
     })
 
-    test('fetches left joined json aggregates', async () => {
+    test('fetching left joined json aggregates', async () => {
       const result = await query(users.select('userId'))
         .leftJoin(
           users.userId,
@@ -260,7 +281,7 @@ describe('query', () => {
       ])
     })
 
-    test('fetches left joined nested json aggregates', async () => {
+    test('fetching left joined nested json aggregates', async () => {
       const nested = query(items.select('itemId', 'itemLabel', 'itemUserId'))
         .leftJoin(
           items.itemId,

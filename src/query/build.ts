@@ -11,7 +11,7 @@ import {
 import { BuildContext } from './buildContext'
 
 function assertNever(x: never): never {
-  throw new Error('Unexpected value. Should have been never.')
+  assert.fail('Unexpected value. Should have been never.')
 }
 
 class AliasGenerator {
@@ -68,8 +68,8 @@ class SqlQuery {
     this.joins.push({ joinType, tableSql2, columnSql1, columnSql2 })
   }
 
-  addGroupBy(columnSql: string) {
-    this.groupBy.push(columnSql)
+  addGroupBy(columnSql: string[]) {
+    this.groupBy.push(...columnSql)
   }
 
   addWhereEq(columnSql: string, paramKey: string, nullable: boolean) {
@@ -188,7 +188,7 @@ class SqlQuery {
 
   private buildFrom() {
     if (!this.from.length) {
-      throw new Error('from must not be empty')
+      assert.fail('from must not be empty')
     }
 
     return 'FROM ' + this.from.join(',')
@@ -264,7 +264,7 @@ class SqlQuery {
     returning: string, // select expression for the returning clause
   ): string {
     if (this.from.length !== 1) {
-      throw new Error('need exactly one from clause')
+      assert.fail('need exactly one from clause')
     }
 
     // first all clauses that affect parameters
@@ -357,7 +357,13 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
         sql.addSelect(table2.getSelectSql(alias2))
 
         if (table2.needsGroupBy()) {
-          sql.addGroupBy(table1.getReferencedColumnSql(alias1))
+          const pkColumnSql = table1.getPrimaryColumnsSql(alias1)
+
+          if (!pkColumnSql.length) {
+            assert.fail(`table has no primary columns: ${table1.debugInfo()}`)
+          }
+
+          sql.addGroupBy(pkColumnSql)
         }
 
         break

@@ -19,6 +19,10 @@ export interface Column<T> {
 
   // TODO: also support a toJson but figure out how that works with non-json columns
   // toJson?: (value: T) => string | number | null | undefined | boolean, // convert into json
+
+  // When true, this column is a primary key.
+  // Required to compute group by clauses for json_agg aggregations.
+  primaryKey?: true
 }
 
 /**

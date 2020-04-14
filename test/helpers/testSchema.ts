@@ -7,6 +7,7 @@ import {
   integer,
   json,
   nullable,
+  primaryKey,
   string,
   table,
 } from '../../src'
@@ -44,7 +45,7 @@ export interface UserRow {
 }
 
 export const users = table('users', {
-  userId: hasDefault(integer('id')),
+  userId: primaryKey(hasDefault(integer('id'))),
   userName: string('name'),
   userEmail: string('email'),
   userAvatar: nullable(string('avatar')),
@@ -59,7 +60,7 @@ export interface ItemRow {
 }
 
 export const items = table('items', {
-  itemId: integer('id'),
+  itemId: primaryKey(hasDefault(integer('id'))),
   itemLabel: string('label'),
   itemUserId: integer('user_id'),
   itemActive: boolean('active'),
@@ -74,7 +75,7 @@ export interface EventRow {
 }
 
 export const events = table('events', {
-  eventId: hasDefault(integer('id')),
+  eventId: primaryKey(hasDefault(integer('id'))),
   eventItemId: integer('item_id'),
   eventType: string('type'),
   eventTimestamp: date('timestamp'),
@@ -105,13 +106,13 @@ export interface EventTypeRow {
 }
 
 export const eventTypes = table('event_types', {
-  type: string('type'),
+  type: primaryKey(string('type')),
   description: string('description'),
   active: boolean('active'),
 })
 
 export const emptyTable = table('empty_table', {
-  id: integer('id'),
+  id: primaryKey(hasDefault(integer('id'))),
   value: string('value'),
   active: boolean('active'),
 })

@@ -1,3 +1,5 @@
+import assert from 'assert'
+
 import { BuildContext } from '../query/buildContext'
 import { Column, Table } from './types'
 export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
@@ -70,6 +72,19 @@ export function hasDefault<T>(c: Column<T>): Column<T & { hasDefault?: true }> {
   }
 }
 
+/**
+ * Create a column which is a primary key.
+ *
+ * Knowing that a column is a primary key is required to generate correct
+ * group-by clauses for json_agg (selectAsJsonAgg) projections.
+ */
+export function primaryKey<T>(c: Column<T>): Column<T> {
+  return {
+    ...c,
+    primaryKey: true,
+  }
+}
+
 // access the tables implementation for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
 
@@ -127,6 +142,12 @@ export class TableImplementation {
 
     // mark this as the table implementation so we know that this is not the proxy
     ;(this as any)[tableImplementationSymbol] = true
+  }
+
+  debugInfo() {
+    const isSubQuery = this.tableQuery ? ' (subquery)' : ''
+
+    return `${this.tableName}${isSubQuery}`
   }
 
   copy() {
@@ -273,6 +294,17 @@ export class TableImplementation {
     return `${alias}."${col.name}"`
   }
 
+  // return a list of primary column expressions to build "group by" clauses
+  getPrimaryColumnsSql(alias: string): string[] {
+    return Object.values(this.tableColumns)
+      .filter((c: Column<any>) => c.primaryKey)
+      .map((pk: Column<any>) => {
+        return `${alias}."${pk.name}"`
+      })
+  }
+
+  // using the json_agg (via selectAsJsonAgg) function implies a
+  // "group by <primary-key-columns>"
   needsGroupBy() {
     return !!(this.projection && this.projection.type === 'jsonAgg')
   }
@@ -416,6 +448,13 @@ export function table<T, S extends T, P = {}>(
   tableName: string,
   columns: { [K in keyof T]: Column<T[K]> },
 ): Table<T, S, P> {
+  // each table needs at least 1 primary key column
+  const hasPrimaryKey = Object.values(columns).some((c: any) => c.primaryKey)
+
+  if (!hasPrimaryKey) {
+    assert.fail(`table ${tableName} does not have any primary keys`)
+  }
+
   return new TableImplementation(tableName, columns).getTableProxy() as any
 }
 
