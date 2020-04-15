@@ -100,7 +100,7 @@ export interface TableProjectionMethods<T, S, P> {
   /**
    * Project all columns of this table into a single json column named key.
    */
-  selectAs<K extends string>(
+  selectAsJson<K extends string>(
     this: Table<T, S, P>,
     key: K,
   ): Table<T, { [KK in K]: S }, P>

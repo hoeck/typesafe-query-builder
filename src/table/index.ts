@@ -131,11 +131,6 @@ export class TableImplementation {
   // key into tableColumns when this TableImplementation acts as a TableColumn
   referencedColumn?: string
 
-  // select
-  // selectAs (should actually call this selectAsJson)
-  // selectAsJsonAgg
-  // als: sql-functions such as avg, count, ...
-
   constructor(tableName: string, tableColumns: { [key: string]: Column<any> }) {
     this.tableName = tableName
     this.tableColumns = tableColumns
@@ -181,7 +176,7 @@ export class TableImplementation {
         // TableProjectionMethods
         if (
           prop === 'select' ||
-          prop === 'selectAs' ||
+          prop === 'selectAsJson' ||
           prop === 'selectAsJsonAgg' ||
           prop === 'selectWithout' ||
           prop === 'column'
@@ -408,9 +403,8 @@ export class TableImplementation {
     return res.getTableProxy()
   }
 
-  // js/ts compatible projection
-  // TODO rename to selectAsJson
-  selectAs(key: string) {
+  // project all columns into a json object
+  selectAsJson(key: string) {
     const res = getTableImplementation(this).copy()
 
     res.projection = {

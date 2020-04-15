@@ -49,8 +49,8 @@ describe('query', () => {
       ])
     })
 
-    test('with selectAs', async () => {
-      const result = await query(users.selectAs('user')).fetch(client)
+    test('with selectAsJson', async () => {
+      const result = await query(users.selectAsJson('user')).fetch(client)
 
       expect(result).toEqual([
         {
@@ -83,9 +83,9 @@ describe('query', () => {
       ])
     })
 
-    test('with selectAs and fromJson Date conversion of a nullable date', async () => {
+    test('with selectAsJson and fromJson Date conversion of a nullable date', async () => {
       const result = await query(
-        users.select('userId', 'userActive').selectAs('users'),
+        users.select('userId', 'userActive').selectAsJson('users'),
       ).fetch(client)
 
       expect(result).toEqual([
@@ -100,10 +100,10 @@ describe('query', () => {
       ])
     })
 
-    test('with select and selectAs', async () => {
-      const result = await query(users.select('userId').selectAs('user')).fetch(
-        client,
-      )
+    test('with select and selectAsJson', async () => {
+      const result = await query(
+        users.select('userId').selectAsJson('user'),
+      ).fetch(client)
 
       expect(result).toEqual([
         { user: { userId: 1 } },
@@ -281,7 +281,7 @@ describe('query', () => {
 
     test('returns exactly one row when using json', async () => {
       const result: { theUser: UserRow } = await query(
-        users.selectAs('theUser'),
+        users.selectAsJson('theUser'),
       )
         .whereEq(users.userId, 'id')
         .fetchOne(client, { id: 2 })

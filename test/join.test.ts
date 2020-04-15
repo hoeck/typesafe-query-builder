@@ -52,13 +52,13 @@ describe('query', () => {
       ])
     })
 
-    test('fetching with selectAs', async () => {
+    test('fetching with selectAsJson', async () => {
       const result: Array<{ item: Pick<ItemRow, 'itemId' | 'itemLabel'> } & {
         user: Pick<UserRow, 'userName'>
-      }> = await query(items.select('itemId', 'itemLabel').selectAs('item'))
+      }> = await query(items.select('itemId', 'itemLabel').selectAsJson('item'))
         .join(
           items.itemUserId,
-          users.select('userName').selectAs('user').userId,
+          users.select('userName').selectAsJson('user').userId,
         )
         .fetch(client)
 
