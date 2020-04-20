@@ -210,6 +210,7 @@ describe('query', () => {
           items.itemUserId,
           users.select('userEmail', 'userId').selectAsJsonAgg('users').userId,
         )
+        .orderBy(items.itemLabel)
         .fetch(client)
 
       expect(result).toEqual([
