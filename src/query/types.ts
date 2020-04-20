@@ -46,6 +46,7 @@ export interface OrderByItem {
   queryType: 'orderBy'
   column: TableImplementation
   direction: 'asc' | 'desc'
+  nulls: 'nullsFirst' | 'nullsLast'
 }
 
 export interface LockItem {
@@ -182,6 +183,25 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
    * Add a row lock statement to the query (e.g. 'FOR UPDATE')
    */
   lock(lockMode: LockMode): QueryBottom<T, S, P, U>
+
+  /**
+   * Append and ORDER BY clause to the query.
+   *
+   * When no direction is given, use the database default (ASC).
+   * nulls directly map to the optional NULLS FIRST or NULLS LAST option
+   * (by pg default, null values sort as if larger than any non-null value).
+   *
+   * Use multiple orderBy calls to sort by more than one column.
+   *
+   * See https://www.postgresql.org/docs/current/queries-order.html
+   */
+  orderBy(
+    // Postgres allows any column in an order by statement,
+    // standard sql only allows order by the selected columns
+    col: TableColumnRef<T, any, any, any>,
+    direction?: 'asc' | 'desc',
+    nulls?: 'nullsFirst' | 'nullsLast',
+  ): QueryBottom<T, S, P, U>
 
   // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq

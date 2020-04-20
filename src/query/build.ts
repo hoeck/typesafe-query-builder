@@ -39,6 +39,7 @@ class SqlQuery {
   }> = []
   private where: string[] = []
   private groupBy: string[] = []
+  private orderBy: string[] = []
   private lock?: LockMode
 
   private aliasGenerator = new AliasGenerator()
@@ -70,6 +71,24 @@ class SqlQuery {
 
   addGroupBy(columnSql: string[]) {
     this.groupBy.push(...columnSql)
+  }
+
+  addOrderBy(
+    columnSql: string,
+    direction: 'desc' | 'asc' | undefined,
+    nulls: 'nullsFirst' | 'nullsLast' | undefined,
+  ) {
+    this.orderBy.push(
+      [
+        columnSql,
+        direction || '',
+        nulls === 'nullsFirst'
+          ? 'NULLS FIRST'
+          : nulls === 'nullsLast'
+          ? 'NULLS LAST'
+          : '',
+      ].join(' '),
+    )
   }
 
   addWhereEq(columnSql: string, paramKey: string, nullable: boolean) {
@@ -220,6 +239,14 @@ class SqlQuery {
     return 'GROUP BY ' + this.groupBy.join(',')
   }
 
+  private buildOrderBy() {
+    if (!this.orderBy.length) {
+      return ''
+    }
+
+    return 'ORDER BY ' + this.orderBy.join(',')
+  }
+
   private buildLock() {
     if (!this.lock) {
       return ''
@@ -252,6 +279,8 @@ class SqlQuery {
       this.buildWhere() +
       ' ' +
       this.buildGroupBy() +
+      ' ' +
+      this.buildOrderBy() +
       ' ' +
       this.buildLock()
     )
@@ -405,8 +434,18 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 
         break
       }
-      case 'orderBy':
-        throw new Error('orderBy is not implemented')
+      case 'orderBy': {
+        const table = item.column
+        const alias = sql.getAlias(table.tableName)
+
+        sql.addOrderBy(
+          table.getReferencedColumnSql(alias),
+          item.direction,
+          item.nulls,
+        )
+
+        break
+      }
       case 'lock':
         sql.setLock(item.lockMode)
         break

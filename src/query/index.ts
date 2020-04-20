@@ -226,6 +226,22 @@ class QueryImplementation {
     ])
   }
 
+  orderBy(
+    column: AnyTableColumnRef,
+    direction: 'asc' | 'desc',
+    nulls: 'nullsFirst' | 'nullsLast',
+  ) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'orderBy',
+        column: getTableImplementation(column),
+        direction,
+        nulls,
+      },
+    ])
+  }
+
   table(): any {
     // table name which does not clash with some real tables
     const tableNameHash = crypto.createHash('sha1')
