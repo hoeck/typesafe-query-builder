@@ -1,3 +1,19 @@
+// mapped helper type from SO:
+// https://stackoverflow.com/questions/44323441/changing-property-name-in-typescript-mapped-type
+type ValueOf<T> = T[keyof T]
+type KeyValueTupleToObject<T extends [keyof any, any]> = {
+  [K in T[0]]: Extract<T, [K, any]>[1]
+}
+type MapKeys<T, M extends Record<string, string>> = KeyValueTupleToObject<
+  ValueOf<
+    {
+      [K in keyof T]: [K extends keyof M ? M[K] : K, T[K]]
+    }
+  >
+> extends infer O
+  ? { [K in keyof O]: O[K] }
+  : never
+
 /**
  * The type of a column
  */
@@ -77,6 +93,10 @@ export type TableColumnRef<T, C, S, P> = {
   __p: P
 }
 
+// TODO:
+//   Incooperate correct chaining rules into the type by creating a separate
+//   interface for each select* method and make each method return a table and
+//   not itself so it can only be called once.
 /**
  * Selecting and Aggregation over tables
  */
@@ -96,6 +116,26 @@ export interface TableProjectionMethods<T, S, P> {
     this: Table<T, S, P>,
     ...keys: K[]
   ): Table<T, Omit<S, K>, P>
+
+  /**
+   * Rename columns in the result.
+   *
+   * Needs a mapping of existing-column-name to new-name.
+   * Infers the right type only if mapping uses literal strings.
+   * Either by adding an explicit literal string type-cast:
+   *
+   *   table.selectAs({existingColumnName: 'newColumnName' as 'newColumnName'})
+   *
+   * or by using a helper function:
+   *
+   *   import {columnMapping} from 'typesafe-query-builder'
+   *
+   *   table.selectAs(columnMapping({existingColumnName: 'newColumnName'}))
+   */
+  selectAs<M extends Record<string, string>>(
+    this: Table<T, S, P>,
+    mapping: M,
+  ): Table<T, MapKeys<S, M>, P>
 
   /**
    * Project all columns of this table into a single json column named key.

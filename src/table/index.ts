@@ -5,6 +5,18 @@ import { Column, Table } from './types'
 export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
 
 /**
+ * Make typescript recognice mapping as a  literal -> literal type.
+ *
+ * Required to use `table.selectAs` without additional type hints.
+ */
+export function columnMapping<
+  T extends Record<string, string>,
+  K extends keyof T
+>(mapping: { [KK in K]: T[KK] }): { [KK in K]: T[KK] } {
+  return mapping
+}
+
+/**
  * Column constructor
  */
 export function column<T>(
@@ -115,6 +127,9 @@ export class TableImplementation {
   // currently selected columns, undefined == all
   selected?: string[]
 
+  // rename projection
+  renamed?: Record<string, string>
+
   // single-column projections
   projection?:
     | {
@@ -129,6 +144,8 @@ export class TableImplementation {
       }
 
   // key into tableColumns when this TableImplementation acts as a TableColumn
+  // (a reference to a specific column of this table for joins and
+  // where/order-by expresssions)
   referencedColumn?: string
 
   constructor(tableName: string, tableColumns: { [key: string]: Column<any> }) {
@@ -149,6 +166,7 @@ export class TableImplementation {
     const res = new TableImplementation(this.tableName, this.tableColumns)
 
     res.selected = this.selected
+    res.renamed = this.renamed
     res.projection = this.projection
     res.referencedColumn = this.referencedColumn
     res.tableQuery = this.tableQuery
@@ -176,6 +194,7 @@ export class TableImplementation {
         // TableProjectionMethods
         if (
           prop === 'select' ||
+          prop === 'selectAs' ||
           prop === 'selectAsJson' ||
           prop === 'selectAsJsonAgg' ||
           prop === 'selectWithout' ||
@@ -211,6 +230,22 @@ export class TableImplementation {
     }
   }
 
+  // return the javascript name of the column, which may have possibly renamed
+  // through `selectAs`
+  getColumnResultKey(columnKey: string) {
+    if (!this.renamed) {
+      return columnKey
+    }
+
+    const key = this.renamed[columnKey]
+
+    if (key === undefined) {
+      return columnKey
+    }
+
+    return key
+  }
+
   getSelectSql(alias: string | undefined) {
     const selected = this.selected || Object.keys(this.tableColumns)
     const aliasPrefix = alias ? alias + '.' : ''
@@ -220,8 +255,9 @@ export class TableImplementation {
       return selected
         .map(columnKey => {
           const column = this.tableColumns[columnKey]
+          const columnResultKey = this.getColumnResultKey(columnKey)
 
-          return `${aliasPrefix}"${column.name}" AS "${columnKey}"`
+          return `${aliasPrefix}"${column.name}" AS "${columnResultKey}"`
         })
         .join(',')
     } else if (this.projection.type === 'jsonBuildObject') {
@@ -231,8 +267,9 @@ export class TableImplementation {
         selected
           .map(columnKey => {
             const column = this.tableColumns[columnKey]
+            const columnResultKey = this.getColumnResultKey(columnKey)
 
-            return `'${columnKey}',${aliasPrefix}"${column.name}"`
+            return `'${columnResultKey}',${aliasPrefix}"${column.name}"`
           })
           .join(',') +
         `) AS "${this.projection.name}"`
@@ -263,12 +300,17 @@ export class TableImplementation {
     if (this.projection && this.projection.type === 'jsonAgg') {
       // subselect is required to turn `[null]` when using json_agg left joins into `[]`
       return (
-        '(select json_build_object(' +
+        '(SELECT json_build_object(' +
         (this.selected || Object.keys(this.tableColumns))
-          .map(c => `'${c}', x."${this.tableColumns[c].name}"`)
+          .map(columnKey => {
+            const column = this.tableColumns[columnKey]
+            const columnResultKey = this.getColumnResultKey(columnKey)
+
+            return `'${columnResultKey}', x."${column.name}"`
+          })
           .join(',') +
         `) AS __json_agg_column__, *` +
-        `from ${tableSql} x) ${alias}`
+        `FROM ${tableSql} x) ${alias}`
       )
     } else {
       return `${tableSql} ${alias}`
@@ -360,19 +402,25 @@ export class TableImplementation {
           return
         }
 
-        columnConverters.forEach(([name, fromJson]) => {
+        columnConverters.forEach(([columnKey, fromJson]) => {
+          const columnResultKey = this.getColumnResultKey(columnKey)
+
           // plain json projection: all selected columns are grouped below `key`
-          row[key][name] = fromJson(row[key][name])
+          row[key][columnResultKey] = fromJson(row[key][columnResultKey])
         })
       }
     } else if (this.projection.type === 'jsonAgg') {
       const key = this.projection.name
 
       return (row: any) => {
-        columnConverters.forEach(([name, fromJson]) => {
+        columnConverters.forEach(([columnKey, fromJson]) => {
+          const columnResultKey = this.getColumnResultKey(columnKey)
+
           // json agg -> key is an array of the joined rows
           row[key].forEach((aggregatedRow: any) => {
-            aggregatedRow[name] = fromJson(aggregatedRow[name])
+            aggregatedRow[columnResultKey] = fromJson(
+              aggregatedRow[columnResultKey],
+            )
           })
         })
       }
@@ -387,6 +435,10 @@ export class TableImplementation {
   select(...keys: string[]) {
     const res = getTableImplementation(this).copy()
 
+    if (res.selected) {
+      throw new Error('only a single select call is allowed')
+    }
+
     res.selected = keys
 
     return res.getTableProxy()
@@ -399,6 +451,19 @@ export class TableImplementation {
     res.selected = (res.selected || Object.keys(res.tableColumns)).filter(
       k => !keys.includes(k),
     )
+
+    return res.getTableProxy()
+  }
+
+  // rename some columns in the result
+  selectAs(mapping: Record<string, string>) {
+    const res = getTableImplementation(this).copy()
+
+    if (res.renamed) {
+      throw new Error('only a single selectAs call is allowed')
+    }
+
+    res.renamed = mapping
 
     return res.getTableProxy()
   }
