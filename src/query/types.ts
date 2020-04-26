@@ -138,16 +138,24 @@ export interface Statement<S, P> {
     : (client: DatabaseClient, params: P) => Promise<S[]>
 
   /**
-   * Execute the query and return exactly 1 row.
+   * Execute the query and return the first row or undefined.
    *
-   * Throw an exception if no rows or more than 1 row was found.
+   * Throw an exception if more than one row was found.
    */
   fetchOne: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S | undefined>
+    : (client: DatabaseClient, params: P) => Promise<S | undefined>
+
+  /**
+   * Execute the query and return the first row.
+   *
+   * Throw an exception if no row *or* more than 1 row was found.
+   */
+  fetchExactlyOne: keyof P extends never
     ? (client: DatabaseClient) => Promise<S>
     : (client: DatabaseClient, params: P) => Promise<S>
 
   // TODO:
-  // - fetchFirst - fetchOne without throwing, returns undefined if result was empty
   // - create a dedicated QueryResultException and a type predicate so we
   //   can write a middleware that responds to not found or too-many-results
   //   with a generic 404 message instead of coding it into every single

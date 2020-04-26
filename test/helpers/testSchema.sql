@@ -17,7 +17,7 @@ INSERT INTO users
 VALUES
   (1, 'user-a', 'a@user', NULL, NULL),
   (2, 'user-c', 'c@user', NULL, NULL),
-  (3, 'user-b', 'b@user', 'image.png', '2016-01-16 10:00:00');
+  (3, 'user-b', 'b@user', 'image.png', '2016-01-16 10:00:00Z');
 
 SELECT pg_catalog.setval('users_id_seq', 4, false);
 

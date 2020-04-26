@@ -51,7 +51,7 @@ describe('fetching', () => {
   })
 
   describe('.fetchOne()', () => {
-    test('returns exactly one row', async () => {
+    test('returns the first row', async () => {
       const result = await query(users)
         .whereEq(users.userId, 'id')
         .fetchOne(client, { id: 2 })
@@ -65,24 +65,74 @@ describe('fetching', () => {
       })
     })
 
-    test('returns exactly one row when using selectAsJson', async () => {
+    test('returns undefined when the result is empty', async () => {
+      const result = await query(users)
+        .whereEq(users.userId, 'id')
+        .fetchOne(client, { id: -123 })
+
+      expect(result).toBeUndefined()
+    })
+
+    test('returns the first row when using selectAsJson with a date column', async () => {
       const result = await query(users.selectAsJson('theUser'))
         .whereEq(users.userId, 'id')
-        .fetchOne(client, { id: 2 })
+        .fetchOne(client, { id: 3 })
 
       expect(result).toEqual({
         theUser: {
-          userId: 2,
-          userName: 'user-c',
-          userEmail: 'c@user',
-          userAvatar: null,
-          userActive: null,
+          userId: 3,
+          userName: 'user-b',
+          userEmail: 'b@user',
+          userAvatar: 'image.png',
+
+          // this checks that the result converter works
+          userActive: new Date('2016-01-16 10:00:00Z'),
         },
       })
     })
 
     test('throws when there is more than one row', async () => {
       await expect(query(users).fetchOne(client)).rejects.toThrow(
+        'expected at most one row but the query returned: 3',
+      )
+    })
+  })
+
+  describe('.fetchExactlyOne()', () => {
+    test('returns exactly one row', async () => {
+      const result = await query(users)
+        .whereEq(users.userId, 'id')
+        .fetchExactlyOne(client, { id: 2 })
+
+      expect(result).toEqual({
+        userId: 2,
+        userName: 'user-c',
+        userEmail: 'c@user',
+        userAvatar: null,
+        userActive: null,
+      })
+    })
+
+    test('returns exactly one row when using selectAsJson with a date column', async () => {
+      const result = await query(users.selectAsJson('theUser'))
+        .whereEq(users.userId, 'id')
+        .fetchExactlyOne(client, { id: 3 })
+
+      expect(result).toEqual({
+        theUser: {
+          userId: 3,
+          userName: 'user-b',
+          userEmail: 'b@user',
+          userAvatar: 'image.png',
+
+          // this checks that the result converter works
+          userActive: new Date('2016-01-16 10:00:00Z'),
+        },
+      })
+    })
+
+    test('throws when there is more than one row', async () => {
+      await expect(query(users).fetchExactlyOne(client)).rejects.toThrow(
         'expected exactly one row but the query returned: 3',
       )
     })
@@ -92,7 +142,7 @@ describe('fetching', () => {
       await expect(
         query(users)
           .whereEq(users.userAvatar, 'avatar')
-          .fetchOne(client, { avatar: 'doesNotExist.png' }),
+          .fetchExactlyOne(client, { avatar: 'doesNotExist.png' }),
       ).rejects.toThrow('expected exactly one row but the query returned: 0')
     })
   })

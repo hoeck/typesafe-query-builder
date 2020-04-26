@@ -295,6 +295,29 @@ class QueryImplementation {
 
     const rows = (await client.query(sql, paramArray)).rows
 
+    if (!rows.length) {
+      return
+    }
+
+    if (rows.length > 1) {
+      throw new Error(
+        `expected at most one row but the query returned: ${rows.length}`,
+      )
+    }
+
+    resultConverter(rows[0])
+
+    return rows[0]
+  }
+
+  async fetchExactlyOne(client: DatabaseClient, params?: any): Promise<any> {
+    const ctx = new BuildContext()
+    const sql = this.sql(ctx)
+    const paramArray = params ? ctx.getParameters(params) : []
+    const resultConverter = buildResultConverter(this.query)
+
+    const rows = (await client.query(sql, paramArray)).rows
+
     if (rows.length !== 1) {
       throw new Error(
         `expected exactly one row but the query returned: ${rows.length}`,
