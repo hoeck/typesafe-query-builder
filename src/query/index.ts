@@ -214,14 +214,22 @@ class QueryImplementation {
     ])
   }
 
-  lock(lockMode: LockMode) {
-    // Does not work with json-aggregate columns at the moment bc they introduce a group-by.
-    // TODO: In this case, we need to add the FOR UPDATE in a plain subselect of the json-aggregated table.
+  limit(count: number) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
-        queryType: 'lock',
-        lockMode,
+        queryType: 'limit',
+        count,
+      },
+    ])
+  }
+
+  offset(offset: number) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'offset',
+        offset,
       },
     ])
   }
@@ -238,6 +246,18 @@ class QueryImplementation {
         column: getTableImplementation(column),
         direction,
         nulls,
+      },
+    ])
+  }
+
+  lock(lockMode: LockMode) {
+    // Does not work with json-aggregate columns at the moment bc they introduce a group-by.
+    // TODO: In this case, we need to add the FOR UPDATE in a plain subselect of the json-aggregated table.
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'lock',
+        lockMode,
       },
     ])
   }

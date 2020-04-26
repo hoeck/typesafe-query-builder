@@ -11,6 +11,8 @@ export type QueryItem =
   | WhereInItem
   | WhereSqlItem
   | OrderByItem
+  | LimitItem
+  | OffsetItem
   | LockItem
 
 export interface FromItem {
@@ -47,6 +49,16 @@ export interface OrderByItem {
   column: TableImplementation
   direction: 'asc' | 'desc'
   nulls: 'nullsFirst' | 'nullsLast'
+}
+
+export interface LimitItem {
+  queryType: 'limit'
+  count: number
+}
+
+export interface OffsetItem {
+  queryType: 'offset'
+  offset: number
 }
 
 export interface LockItem {
@@ -198,30 +210,6 @@ export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 //   P .. parameters used when fetching the query
 //   U .. the type returned by .update (defaults to never bc only queries without  joins but with wheres are allowed to have an update method)
 export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
-  /**
-   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
-   */
-  lock(lockMode: LockMode): QueryBottom<T, S, P, U>
-
-  /**
-   * Append and ORDER BY clause to the query.
-   *
-   * When no direction is given, use the database default (ASC).
-   * nulls directly map to the optional NULLS FIRST or NULLS LAST option
-   * (by pg default, null values sort as if larger than any non-null value).
-   *
-   * Use multiple orderBy calls to sort by more than one column.
-   *
-   * See https://www.postgresql.org/docs/current/queries-order.html
-   */
-  orderBy(
-    // Postgres allows any column in an order by statement,
-    // standard sql only allows order by the selected columns
-    col: TableColumnRef<T, any, any, any>,
-    direction?: 'asc' | 'desc',
-    nulls?: 'nullsFirst' | 'nullsLast',
-  ): QueryBottom<T, S, P, U>
-
   // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq
   // * use a separate `whereEqOrNull` or `whereNull`
@@ -333,6 +321,40 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
    * Update rows of the table
    */
   update(client: DatabaseClient, params: P, data: Partial<T>): U
+
+  /**
+   * Append and ORDER BY clause to the query.
+   *
+   * When no direction is given, use the database default (ASC).
+   * nulls directly map to the optional NULLS FIRST or NULLS LAST option
+   * (by pg default, null values sort as if larger than any non-null value).
+   *
+   * Use multiple orderBy calls to sort by more than one column.
+   *
+   * See https://www.postgresql.org/docs/current/queries-order.html
+   */
+  orderBy(
+    // Postgres allows any column in an order by statement,
+    // standard sql only allows order by the selected columns
+    col: TableColumnRef<T, any, any, any>,
+    direction?: 'asc' | 'desc',
+    nulls?: 'nullsFirst' | 'nullsLast',
+  ): QueryBottom<T, S, P, U>
+
+  /**
+   * Append an SQL LIMIT clause to the query.
+   */
+  limit(count: number): QueryBottom<T, S, P, U>
+
+  /**
+   * Append an SQL OFFSET clause to the query.
+   */
+  offset(offset: number): QueryBottom<T, S, P, U>
+
+  /**
+   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
+   */
+  lock(lockMode: LockMode): QueryBottom<T, S, P, U>
 }
 
 /**

@@ -40,6 +40,8 @@ class SqlQuery {
   private where: string[] = []
   private groupBy: string[] = []
   private orderBy: string[] = []
+  private limit?: number
+  private offset?: number
   private lock?: LockMode
 
   private aliasGenerator = new AliasGenerator()
@@ -89,6 +91,30 @@ class SqlQuery {
           : '',
       ].join(' '),
     )
+  }
+
+  setLimit(limit: number) {
+    if (this.limit !== undefined) {
+      throw new Error('limit is already present')
+    }
+
+    if (limit < 0 || !Number.isInteger(limit)) {
+      throw new Error('limit must be > 0 and an integer')
+    }
+
+    this.limit = limit
+  }
+
+  setOffset(offset: number) {
+    if (this.offset !== undefined) {
+      throw new Error('offset is already present')
+    }
+
+    if (offset < 0 || !Number.isInteger(offset)) {
+      throw new Error('offset must be > 0 and an integer')
+    }
+
+    this.offset = offset
   }
 
   addWhereEq(columnSql: string, paramKey: string, nullable: boolean) {
@@ -247,6 +273,22 @@ class SqlQuery {
     return 'ORDER BY ' + this.orderBy.join(',')
   }
 
+  private buildLimit() {
+    if (this.limit === undefined) {
+      return ''
+    }
+
+    return `LIMIT ${this.limit}`
+  }
+
+  private buildOffset() {
+    if (this.offset === undefined) {
+      return ''
+    }
+
+    return `OFFSET ${this.offset}`
+  }
+
   private buildLock() {
     if (!this.lock) {
       return ''
@@ -271,17 +313,21 @@ class SqlQuery {
   build(): string {
     return (
       this.buildSelect() +
-      ' ' +
+      '\n' +
       this.buildFrom() +
-      ' ' +
+      '\n' +
       this.buildJoin() +
-      ' ' +
+      '\n' +
       this.buildWhere() +
-      ' ' +
+      '\n' +
       this.buildGroupBy() +
-      ' ' +
+      '\n' +
       this.buildOrderBy() +
-      ' ' +
+      '\n' +
+      this.buildLimit() +
+      '\n' +
+      this.buildOffset() +
+      '\n' +
       this.buildLock()
     )
   }
@@ -446,6 +492,12 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 
         break
       }
+      case 'limit':
+        sql.setLimit(item.count)
+        break
+      case 'offset':
+        sql.setOffset(item.offset)
+        break
       case 'lock':
         sql.setLock(item.lockMode)
         break
@@ -622,6 +674,8 @@ export function buildUpdate(
 
       case 'join':
       case 'orderBy':
+      case 'limit':
+      case 'offset':
       case 'lock':
         throw new Error(
           `queryType is not allowed in updates: ${item.queryType}`,
