@@ -131,6 +131,11 @@ export interface Statement<S, P> {
   sql(): string
 
   /**
+   * Run an SQL EXPLAIN on this query.
+   */
+  explain: (client: DatabaseClient, params?: P) => Promise<string>
+
+  /**
    * Execute the query and return all rows.
    */
   fetch: keyof P extends never
@@ -163,9 +168,15 @@ export interface Statement<S, P> {
   //   or give this function a separate name: fetchExactlyOne, fetchPrimary, fetchById, fetchRecord, fetchSingle ... ????
 
   /**
-   * Run an SQL EXPLAIN on this query.
+   * Call a factory function with this statement.
+   *
+   * The factory should return a function that fetches from this statement.
+   *
+   * This way you will cache the query object and sql string and save some
+   * overhead when executing the same query repeatedly (with or without
+   * different arguments).
    */
-  explain: (client: DatabaseClient, params?: P) => Promise<string>
+  use<T>(factory: (statement: Statement<S, P>) => T): T
 }
 
 /**

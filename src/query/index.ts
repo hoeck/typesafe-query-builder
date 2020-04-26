@@ -274,6 +274,16 @@ class QueryImplementation {
     return buildSqlQuery(this.query, ctx || new BuildContext())
   }
 
+  async explain(client: DatabaseClient, params?: any): Promise<string> {
+    const ctx = new BuildContext()
+    const sql = 'EXPLAIN ' + this.sql(ctx)
+    const paramArray = params ? ctx.getParameters(params) : []
+
+    return (await client.query(sql, paramArray)).rows
+      .map(r => r['QUERY PLAN'])
+      .join('\n')
+  }
+
   async fetch(client: DatabaseClient, params?: any): Promise<any[]> {
     const ctx = new BuildContext()
     const sql = this.sql(ctx)
@@ -329,14 +339,8 @@ class QueryImplementation {
     return rows[0]
   }
 
-  async explain(client: DatabaseClient, params?: any): Promise<string> {
-    const ctx = new BuildContext()
-    const sql = 'EXPLAIN ' + this.sql(ctx)
-    const paramArray = params ? ctx.getParameters(params) : []
-
-    return (await client.query(sql, paramArray)).rows
-      .map(r => r['QUERY PLAN'])
-      .join('\n')
+  use(factory: (statement: any) => any) {
+    return factory(this)
   }
 
   // DML methods

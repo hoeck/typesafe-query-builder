@@ -1,4 +1,4 @@
-import { query } from '../../src'
+import { query, DatabaseClient } from '../../src'
 import { client, emptyTable, users } from '../helpers'
 
 describe('fetching', () => {
@@ -144,6 +144,24 @@ describe('fetching', () => {
           .whereEq(users.userAvatar, 'avatar')
           .fetchExactlyOne(client, { avatar: 'doesNotExist.png' }),
       ).rejects.toThrow('expected exactly one row but the query returned: 0')
+    })
+  })
+
+  describe('.use', () => {
+    test('creating a simple fetch function', async () => {
+      const findUsers = query(users.select('userName'))
+        .orderBy(users.userName)
+        .use(q => {
+          return async (client: DatabaseClient) => await q.fetch(client)
+        })
+
+      const res = await findUsers(client)
+
+      expect(res).toEqual([
+        { userName: 'user-a' },
+        { userName: 'user-b' },
+        { userName: 'user-c' },
+      ])
     })
   })
 })

@@ -1,5 +1,6 @@
 ### master
 
+- add `use`
 - add `fetchOne` to fetch 0 or 1 rows, throwing for results with >1 rows
 - rename `fetchOne` to `fetchExactlyOne`
 - add `orderBy` to sort results
