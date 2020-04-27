@@ -9,6 +9,7 @@ export {
 } from './table'
 export { date, boolean, integer, string, json } from './table/columns'
 export { Table, TableType, TableTypeWithDefaults, Column } from './table/types'
+export { omit, pick } from './utils'
 
 // JOIN
 // const q = query()

@@ -1,5 +1,6 @@
 ### master
 
+- add `omit` and `pick` utility functions
 - add `limit` and `offset`
 - add `use`
 - add `fetchOne` to fetch 0 or 1 rows, throwing for results with >1 rows
