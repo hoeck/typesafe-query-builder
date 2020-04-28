@@ -1,8 +1,16 @@
 import assert from 'assert'
 
 import { BuildContext } from '../query/buildContext'
-import { Column, Table } from './types'
-export { Column, Table, TableColumnRef, TableProjectionMethods } from './types'
+
+import {
+  Column,
+  ColumnImplementation,
+  getColumnImplementation,
+} from './columns'
+export { Column, column } from './columns'
+
+import { Table } from './types'
+export { Table, TableColumnRef, TableProjectionMethods } from './types'
 
 /**
  * Make typescript recognice mapping as a  literal -> literal type.
@@ -14,87 +22,6 @@ export function columnMapping<
   K extends keyof T
 >(mapping: { [KK in K]: T[KK] }): { [KK in K]: T[KK] } {
   return mapping
-}
-
-/**
- * Column constructor
- */
-export function column<T>(
-  name: string,
-  validator: (value: unknown) => T, // checks/converts the datatype when inserting a column
-  fromJson?: (value: unknown) => T, // converts the selected value from json
-): Column<T> {
-  return { columnValue: validator, name, fromJson }
-}
-
-/**
- * Create a column which is nullable.
- *
- * That means it can hold `null` and also uses null as its default.
- */
-export function nullable<T>(c: Column<T>): Column<T | null> {
-  const { fromJson, columnValue } = c
-
-  return {
-    ...c,
-    columnValue: (value: unknown): T | null => {
-      // check for both null and undefined as the default value for nullable
-      // columns is always null and undefined in inserts means `use the
-      // default`
-      if (value === null || value === undefined) {
-        return null
-      }
-
-      return columnValue(value)
-    },
-
-    // required to generate `IS NULL` where expressions
-    nullable: true,
-
-    fromJson: fromJson
-      ? (value: any) => {
-          if (value === null) {
-            return null
-          }
-
-          return fromJson(value)
-        }
-      : undefined,
-  }
-}
-
-/**
- * Create a column which has a default.
- *
- * Columns with defaults can be ommitted in insert queries.
- */
-export function hasDefault<T>(c: Column<T>): Column<T & { hasDefault?: true }> {
-  return {
-    ...c,
-    columnValue: (value: unknown) => {
-      if (value === undefined) {
-        // insert filters any undefined columns but the validations runs
-        // before that step and is the only part of the column that knowns
-        // about it being optional
-        return undefined as any
-      }
-
-      return c.columnValue(value)
-    },
-  }
-}
-
-/**
- * Create a column which is a primary key.
- *
- * Knowing that a column is a primary key is required to generate correct
- * group-by clauses for json_agg (selectAsJsonAgg) projections.
- */
-export function primaryKey<T>(c: Column<T>): Column<T> {
-  return {
-    ...c,
-    primaryKey: true,
-  }
 }
 
 // access the tables implementation for building queries
@@ -122,7 +49,7 @@ export class TableImplementation {
   tableResultConverter?: (row: any) => void
 
   // all columns available in this table to use in selection, projection, where, etc.
-  tableColumns: { [key: string]: Column<any> }
+  tableColumns: { [key: string]: ColumnImplementation }
 
   // currently selected columns, undefined == all
   selected?: string[]
@@ -148,7 +75,10 @@ export class TableImplementation {
   // where/order-by expresssions)
   referencedColumn?: string
 
-  constructor(tableName: string, tableColumns: { [key: string]: Column<any> }) {
+  constructor(
+    tableName: string,
+    tableColumns: { [key: string]: ColumnImplementation },
+  ) {
     this.tableName = tableName
     this.tableColumns = tableColumns
 
@@ -317,7 +247,7 @@ export class TableImplementation {
     }
   }
 
-  getReferencedColumn(): Column<any> {
+  getReferencedColumn(): ColumnImplementation {
     if (!this.referencedColumn) {
       throw new Error('referencedColumn is undefined')
     }
@@ -334,8 +264,8 @@ export class TableImplementation {
   // return a list of primary column expressions to build "group by" clauses
   getPrimaryColumnsSql(alias: string): string[] {
     return Object.values(this.tableColumns)
-      .filter((c: Column<any>) => c.primaryKey)
-      .map((pk: Column<any>) => {
+      .filter((c: ColumnImplementation) => c.isPrimaryKey)
+      .map((pk: ColumnImplementation) => {
         return `${alias}."${pk.name}"`
       })
   }
@@ -507,14 +437,26 @@ export function table<T, S extends T, P = {}>(
   tableName: string,
   columns: { [K in keyof T]: Column<T[K]> },
 ): Table<T, S, P> {
+  // remove type info from columns to access their private attributes
+  const columnImplementations: { [key: string]: ColumnImplementation } = {}
+
+  Object.keys(columns).forEach(k => {
+    columnImplementations[k] = getColumnImplementation((columns as any)[k])
+  })
+
   // each table needs at least 1 primary key column
-  const hasPrimaryKey = Object.values(columns).some((c: any) => c.primaryKey)
+  const hasPrimaryKey = Object.values(columnImplementations).some(
+    (c: any) => c.isPrimaryKey,
+  )
 
   if (!hasPrimaryKey) {
     assert.fail(`table ${tableName} does not have any primary keys`)
   }
 
-  return new TableImplementation(tableName, columns).getTableProxy() as any
+  return new TableImplementation(
+    tableName,
+    columnImplementations,
+  ).getTableProxy() as any
 }
 
 export function getTableImplementation(table: any): TableImplementation {

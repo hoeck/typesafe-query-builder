@@ -1,14 +1,6 @@
 export { DatabaseClient, ResultType, Statement, query, sql } from './query'
-export {
-  table,
-  column,
-  nullable,
-  hasDefault,
-  primaryKey,
-  columnMapping,
-} from './table'
-export { date, boolean, integer, string, json } from './table/columns'
-export { Table, TableType, TableTypeWithDefaults, Column } from './table/types'
+export { Column, table, column, columnMapping } from './table'
+export { Table, TableType, TableTypeWithDefaults } from './table/types'
 export { omit, pick } from './utils'
 
 // JOIN

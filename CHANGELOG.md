@@ -1,5 +1,8 @@
 ### master
 
+- change columns api to be chainable
+  old: `hasDefault(primaryKey(integer('id')))`
+  new: `column('id').integer().primaryKey().hasDefault()`
 - add `omit` and `pick` utility functions
 - add `limit` and `offset`
 - add `use`

@@ -7,7 +7,7 @@ describe('locking', () => {
       .lock('update')
       .sql()
 
-    expect(sql).toMatch(/^SELECT .* FOR UPDATE$/)
+    expect(sql).toMatch(/^SELECT(\n|.)*FOR UPDATE$/m)
   })
 
   test('appends a FOR SHARE to the query', () => {
@@ -15,7 +15,7 @@ describe('locking', () => {
       .lock('share')
       .sql()
 
-    expect(sql).toMatch(/^SELECT .* FOR SHARE$/)
+    expect(sql).toMatch(/^SELECT(\n|.)*FOR SHARE$/)
   })
 
   test('appends nothing if no locking is required', () => {

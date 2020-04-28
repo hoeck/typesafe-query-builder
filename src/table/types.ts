@@ -15,33 +15,6 @@ type MapKeys<T, M extends Record<string, string>> = KeyValueTupleToObject<
   : never
 
 /**
- * The type of a column
- */
-export interface Column<T> {
-  // column value type represented by its validation function
-  columnValue: (value: unknown) => T
-
-  // name of the column in the database
-  name: string
-
-  // whether this column can contain nulls (needed when creating the query as
-  // the type information in T is gone at runtime)
-  nullable?: boolean
-
-  // optional serialization from basic types - required for data types that
-  // are represented in the database but are just 'strings' when selected via
-  // json such as SQL timestamps
-  fromJson?: (value: unknown) => T // converts the selected value from json
-
-  // TODO: also support a toJson but figure out how that works with non-json columns
-  // toJson?: (value: T) => string | number | null | undefined | boolean, // convert into json
-
-  // When true, this column is a primary key.
-  // Required to compute group by clauses for json_agg aggregations.
-  primaryKey?: true
-}
-
-/**
  * A relation of available columns T and selected columns S
  *
  * Columns in S are present in the result and columns in T can be used in

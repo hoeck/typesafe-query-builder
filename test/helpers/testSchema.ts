@@ -1,16 +1,6 @@
 import { Client } from 'pg'
 
-import {
-  boolean,
-  date,
-  hasDefault,
-  integer,
-  json,
-  nullable,
-  primaryKey,
-  string,
-  table,
-} from '../../src'
+import { table, column as col } from '../../src'
 
 // enable "deep" console.log
 require('util').inspect.defaultOptions.depth = null
@@ -45,11 +35,24 @@ export interface UserRow {
 }
 
 export const users = table('users', {
-  userId: primaryKey(hasDefault(integer('id'))),
-  userName: string('name'),
-  userEmail: string('email'),
-  userAvatar: nullable(string('avatar')),
-  userActive: nullable(date('active')),
+  // userId: primaryKey(hasDefault(integer('id'))),
+  // userName: string('name'),
+  // userEmail: string('email'),
+  // userAvatar: nullable(string('avatar')),
+  // userActive: nullable(date('active')),
+
+  userId: col('id')
+    .integer()
+    .primaryKey()
+    .hasDefault(),
+  userName: col('name').string(),
+  userEmail: col('email').string(),
+  userAvatar: col('avatar')
+    .string()
+    .nullable(),
+  userActive: col('active')
+    .date()
+    .nullable(),
 })
 
 export interface ItemRow {
@@ -60,10 +63,13 @@ export interface ItemRow {
 }
 
 export const items = table('items', {
-  itemId: primaryKey(hasDefault(integer('id'))),
-  itemLabel: string('label'),
-  itemUserId: integer('user_id'),
-  itemActive: boolean('active'),
+  itemId: col('id')
+    .integer()
+    .primaryKey()
+    .hasDefault(),
+  itemLabel: col('label').string(),
+  itemUserId: col('user_id').integer(),
+  itemActive: col('active').boolean(),
 })
 
 export interface EventRow {
@@ -75,15 +81,18 @@ export interface EventRow {
 }
 
 export const events = table('events', {
-  eventId: primaryKey(hasDefault(integer('id'))),
-  eventItemId: integer('item_id'),
-  eventType: string('type'),
-  eventTimestamp: date('timestamp'),
+  eventId: col('id')
+    .integer()
+    .primaryKey()
+    .hasDefault(),
+  eventItemId: col('item_id').integer(),
+  eventType: col('type').string(),
+  eventTimestamp: col('timestamp').date(),
 
   // ad hoc runtype
   // in a real setup I would use a runtype library for this
-  eventPayload: nullable(
-    json('payload', value => {
+  eventPayload: col('payload')
+    .json(value => {
       if (typeof value !== 'object') {
         throw new Error('not an object')
       }
@@ -95,8 +104,8 @@ export const events = table('events', {
       return {
         data: (value as any).data,
       }
-    }),
-  ),
+    })
+    .nullable(),
 })
 
 export interface EventTypeRow {
@@ -106,13 +115,18 @@ export interface EventTypeRow {
 }
 
 export const eventTypes = table('event_types', {
-  type: primaryKey(string('type')),
-  description: string('description'),
-  active: boolean('active'),
+  type: col('type')
+    .string()
+    .primaryKey(),
+  description: col('description').string(),
+  active: col('active').boolean(),
 })
 
 export const emptyTable = table('empty_table', {
-  id: primaryKey(hasDefault(integer('id'))),
-  value: string('value'),
-  active: boolean('active'),
+  id: col('id')
+    .integer()
+    .primaryKey()
+    .hasDefault(),
+  value: col('value').string(),
+  active: col('active').boolean(),
 })

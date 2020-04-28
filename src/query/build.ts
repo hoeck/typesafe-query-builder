@@ -450,7 +450,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
         sql.addWhereEq(
           table.getReferencedColumnSql(alias),
           item.paramKey,
-          !!table.getReferencedColumn().nullable,
+          !!table.getReferencedColumn().isNullable,
         )
 
         break
@@ -641,7 +641,7 @@ export function buildUpdate(
           sql.addWhereEq(
             table.getReferencedColumnSql(alias),
             item.paramKey,
-            !!table.getReferencedColumn().nullable,
+            !!table.getReferencedColumn().isNullable,
           )
         }
         break
