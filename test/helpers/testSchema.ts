@@ -35,12 +35,6 @@ export interface UserRow {
 }
 
 export const users = table('users', {
-  // userId: primaryKey(hasDefault(integer('id'))),
-  // userName: string('name'),
-  // userEmail: string('email'),
-  // userAvatar: nullable(string('avatar')),
-  // userActive: nullable(date('active')),
-
   userId: col('id')
     .integer()
     .primaryKey()

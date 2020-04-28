@@ -1,11 +1,10 @@
 import * as assert from 'assert'
 
-import { TableImplementation, column, Column } from '../table'
+import { TableImplementation, column, ColumnImplementation } from '../table'
 import {
   QueryItem,
   JoinItem,
   LockMode,
-  SqlFragment,
   SqlFragmentImplementation,
 } from './types'
 import { BuildContext } from './buildContext'
@@ -512,7 +511,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 // return the columns to select when building subselects
 export function buildColumns(
   query: QueryItem[],
-): { [key: string]: Column<any> } {
+): { [key: string]: ColumnImplementation } {
   const columns: any = {}
 
   query.forEach(item => {
