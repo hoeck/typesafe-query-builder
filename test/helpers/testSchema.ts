@@ -37,8 +37,8 @@ export interface UserRow {
 export const users = table('users', {
   userId: col('id')
     .integer()
-    .primaryKey()
-    .hasDefault(),
+    .primary()
+    .default(),
   userName: col('name').string(),
   userEmail: col('email').string(),
   userAvatar: col('avatar')
@@ -59,8 +59,8 @@ export interface ItemRow {
 export const items = table('items', {
   itemId: col('id')
     .integer()
-    .primaryKey()
-    .hasDefault(),
+    .primary()
+    .default(),
   itemLabel: col('label').string(),
   itemUserId: col('user_id').integer(),
   itemActive: col('active').boolean(),
@@ -77,8 +77,8 @@ export interface EventRow {
 export const events = table('events', {
   eventId: col('id')
     .integer()
-    .primaryKey()
-    .hasDefault(),
+    .primary()
+    .default(),
   eventItemId: col('item_id').integer(),
   eventType: col('type').string(),
   eventTimestamp: col('timestamp').date(),
@@ -111,7 +111,7 @@ export interface EventTypeRow {
 export const eventTypes = table('event_types', {
   type: col('type')
     .string()
-    .primaryKey(),
+    .primary(),
   description: col('description').string(),
   active: col('active').boolean(),
 })
@@ -119,8 +119,8 @@ export const eventTypes = table('event_types', {
 export const emptyTable = table('empty_table', {
   id: col('id')
     .integer()
-    .primaryKey()
-    .hasDefault(),
+    .primary()
+    .default(),
   value: col('value').string(),
   active: col('active').boolean(),
 })

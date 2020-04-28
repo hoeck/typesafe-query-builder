@@ -81,7 +81,7 @@ export class Column<T> {
    * Knowing that a column is a primary key is required to generate correct
    * group-by clauses for json_agg (selectAsJsonAgg) projections.
    */
-  primaryKey(): Column<T> {
+  primary(): Column<T> {
     this.isPrimaryKey = true
 
     return this
@@ -93,7 +93,7 @@ export class Column<T> {
    * Columns with defaults can be ommitted in insert queries.
    * `nullable` values always have null as the default.
    */
-  hasDefault(): Column<T & { hasDefault?: true }> {
+  default(): Column<T & { hasDefault?: true }> {
     // cast to any bc we need to change this columns type
     const anyThis: any = this
     const columnValue = this.columnValue
