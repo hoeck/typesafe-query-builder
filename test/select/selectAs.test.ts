@@ -1,17 +1,10 @@
-import { query, columnMapping } from '../../src'
-import {
-  client,
-  emptyTable,
-  eventTypes,
-  users,
-  items,
-  events,
-} from '../helpers'
+import { query } from '../../src'
+import { client, eventTypes, users, items, events } from '../helpers'
 
 describe('selectAs', () => {
   test('standalone selectAs', async () => {
     const result = await query(
-      eventTypes.selectAs(columnMapping({ description: 'D', active: 'a' })),
+      eventTypes.selectAs({ description: 'D', active: 'a' } as const),
     ).fetch(client)
 
     expect(result).toEqual([
@@ -25,7 +18,7 @@ describe('selectAs', () => {
     const result = await query(
       users
         .select('userId', 'userEmail')
-        .selectAs(columnMapping({ userId: 'id', userEmail: 'contact' })),
+        .selectAs({ userId: 'id', userEmail: 'contact' } as const),
     ).fetch(client)
 
     expect(result).toEqual([
@@ -39,7 +32,7 @@ describe('selectAs', () => {
     const result = await query(
       events
         .select('eventId', 'eventTimestamp')
-        .selectAs(columnMapping({ eventId: 'eId', eventTimestamp: 'ts' }))
+        .selectAs({ eventId: 'eId', eventTimestamp: 'ts' } as const)
         .selectAsJson('evt'),
     ).fetch(client)
 
@@ -63,7 +56,7 @@ describe('selectAs', () => {
     const result = await query(
       events
         .select('eventId', 'eventTimestamp')
-        .selectAs(columnMapping({ eventId: 'evId', eventTimestamp: 'ts' }))
+        .selectAs({ eventId: 'evId', eventTimestamp: 'ts' } as const)
         .selectAsJsonAgg('evt'),
     ).fetch(client)
 
@@ -88,7 +81,7 @@ describe('selectAs', () => {
     const result = await query(
       events
         .select('eventId', 'eventPayload')
-        .selectAs(columnMapping({ eventPayload: 'json' })),
+        .selectAs({ eventPayload: 'json' } as const),
     ).fetch(client)
 
     expect(result).toContainEqual({ eventId: 6, json: { data: 'asdf' } })
@@ -98,13 +91,12 @@ describe('selectAs', () => {
     const result = await query(
       users
         .select('userId', 'userName')
-        .selectAs(columnMapping({ userId: 'id', userName: 'name' })),
+        .selectAs({ userId: 'id', userName: 'name' } as const),
     )
       .join(
         users.userId,
-        items
-          .select('itemLabel')
-          .selectAs(columnMapping({ itemLabel: 'label' })).itemUserId,
+        items.select('itemLabel').selectAs({ itemLabel: 'label' } as const)
+          .itemUserId,
       )
       .fetch(client)
 

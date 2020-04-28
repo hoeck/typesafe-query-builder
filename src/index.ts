@@ -5,7 +5,6 @@ export {
   TableType,
   TableTypeWithDefaults,
   column,
-  columnMapping,
   table,
 } from './table'
 export { omit, pick } from './utils'

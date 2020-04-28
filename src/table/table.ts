@@ -10,19 +10,7 @@ import {
 
 import { Table } from './types'
 
-/**
- * Make typescript recognice mapping as a  literal -> literal type.
- *
- * Required to use `table.selectAs` without additional type hints.
- */
-export function columnMapping<
-  T extends Record<string, string>,
-  K extends keyof T
->(mapping: { [KK in K]: T[KK] }): { [KK in K]: T[KK] } {
-  return mapping
-}
-
-// access the tables implementation for building queries
+// access the tables internals for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
 
 /**
