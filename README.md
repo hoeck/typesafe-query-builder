@@ -135,3 +135,6 @@ TODO:
 * [pgtyped](https://github.com/adelsz/pgtyped)
   - different (but awesome) approach: parse sql queries in your code and
     generate types for them
+- [postguard](https://github.com/andywer/postguard)
+  - derive the types from a generated schema
+  - parse queries in the code from sql template tags and validate them
