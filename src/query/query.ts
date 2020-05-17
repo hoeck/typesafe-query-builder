@@ -1,7 +1,7 @@
 import assert from 'assert'
 import crypto from 'crypto'
 
-import { BuildContext } from './buildContext'
+import { QueryBuilderResultError, QueryBuilderUsageError } from '../errors'
 import {
   Table,
   TableColumnRef,
@@ -15,6 +15,7 @@ import {
   buildUpdate,
   buildResultConverter,
 } from './build'
+import { BuildContext } from './buildContext'
 import {
   DatabaseClient,
   Query,
@@ -80,7 +81,7 @@ export function sql(
       column = param2
     } else {
       if (param2 !== undefined) {
-        throw new Error('expected param2 to be undefined')
+        assert.fail('expected param2 to be undefined')
       }
     }
   } else if (param1 instanceof TableImplementation) {
@@ -91,7 +92,7 @@ export function sql(
       paramKey = param2
     } else {
       if (param2 !== undefined) {
-        throw new Error('expected param2 to be undefined')
+        assert.fail('expected param2 to be undefined')
       }
     }
   } else if (param1 === undefined && param2 === undefined) {
@@ -122,7 +123,7 @@ function validateRowData(
     const column = table.tableColumns[k]
 
     if (!column) {
-      throw new Error('column is missing from table implementation ' + k)
+      assert.fail('column is missing from table implementation ' + k)
     }
 
     column.columnValue(value) // throw on invalid data
@@ -327,7 +328,7 @@ class QueryImplementation {
     }
 
     if (rows.length > 1) {
-      throw new Error(
+      throw new QueryBuilderResultError(
         `expected at most one row but the query returned: ${rows.length}`,
       )
     }
@@ -346,7 +347,7 @@ class QueryImplementation {
     const rows = (await client.query(sql, paramArray)).rows
 
     if (rows.length !== 1) {
-      throw new Error(
+      throw new QueryBuilderResultError(
         `expected exactly one row but the query returned: ${rows.length}`,
       )
     }
@@ -364,8 +365,8 @@ class QueryImplementation {
 
   async insert(client: DatabaseClient, data: any[]) {
     if (this.tables.length !== 1) {
-      // this should be actually prohibited by the type system
-      throw new Error('expected exactly one table')
+      // this is actually prohibited by the type system
+      assert.fail('expected exactly one table')
     }
 
     const table = this.tables[0]
@@ -386,8 +387,8 @@ class QueryImplementation {
 
   async update(client: DatabaseClient, params: any, data: any) {
     if (this.tables.length !== 1) {
-      // this should be actually prohibited by the type system
-      throw new Error('expected exactly one table')
+      // this is actually prohibited by the type system
+      assert.fail('expected exactly one table')
     }
 
     const table = this.tables[0]

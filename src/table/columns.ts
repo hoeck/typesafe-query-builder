@@ -1,4 +1,7 @@
+import * as assert from 'assert'
 import { inspect } from 'util'
+
+import { QueryBuilderUsageError, QueryBuilderValidationError } from '../errors'
 
 function identity(value: unknown): unknown {
   return value
@@ -156,8 +159,8 @@ export class Column<T> {
 
   private checkThatColumnValueIsIdentity() {
     if (this.columnValue !== identity) {
-      throw new Error(
-        'type methods such as `.integer()`, `.string()`, and `.date()` must be called directly after creating a column',
+      throw new QueryBuilderUsageError(
+        `column ${this.name} - type methods such as .integer(), .string(), and .date() must be called directly after creating a column`,
       )
     }
   }
@@ -175,15 +178,20 @@ export class Column<T> {
 
     anyThis.columnValue = (value: unknown) => {
       if (typeof value !== 'number') {
-        throw new Error(
-          'expected an integer but got: ' + inspect(value).slice(0, 128),
+        throw new QueryBuilderValidationError(
+          `column ${this.name} - expected an integer but got: ${inspect(
+            value,
+          ).slice(0, 128)}`,
         )
       }
 
       if (!Number.isInteger(value) || !Number.isSafeInteger(value)) {
-        throw new Error(
-          'expected an integer but got a number with fractions or a non safe integer: ' +
-            inspect(value),
+        throw new QueryBuilderValidationError(
+          `column ${
+            this.name
+          } - expected an integer but got a number with fractions or a non safe integer: ${inspect(
+            value,
+          )}`,
         )
       }
 
@@ -205,8 +213,10 @@ export class Column<T> {
 
     anyThis.columnValue = (value: unknown) => {
       if (typeof value !== 'string') {
-        throw new Error(
-          'expected a string but got: ' + inspect(value).slice(0, 128),
+        throw new QueryBuilderValidationError(
+          `column ${this.name} - expected a string but got: ${inspect(
+            value,
+          ).slice(0, 128)}`,
         )
       }
 
@@ -228,8 +238,10 @@ export class Column<T> {
 
     anyThis.columnValue = (value: unknown) => {
       if (typeof value !== 'boolean') {
-        throw new Error(
-          'expected a boolean but got: ' + inspect(value).slice(0, 128),
+        throw new QueryBuilderValidationError(
+          `column ${this.name} - expected a boolean but got: ${inspect(
+            value,
+          ).slice(0, 128)}`,
         )
       }
 
@@ -251,10 +263,11 @@ export class Column<T> {
 
     anyThis.columnValue = (value: unknown) => {
       if (!(value instanceof Date)) {
-        throw new Error(
-          // TODO: pass an optional context object to show table name and mapped column name
-          `expected a Date for colunmn ${this.name} but got: ` +
-            inspect(value).slice(0, 128),
+        throw new QueryBuilderValidationError(
+          `column {this.name} - expected a Date but got: ${inspect(value).slice(
+            0,
+            128,
+          )}`,
         )
       }
 
@@ -271,10 +284,11 @@ export class Column<T> {
         return new Date(value)
       }
 
-      throw new Error(
-        'cannot read Date from ' +
-          inspect(value).slice(0, 128) +
-          ` in column ${this.name}`,
+      throw new QueryBuilderValidationError(
+        `column {this.name} - cannot read Date from ${inspect(value).slice(
+          0,
+          128,
+        )}`,
       )
     }
 
@@ -298,6 +312,8 @@ export class Column<T> {
 
     return anyThis
   }
+
+  // TODO: string-union, string-enum, number-enum
 }
 
 /**

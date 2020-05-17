@@ -8,3 +8,9 @@ export {
   table,
 } from './table'
 export { omit, pick } from './utils'
+export {
+  QueryBuilderError,
+  QueryBuilderResultError,
+  QueryBuilderUsageError,
+  QueryBuilderValidationError,
+} from './errors'

@@ -1,5 +1,6 @@
 import assert from 'assert'
 
+import { QueryBuilderUsageError } from '../errors'
 import { BuildContext } from '../query/buildContext'
 
 import {
@@ -95,7 +96,7 @@ export class TableImplementation {
     const res = this.copy()
 
     if (this.tableColumns[name] === undefined) {
-      throw new Error('assertion error: column does not exist')
+      assert.fail(`column ${name} does not exist on table ${this.tableName}`)
     }
 
     res.referencedColumn = name
@@ -142,7 +143,9 @@ export class TableImplementation {
     } else if (this.projection.type === 'jsonAgg') {
       return [this.projection.name]
     } else {
-      throw new Error('invalid projection type')
+      assert.fail(
+        `invalid projection in table ${this.tableName} - ${this.projection}`,
+      )
     }
   }
 
@@ -204,7 +207,9 @@ export class TableImplementation {
         `) FILTER (WHERE ${aliasPrefix}__json_agg_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
       )
     } else {
-      throw new Error('invalid projection type')
+      assert.fail(
+        `invalid projection in table ${this.tableName} - ${this.projection}`,
+      )
     }
   }
 
@@ -235,7 +240,7 @@ export class TableImplementation {
 
   getReferencedColumn(): ColumnImplementation {
     if (!this.referencedColumn) {
-      throw new Error('referencedColumn is undefined')
+      assert.fail(`'referencedColumn' in table ${this.tableName} is undefined`)
     }
 
     return this.tableColumns[this.referencedColumn]
@@ -286,7 +291,9 @@ export class TableImplementation {
         // json agg -> key is an array of the joined rows
         return (row: any) => row[key].forEach(converter)
       } else {
-        throw new Error('invalid projection type')
+        assert.fail(
+          `invalid projection in table ${this.tableName} - ${this.projection}`,
+        )
       }
     }
 
@@ -341,7 +348,9 @@ export class TableImplementation {
         })
       }
     } else {
-      throw new Error('invalid projection type')
+      assert.fail(
+        `invalid projection in table ${this.tableName} - ${this.projection}`,
+      )
     }
   }
 
@@ -352,7 +361,9 @@ export class TableImplementation {
     const res = getTableImplementation(this).copy()
 
     if (res.selected) {
-      throw new Error('only a single select call is allowed')
+      throw new QueryBuilderUsageError(
+        `only a single select call is allowed for a Table (tableName: ${this.tableName}`,
+      )
     }
 
     res.selected = keys
@@ -376,7 +387,9 @@ export class TableImplementation {
     const res = getTableImplementation(this).copy()
 
     if (res.renamed) {
-      throw new Error('only a single selectAs call is allowed')
+      throw new QueryBuilderUsageError(
+        `only a single selectAs call is allowed for a  Table (tableName: ${this.tableName}`,
+      )
     }
 
     res.renamed = mapping
@@ -387,6 +400,12 @@ export class TableImplementation {
   // project all columns into a json object
   selectAsJson(key: string) {
     const res = getTableImplementation(this).copy()
+
+    if (res.projection) {
+      throw new QueryBuilderUsageError(
+        `only a single selectAsJson or selectAsJsonAgg call is allowed for a  Table (tableName: ${this.tableName}`,
+      )
+    }
 
     res.projection = {
       type: 'jsonBuildObject',
@@ -400,6 +419,12 @@ export class TableImplementation {
   selectAsJsonAgg(key: any, orderBy?: any, direction?: 'ASC' | 'DESC'): any {
     const res = getTableImplementation(this).copy()
 
+    if (res.projection) {
+      throw new QueryBuilderUsageError(
+        `only a single selectAsJson or selectAsJsonAgg call is allowed for a  Table (tableName: ${this.tableName}`,
+      )
+    }
+
     res.projection = {
       type: 'jsonAgg',
       name: key,
@@ -410,9 +435,9 @@ export class TableImplementation {
     return res.getTableProxy()
   }
 
-  // column accessor
-  column(_columnName: string) {
-    throw new Error('TODO')
+  // column accessor, in case a column name clashes with a table method
+  column(name: string) {
+    return this.createTableColumn(name)
   }
 }
 
@@ -436,7 +461,9 @@ export function table<T, S extends T, P = {}>(
   )
 
   if (!hasPrimaryKey) {
-    assert.fail(`table ${tableName} does not have any primary keys`)
+    throw new QueryBuilderUsageError(
+      `table ${tableName} does not have any primary keys`,
+    )
   }
 
   return new TableImplementation(
@@ -449,7 +476,7 @@ export function getTableImplementation(table: any): TableImplementation {
   const implementation = (table as any)[tableImplementationSymbol]
 
   if (implementation === undefined) {
-    throw new Error('table implementation not found')
+    assert.fail('table implementation not found')
   }
 
   if (implementation === true) {

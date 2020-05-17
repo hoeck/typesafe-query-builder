@@ -1,5 +1,6 @@
 import * as assert from 'assert'
 
+import { QueryBuilderUsageError } from '../errors'
 import { TableImplementation, column, ColumnImplementation } from '../table'
 import {
   QueryItem,
@@ -94,11 +95,11 @@ class SqlQuery {
 
   setLimit(limit: number) {
     if (this.limit !== undefined) {
-      throw new Error('limit is already present')
+      throw new QueryBuilderUsageError('limit is already present')
     }
 
     if (limit < 0 || !Number.isInteger(limit)) {
-      throw new Error('limit must be > 0 and an integer')
+      throw new QueryBuilderUsageError('limit must be > 0 and an integer')
     }
 
     this.limit = limit
@@ -106,11 +107,11 @@ class SqlQuery {
 
   setOffset(offset: number) {
     if (this.offset !== undefined) {
-      throw new Error('offset is already present')
+      throw new QueryBuilderUsageError('offset is already present')
     }
 
     if (offset < 0 || !Number.isInteger(offset)) {
-      throw new Error('offset must be > 0 and an integer')
+      throw new QueryBuilderUsageError('offset must be > 0 and an integer')
     }
 
     this.offset = offset
@@ -676,7 +677,7 @@ export function buildUpdate(
       case 'limit':
       case 'offset':
       case 'lock':
-        throw new Error(
+        throw new QueryBuilderUsageError(
           `queryType is not allowed in updates: ${item.queryType}`,
         )
 
@@ -686,7 +687,7 @@ export function buildUpdate(
   })
 
   if (!table) {
-    throw new Error('table is missing in update')
+    assert.fail('table is missing in update')
   }
 
   const alias = sql.getAlias(table.tableName)
