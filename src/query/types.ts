@@ -208,7 +208,7 @@ export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 //   T .. (union) of all tables present in the query
 //   S .. the selected data
 //   P .. parameters used when fetching the query
-//   U .. the type returned by .update (defaults to never bc only queries without  joins but with wheres are allowed to have an update method)
+//   U .. the type returned by .update (defaults to never bc only queries without joins but with wheres are allowed to have an update method)
 export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
   // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq

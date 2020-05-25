@@ -16,7 +16,7 @@ function identity(value: unknown): unknown {
  * `fromJson` is a function that is called to turn a projected json value into
  *            the columns type, e.g. turn an iso-date-string into a Javascript
  *            Date. We need this when using `selectAsJson` or
- *            `selectAsJsonAgg` and the columns is of type Date.
+ *            `selectAsJsonAgg` and the column is of type Date.
  */
 export function column(sqlName: string): Column<unknown>
 export function column<T>(

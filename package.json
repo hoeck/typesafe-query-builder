@@ -17,7 +17,8 @@
     "test": "tsdx test",
     "lint": "tsdx lint",
     "test-database:start": "docker run --rm -e POSTGRES_PASSWORD=password --publish 54321:5432 --volume $PWD/test/helpers:/docker-entrypoint-initdb.d postgres:latest",
-    "test-database:psql": "docker run --network=host --rm -it -e PGPASSWORD=password postgres:latest psql --port=54321 --host=127.0.0.1 --user=postgres test_schema"
+    "test-database:psql": "docker run --network=host --rm -it -e PGPASSWORD=password postgres:latest psql --port=54321 --host=127.0.0.1 --user=postgres test_schema",
+    "build-readme": "markdown-toc -i --maxdepth 4 README.md"
   },
   "peerDependencies": {},
   "prettier": {
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@types/jest": "^25.2.1",
     "@types/pg": "^7.14.3",
+    "markdown-toc": "^1.2.0",
     "pg": "^8.0.0",
     "tsdx": "^0.13.1",
     "tslib": "^1.11.1",

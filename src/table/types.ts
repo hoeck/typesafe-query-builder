@@ -93,17 +93,10 @@ export interface TableProjectionMethods<T, S, P> {
   /**
    * Rename columns in the result.
    *
-   * Needs a mapping of existing-column-name to new-name.
-   * Infers the right type only if mapping uses literal strings.
-   * Either by adding an explicit literal string type-cast:
+   * Needs a mapping of existing-column-name to new-name.  Infers the right
+   * type only if mapping uses literal strings by adding `as const`.
    *
-   *   table.selectAs({existingColumnName: 'newColumnName' as 'newColumnName'})
-   *
-   * or by using a helper function:
-   *
-   *   import {columnMapping} from 'typesafe-query-builder'
-   *
-   *   table.selectAs(columnMapping({existingColumnName: 'newColumnName'}))
+   *   table.selectAs({existingColumnName: 'newColumnName'} as const)
    */
   selectAs<M extends Record<string, string>>(
     this: Table<T, S, P>,

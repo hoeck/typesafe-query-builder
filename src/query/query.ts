@@ -143,6 +143,10 @@ class QueryImplementation {
     const table1 = getTableImplementation(ref1)
     const table2 = getTableImplementation(ref2)
 
+    // TODO: raise an error if table1 has selected cols that differ from the selection that is used in the table
+    // reason: catch usage errors where one tries pass a tablecolref with selected columns to join, because they get ignored
+    // but it must be allowed to store a table with selections in a variable and then use it also in the join again
+
     return new QueryImplementation(
       [...this.tables, table2],
       [
