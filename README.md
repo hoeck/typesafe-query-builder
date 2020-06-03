@@ -767,7 +767,7 @@ The exact error depends on your validation/runtype implementation.
 
 `yarn test-database:psql` to start a psql connected to the test database
 
-`yarn test ---watchAll` to run the tests in watch mode
+`yarn test:watch` to run the tests in watch mode
 
 ## Similar Projects
 

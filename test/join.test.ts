@@ -9,11 +9,8 @@ import {
   users,
 } from './helpers'
 
-// get rid of 'unused variable' warnings
-function use(_x: any) {}
-
 describe('query', () => {
-  describe('1 join', () => {
+  describe('single join', () => {
     test('fetching a plain join', async () => {
       const result: Array<ItemRow & UserRow> = await query(items)
         .join(items.itemUserId, users.userId)
@@ -375,30 +372,69 @@ describe('query', () => {
     })
   })
 
-  // describe('2 joins', () => {
-  //   test('plain fetch', () => {
-  //     const result = query(users)
-  //       .join(users.userId, items.itemUserId)
-  //       .join(items.itemId, events.eventItemId)
-  //       .fetch()
-  //     const expected: Array<UserRow & ItemRow & EventRow> = result
-  //
-  //     use(expected)
-  //   })
-  // })
-  //
-  // describe('3 join', () => {
-  //   test('plain fetch', () => {
-  //     const result = query(users)
-  //       .join(users.userId, items.itemUserId)
-  //       .join(items.itemId, events.eventItemId)
-  //       .join(events.eventType, eventTypes.type)
-  //       .fetch()
-  //     const expected: Array<
-  //       UserRow & ItemRow & EventRow & EventTypeRow
-  //     > = result
-  //
-  //     use(expected)
-  //   })
-  // })
+  describe('two joins', () => {
+    test('fetching', async () => {
+      // just select 1 field from every table to keep the expects small
+      const result = await query(users.select('userId'))
+        .join(users.userId, items.select('itemLabel').itemUserId)
+        .join(items.itemId, events.select('eventId').eventItemId)
+        .orderBy(users.userId)
+        .orderBy(items.itemId)
+        .orderBy(events.eventId)
+        .fetch(client)
+
+      expect(result).toEqual([
+        { userId: 1, itemLabel: 'item-1', eventId: 1 },
+        { userId: 1, itemLabel: 'item-1', eventId: 2 },
+        { userId: 1, itemLabel: 'item-1', eventId: 3 },
+        { userId: 1, itemLabel: 'item-1', eventId: 4 },
+        { userId: 2, itemLabel: 'item-4', eventId: 5 },
+        { userId: 2, itemLabel: 'item-4', eventId: 6 },
+        { userId: 2, itemLabel: 'item-4', eventId: 7 },
+        { userId: 2, itemLabel: 'item-5', eventId: 8 },
+        { userId: 2, itemLabel: 'item-5', eventId: 9 },
+      ])
+    })
+
+    test('joining the same table twice', async () => {
+      // alias the table so we can join it two times in a single query
+      const t1 = query(users.select('userId', 'userEmail')).table()
+      const t2 = query(users.select('userId', 'userName')).table()
+
+      // just select 1 field from every table to keep the expects small
+      const result = await query(items.select('itemId'))
+        .join(items.itemUserId, t1.selectAsJson('t1').userId)
+        .join(items.itemUserId, t2.selectAsJson('t2').userId)
+        .orderBy(items.itemId, 'desc')
+        .fetch(client)
+
+      expect(result).toEqual([
+        {
+          itemId: 5,
+          t1: { userId: 2, userEmail: 'c@user' },
+          t2: { userId: 2, userName: 'user-c' },
+        },
+        {
+          itemId: 4,
+          t1: { userId: 2, userEmail: 'c@user' },
+          t2: { userId: 2, userName: 'user-c' },
+        },
+        {
+          itemId: 3,
+          t1: { userId: 2, userEmail: 'c@user' },
+          t2: { userId: 2, userName: 'user-c' },
+        },
+        {
+          itemId: 2,
+          t1: { userId: 1, userEmail: 'a@user' },
+          t2: { userId: 1, userName: 'user-a' },
+        },
+        {
+          itemId: 1,
+          t1: { userId: 1, userEmail: 'a@user' },
+          t2: { userId: 1, userName: 'user-a' },
+        },
+      ])
+    })
+  })
 })

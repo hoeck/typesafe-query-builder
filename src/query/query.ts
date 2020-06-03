@@ -1,5 +1,4 @@
 import assert from 'assert'
-import crypto from 'crypto'
 
 import { QueryBuilderResultError, QueryBuilderUsageError } from '../errors'
 import {
@@ -129,6 +128,9 @@ function validateRowData(
     column.columnValue(value) // throw on invalid data
   })
 }
+
+// global counter to create unique table names in `Query.table()` calls
+let uniqueTableNameCounter = 0
 
 class QueryImplementation {
   constructor(
@@ -265,15 +267,10 @@ class QueryImplementation {
   }
 
   table(): any {
+    uniqueTableNameCounter += 1
+
     // table name which does not clash with some real tables
-    const tableNameHash = crypto.createHash('sha1')
-
-    this.tables.forEach(t => {
-      tableNameHash.update(t.tableName)
-    })
-
-    const tableName =
-      '__typesafe_query_builder_' + tableNameHash.digest('base64')
+    const tableName = '__typesafe_query_builder_' + uniqueTableNameCounter
 
     const tableImplementation = new TableImplementation(
       tableName,

@@ -1,5 +1,10 @@
 ### master
 
+- change `query.table()` to create unique references every time its called
+
+### 2.0.0
+
+- add Error classes (`QueryBuilderError`, ...)
 - change columns api to be chainable and rename some methods:
   renamed: `hasDefault` to `default`
   old: `hasDefault(primary(integer('id')))`
