@@ -120,7 +120,7 @@ export class Column<T> {
    *
    * That means it can hold `null` and also uses null as its default.
    */
-  nullable(): Column<T | null> {
+  null(): Column<T | null> {
     // cast to any bc we need to change this columns type
     const anyThis: any = this
 

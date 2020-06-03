@@ -43,10 +43,10 @@ export const users = table('users', {
   userEmail: col('email').string(),
   userAvatar: col('avatar')
     .string()
-    .nullable(),
+    .null(),
   userActive: col('active')
     .date()
-    .nullable(),
+    .null(),
 })
 
 export interface ItemRow {
@@ -99,7 +99,7 @@ export const events = table('events', {
         data: (value as any).data,
       }
     })
-    .nullable(),
+    .null(),
 })
 
 export interface EventTypeRow {

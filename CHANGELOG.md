@@ -1,5 +1,6 @@
 ### master
 
+- rename `Column.nullable()` to `Column.null()`
 - change `query.table()` to create unique references every time its called
 
 ### 2.0.0

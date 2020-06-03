@@ -63,7 +63,7 @@ import { table, column } from 'typesafe-query-builder'
 
 // table variables are capitalized by convention
 export const Users = table('users', {
-  id: column('id').integer().hasDefault(),
+  id: column('id').integer().default(),
   name: column('name').string(),
   email: column('email').string(),
 })
@@ -168,9 +168,9 @@ Its up to you to organise the table variables, the easiest for smaller projects 
 import { table, column } from 'typesafe-query-builder'
 
 export const Users = table('users', {
-    id: column('id').integer().hasDefault(),
+    id: column('id').integer().default(),
     email: column('email').string(),
-    lastActive: column('last_active').date().hasDefault()
+    lastActive: column('last_active').date().default()
 })
 ```
 
@@ -191,8 +191,8 @@ Use the following chaining methods to define its type:
 and other properties:
 
 * `.primary()` - the column is (a part of) the primary key of this table (required to generate correct group by statements for `selectAsJsonAgg` queries)
-* `.hasDefault()` - the column has a default value so it can be ommitted from insert statements
-* `.nullable()` - in addition to its type, the column may also be `null`
+* `.default()` - the column has a default value so it can be ommitted from insert statements
+* `.null()` - in addition to its type, the column may also be `null`
 
 ### Custom Column Types
 

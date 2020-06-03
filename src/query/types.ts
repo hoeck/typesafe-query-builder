@@ -134,6 +134,9 @@ export interface SqlFragmentImplementation {
 export interface Statement<S, P> {
   /**
    * Return this query as a table to use it in subqueries.
+   *
+   * Use it also to alias a table, e.g. to join the same table twice in a
+   * query.
    */
   table(): Table<S, S, P>
 
