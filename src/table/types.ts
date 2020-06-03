@@ -42,7 +42,7 @@ export type TableType<T> = T extends Table<infer C, any, any> ? C : never
 export type TableColumnsWithDefaults<T> = {
   [K in keyof T]: null extends T[K]
     ? K
-    : T[K] extends { hasDefault?: true }
+    : T[K] extends { __typesafeQueryBuilderHasDefault?: true }
     ? K
     : never
 }[keyof T]

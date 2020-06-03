@@ -390,8 +390,8 @@ export interface Query<T, S, P> extends QueryBottom<T, S, P, Promise<S[]>> {
   /**
    * Insert rows into the table.
    *
-   * Use defaults for all ommited columns (via explicit hasDefault or because
-   * they are nullable).
+   * Use defaults for all ommited columns (via explicit `.default()` or
+   * because they are `.null()`).
    *
    * Return all selected columns.
    */

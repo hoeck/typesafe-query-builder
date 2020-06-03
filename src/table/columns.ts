@@ -96,7 +96,7 @@ export class Column<T> {
    * Columns with defaults can be ommitted in insert queries.
    * `nullable` values always have null as the default.
    */
-  default(): Column<T & { hasDefault?: true }> {
+  default(): Column<T & { __typesafeQueryBuilderHasDefault?: true }> {
     // cast to any bc we need to change this columns type
     const anyThis: any = this
     const columnValue = this.columnValue
