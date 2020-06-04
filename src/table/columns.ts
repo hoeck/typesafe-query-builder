@@ -387,7 +387,7 @@ export class Column<T> {
     const valueIndex: Set<string | number> = new Set(
       Object.entries(enumObject)
         .filter(([k, _v]) => {
-          if (!isNaN(parseInt(k))) {
+          if (/^\d+$/.test(k) && !isNaN(Number(k))) {
             // key is a number so its value is part of typescripts automatic reverse mapping for number enums
             // makes sense because numbers can never be valid enum keys anyway
             // https://www.typescriptlang.org/docs/handbook/enums.html#reverse-mappings

@@ -755,8 +755,6 @@ The exact error depends on your validation/runtype implementation.
 - caching queries generated sql
 - add more column types:
   - various timestamps
-  - string unions
-  - typescript enums
   - arrays
   - validatable strings
 - optionally check table schema definitions against the database schema
