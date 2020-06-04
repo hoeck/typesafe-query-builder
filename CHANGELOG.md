@@ -1,5 +1,6 @@
 ### master
 
+- add `enum` and `stringUnion` column types
 - rename `Column.nullable()` to `Column.null()`
 - change `query.table()` to create unique references every time its called
 

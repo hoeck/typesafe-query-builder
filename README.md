@@ -187,6 +187,8 @@ Use the following chaining methods to define its type:
 * `.boolean()` - SQL `BOOLEAN` / typescript `boolean`
 * `.date()` - SQL `TIMESTAMP`-like / typescript `Date`
 * `.json<T>(validator: (data: unknown) => T)` - Postgres JSON / typescript `T` - provide a runtype that validates the type of the data to be inserted into the JSON column
+* `.stringUnion(...elements)` - Typescript string literal union mapped to a Postgres `TEXT` column
+* `.enum(enumObject)` - Typescript Enum mapped to a Postgres `TEXT` or `INT` column
 
 and other properties:
 

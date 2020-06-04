@@ -110,7 +110,25 @@ export interface EventTypeRow {
 
 export const eventTypes = table('event_types', {
   type: col('type')
-    .string()
+    .stringUnion('A', 'B', 'C', 'D', 'E', 'X')
+    .primary(),
+  description: col('description').string(),
+  active: col('active').boolean(),
+})
+
+export enum EventTypeEnum {
+  TypeA = 'A',
+  TypeB = 'B',
+  TypeC = 'C',
+  TypeD = 'D',
+  TypeE = 'E',
+  TypeX = 'X',
+  TypeNumber = 0, // to test reverse mapping filtering
+}
+
+export const eventTypesWithEnum = table('event_types', {
+  type: col('type')
+    .enum(EventTypeEnum)
     .primary(),
   description: col('description').string(),
   active: col('active').boolean(),

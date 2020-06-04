@@ -36,6 +36,8 @@ export function column(
   return new Column({ name: sqlName, columnValue: validator, fromJson })
 }
 
+type EnumObject = { [key: string]: string | number }
+
 /**
  * A column of a table
  */
@@ -313,7 +315,109 @@ export class Column<T> {
     return anyThis
   }
 
-  // TODO: string-union, string-enum, number-enum
+  /**
+   * Map a string union to a
+   *
+   * postgres types: TEXT, VARCHAR
+   */
+  stringUnion<A extends string>(a: A): Column<A>
+  stringUnion<A extends string, B extends string>(a: A, b: B): Column<A | B>
+  stringUnion<A extends string, B extends string, C extends string>(
+    a: A,
+    b: B,
+    c: C,
+  ): Column<A | B | C>
+  stringUnion<
+    A extends string,
+    B extends string,
+    C extends string,
+    D extends string
+  >(a: A, b: B, c: C, d: D): Column<A | B | C | D>
+  stringUnion<
+    A extends string,
+    B extends string,
+    C extends string,
+    D extends string,
+    E extends string
+  >(a: A, b: B, c: C, d: D, e: E): Column<A | B | C | D | E>
+  stringUnion<
+    A extends string,
+    B extends string,
+    C extends string,
+    D extends string,
+    E extends string,
+    F extends string
+  >(a: A, b: B, c: C, d: D, e: E, f: F): Column<A | B | C | D | E | F>
+  stringUnion<
+    A extends string,
+    B extends string,
+    C extends string,
+    D extends string,
+    E extends string,
+    F extends string,
+    G extends string
+  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G): Column<A | B | C | D | E | F | G>
+  stringUnion(...elements: any[]): Column<any> {
+    this.checkThatColumnValueIsIdentity()
+
+    const index: Set<string> = new Set(elements)
+    const anyThis: any = this
+
+    anyThis.columnValue = (value: unknown): string => {
+      if (typeof value !== 'string' || !index.has(value)) {
+        throw new QueryBuilderValidationError(
+          `column ${
+            this.name
+          } - expected a string of ${elements} but got: ${inspect(value).slice(
+            0,
+            128,
+          )}`,
+        )
+      }
+
+      return value
+    }
+
+    return anyThis
+  }
+
+  enum<T extends EnumObject, S extends keyof T>(enumObject: T): Column<T[S]> {
+    this.checkThatColumnValueIsIdentity()
+
+    const valueIndex: Set<string | number> = new Set(
+      Object.entries(enumObject)
+        .filter(([k, _v]) => {
+          if (!isNaN(parseInt(k))) {
+            // key is a number so its value is part of typescripts automatic reverse mapping for number enums
+            // makes sense because numbers can never be valid enum keys anyway
+            // https://www.typescriptlang.org/docs/handbook/enums.html#reverse-mappings
+            return false
+          }
+
+          return true
+        })
+        .map(([_k, v]) => {
+          return v
+        }),
+    )
+    const anyThis: any = this
+
+    anyThis.columnValue = (value: unknown) => {
+      if (typeof value !== 'string' || !valueIndex.has(value)) {
+        throw new QueryBuilderValidationError(
+          `column ${this.name} - expected a member of the enum ${inspect(
+            enumObject,
+            {
+              compact: true,
+              breakLength: Infinity,
+            },
+          )} but got: ${inspect(value).slice(0, 128)}`,
+        )
+      }
+    }
+
+    return anyThis
+  }
 }
 
 /**
