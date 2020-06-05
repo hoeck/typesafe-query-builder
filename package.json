@@ -29,13 +29,13 @@
     "trailingComma": "all"
   },
   "devDependencies": {
-    "@types/jest": "^25.2.1",
+    "@types/jest": "^25.2.3",
     "@types/pg": "^7.14.3",
     "markdown-toc": "^1.2.0",
-    "pg": "^8.0.0",
-    "tsdx": "^0.13.1",
-    "tslib": "^1.11.1",
-    "typescript": "^3.8.3"
+    "pg": "^8.2.1",
+    "tsdx": "^0.13.2",
+    "tslib": "^2.0.0",
+    "typescript": "^3.9.5"
   },
   "dependencies": {}
 }
