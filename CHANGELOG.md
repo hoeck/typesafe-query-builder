@@ -1,5 +1,7 @@
 ### master
 
+- add typing to sql fragment parameters via `sql.number`, `sql.string` .. up to `sql.param`
+- limit `whereSql` to 5 `SqlFragments` and add `whereSqlUntyped` for >5 `SqlFragments`
 - add `enum` and `stringUnion` column types
 - rename `Column.nullable()` to `Column.null()`
 - change `query.table()` to create unique references every time its called

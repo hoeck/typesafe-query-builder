@@ -515,7 +515,6 @@ await user.fetch(usersQuery, {names: ['user-1', null, 'user-2']})
 Build a custom where condition using SQL snippets build out of tagged templates.
 
 Each tagged template may contain a single optional columns and a single optional parameter key to keep the used columns and the query parameter names type safe.
-Parameters values are always `any` atm, typing them is a TODO.
 
 For example, use a column and a parameter key for a `>`-condition:
 
@@ -523,7 +522,7 @@ For example, use a column and a parameter key for a `>`-condition:
 import {query, sql} from 'typesafe-query-builder'
 
 const userQuery = query(Users)
-  .whereSql(sql`${Users.id} > ${'id'}`)
+  .whereSql(sql`${Users.id} > ${sql.number('id')}`)
   .orderBy(Users.id)
 
 await userQuery.fetch(client, {id: 10})
@@ -536,27 +535,30 @@ Or get all users with name longer than `x` characters.
 import {query, sql} from 'typesafe-query-builder'
 
 const userQuery = query(Users)
-  .whereSql(sql`LENGTH(${Users.name}) > ${'nameLength'}`)
+  .whereSql(sql`LENGTH(${Users.name}) > ${sql.number('nameLength')}`)
 
 await userQuery.fetch(client, {nameLength: 10})
 // => [{name: 'very-long-user-name', ...}, ...]
 ```
 
-Up to 5 sql snippets can be combined into one condition:
+Up to 5 sql tagged templates can be combined into one condition:
 
 ```typescript
 import {query, sql} from 'typesafe-query-builder'
 
 const userQuery = query(Users)
   .whereSql(
-    sql`(${Users.id} BETWEEN ${'lower'}`,
-    sql`AND ${UPPER}) OR `,
-    sql`${Users.name} IS NULL`,
+    sql`(${Users.id} BETWEEN ${sql.number('lower')}`,
+    sql`AND ${sql.number('upper')}) OR `,
+    sql`${Users.name} IS NULL OR`,
+    sql`${Users.name} = ANY(${sql.stringArray('names')})`,
   )
 
-await userQuery.fetch(client, {lower: 5, upper: 10})
+await userQuery.fetch(client, {lower: 5, upper: 10, names: ['user-a', 'user-b']})
 // => [{id: 5, ...}, ...]
 ```
+
+Use the `Query.whereSqlUntyped` method to use any number of sql tagged templates withou table typing and parameter typing.
 
 ### Order By, Limit, Offset, Locks
 
@@ -745,11 +747,6 @@ The exact error depends on your validation/runtype implementation.
 - `whereEq` and null values:
   revise the transparent `is null` checks, not sure if that is a good idea
   or whether a dedicated `whereIsNull` would be safer
-- `whereSql`
-  find a way to type the parameters, e.g. by movin the `C` generic type to
-  the front so one can write literal like `sql<number>\`${'param'}\`` to
-  force parameter to be a number.
-  Or maybe use dedicated `sql.number` SqlFragment constructors?
 - schema definitions
   - column validations builtins/custom
 - caching queries generated sql

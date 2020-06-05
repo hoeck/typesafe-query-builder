@@ -182,7 +182,7 @@ describe('update', () => {
 
   test('update with whereSql', async () => {
     const result = await query(users.select('userId', 'userEmail'))
-      .whereSql(sql`${users.userId} > ${'id'}`)
+      .whereSql(sql`${users.userId} > ${sql.number('id')}`)
       .update(
         client,
         { id: 1 }, // update params

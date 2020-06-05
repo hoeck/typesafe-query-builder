@@ -21,59 +21,21 @@ import {
   QueryItem,
   LockMode,
   SqlFragment,
+  SqlFragmentBuilder,
+  SqlFragmentParam,
 } from './types'
 
-/**
- * SqlFragment from template-string constructor
- *
- * Allows to express a bit of an sql query that optionally contains a single
- * reference to a table column and an optional single reference to a paramter
- * key.
- *
- * Examples:
- *
- *   sql`${table.column} IS NULL`
- *   sql`${table.column} >= ${key}`
- *
- * If you need more than 1 parameter key, pass multiple sql fragments to the method, e.g. whereSql:
- *
- *   whereSql(
- *     sql`${table.column} BETWEEN ${low}`,
- *     sql`AND ${high}`,
- *   )
- */
-export function sql<T>(
-  literals: TemplateStringsArray,
-): SqlFragment<T, never, never>
-export function sql<T, K extends string, C = any>(
-  literals: TemplateStringsArray,
-  param1: K,
-): SqlFragment<T, K, C>
-export function sql<T>(
-  literals: TemplateStringsArray,
-  param1: TableColumnRef<T, any, any, any>,
-): SqlFragment<T, never, never>
-export function sql<T, K extends string, C = any>(
-  literals: TemplateStringsArray,
-  param1: K,
-  param2: TableColumnRef<T, any, any, any>,
-): SqlFragment<T, K, C>
-export function sql<T, K extends string, C = any>(
-  literals: TemplateStringsArray,
-  param1: TableColumnRef<T, any, any, any>,
-  param2: K,
-): SqlFragment<T, K, C>
-export function sql(
+const sqlImplementation = (
   literals: TemplateStringsArray,
   param1?: any,
   param2?: any,
-) {
+) => {
   let column: any
   let paramKey: any
   let columnFirst: boolean = false
 
-  if (typeof param1 === 'string') {
-    paramKey = param1
+  if (param1 && param1.__typesafQueryBuilderSqlFragmentParam === true) {
+    paramKey = param1.paramKey
     columnFirst = false
 
     if (param2 instanceof TableImplementation) {
@@ -87,8 +49,8 @@ export function sql(
     column = param1
     columnFirst = true
 
-    if (typeof param2 === 'string') {
-      paramKey = param2
+    if (param2 && param2.__typesafQueryBuilderSqlFragmentParam === true) {
+      paramKey = param2.paramKey
     } else {
       if (param2 !== undefined) {
         assert.fail('expected param2 to be undefined')
@@ -97,7 +59,7 @@ export function sql(
   } else if (param1 === undefined && param2 === undefined) {
     /* sql literal */
   } else {
-    assert.fail(`no matching parameters in sql fragment`)
+    assert.fail(`no matching parameters in sql fragment: ${literals}`)
   }
 
   return {
@@ -108,6 +70,23 @@ export function sql(
     literals: literals.raw,
   } as any
 }
+
+function createSqlParam(key: any): SqlFragmentParam<any, any> {
+  return {
+    __typesafQueryBuilderSqlFragmentParam: true,
+    paramKey: key,
+  }
+}
+
+sqlImplementation.param = createSqlParam
+sqlImplementation.number = createSqlParam
+sqlImplementation.string = createSqlParam
+sqlImplementation.boolean = createSqlParam
+sqlImplementation.date = createSqlParam
+sqlImplementation.numberArray = createSqlParam
+sqlImplementation.stringArray = createSqlParam
+
+export const sql: SqlFragmentBuilder = sqlImplementation
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
