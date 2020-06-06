@@ -1,4 +1,4 @@
-### master
+### 3.1.0
 
 - make `Query.use()` passing a Query (not a `Statement`) to allow modifying the query
 
