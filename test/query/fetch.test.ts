@@ -151,9 +151,7 @@ describe('fetching', () => {
     test('creating a simple fetch function', async () => {
       const findUsers = query(users.select('userName'))
         .orderBy(users.userName)
-        .use(q => {
-          return async (client: DatabaseClient) => await q.fetch(client)
-        })
+        .use(q => async (client: DatabaseClient) => await q.fetch(client))
 
       const res = await findUsers(client)
 

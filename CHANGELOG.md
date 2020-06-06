@@ -1,5 +1,9 @@
 ### master
 
+- make `Query.use()` passing a Query (not a `Statement`) to allow modifying the query
+
+### 3.0.0
+
 - add typing to sql fragment parameters via `sql.number`, `sql.string` .. up to `sql.param`
 - limit `whereSql` to 5 `SqlFragments` and add `whereSqlUntyped` for >5 `SqlFragments`
 - add `enum` and `stringUnion` column types

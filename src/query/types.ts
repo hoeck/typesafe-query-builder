@@ -260,17 +260,6 @@ export interface Statement<S, P> {
   //   with a generic 404 message instead of coding it into every single
   //   handler
   //   or give this function a separate name: fetchExactlyOne, fetchPrimary, fetchById, fetchRecord, fetchSingle ... ????
-
-  /**
-   * Call a factory function with this statement.
-   *
-   * The factory should return a function that fetches from this statement.
-   *
-   * This way you will cache the query object and sql string and save some
-   * overhead when executing the same query repeatedly (with or without
-   * different arguments).
-   */
-  use<T>(factory: (statement: Statement<S, P>) => T): T
 }
 
 /**
@@ -441,6 +430,17 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
    * Add a row lock statement to the query (e.g. 'FOR UPDATE')
    */
   lock(lockMode: LockMode): QueryBottom<T, S, P, U>
+
+  /**
+   * Call a factory function with this query.
+   *
+   * The factory should return a function that fetches from this statement.
+   *
+   * This way you will cache the query object and sql string and save some
+   * overhead when executing the same query repeatedly (with or without
+   * different arguments).
+   */
+  use<T>(factory: (statement: Statement<S, P>) => T): T
 }
 
 /**

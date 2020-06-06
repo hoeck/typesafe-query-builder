@@ -740,6 +740,7 @@ The exact error depends on your validation/runtype implementation.
 
 ## Roadmap
 
+- add `updateOne` and `updateExactlyOne` methods
 - Documentation
   - utility types: `TableType`
   - subselects and nesting via `query.table`
