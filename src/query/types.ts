@@ -440,7 +440,7 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
    * overhead when executing the same query repeatedly (with or without
    * different arguments).
    */
-  use<T>(factory: (statement: Statement<S, P>) => T): T
+  use<R>(factory: (query: QueryBottom<T, S, P, U>) => R): R
 }
 
 /**
