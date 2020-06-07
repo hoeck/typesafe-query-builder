@@ -1,3 +1,8 @@
+### master
+
+- fix empty `select`
+- fix `fromJson` conversions in left-joined subqueries that use `selectAsJson`
+
 ### 3.1.2
 
 - fix `fromJson` and left joining to not crash on non-null columns

@@ -228,7 +228,8 @@ class SqlQuery {
   }
 
   private buildSelect() {
-    return 'SELECT ' + this.select.join(',')
+    // selecting no columns will result in empts-string selects which must be filtered
+    return 'SELECT ' + this.select.filter(s => !!s).join(',')
   }
 
   private buildFrom() {
