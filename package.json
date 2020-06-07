@@ -1,6 +1,6 @@
 {
   "name": "typesafe-query-builder",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "license": "MIT",
   "author": "Erik Soehnel",
   "repository": "github:hoeck/typesafe-query-builder",

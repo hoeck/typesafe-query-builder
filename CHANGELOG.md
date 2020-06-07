@@ -1,7 +1,11 @@
-### master
+### 3.1.2
 
 - fix `fromJson` and left joining to not crash on non-null columns
 - fix `selectAsJson` left joining (was creating an object with all keys null instead of a single null value)
+
+### 3.1.1
+
+- fix Query.use() type declaration
 
 ### 3.1.0
 
