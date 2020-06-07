@@ -287,7 +287,7 @@ export class Column<T> {
       }
 
       throw new QueryBuilderValidationError(
-        `column {this.name} - cannot read Date from ${inspect(value).slice(
+        `column ${this.name} - cannot read Date from ${inspect(value).slice(
           0,
           128,
         )}`,

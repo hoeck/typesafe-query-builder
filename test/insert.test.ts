@@ -256,7 +256,7 @@ describe('insert', () => {
     })
   })
 
-  test.only('enum data validation', async () => {
+  test('enum data validation', async () => {
     await expect(
       query(eventTypesWithEnum).insertOne(client, {
         active: false,
@@ -268,7 +268,7 @@ describe('insert', () => {
     )
   })
 
-  test.only('enum data validation - checking typescript reverse number enum mappings', async () => {
+  test('enum data validation - checking typescript reverse number enum mappings', async () => {
     await expect(
       query(eventTypesWithEnum).insertOne(client, {
         active: false,

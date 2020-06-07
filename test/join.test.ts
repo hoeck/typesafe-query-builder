@@ -249,6 +249,33 @@ describe('query', () => {
       ])
     })
 
+    test('fromJson Date conversion of a non-nullable date which is null in a left-join', async () => {
+      const result = await query(items.select('itemId'))
+        .leftJoin(items.itemId, events.select('eventTimestamp').eventItemId)
+        .fetch(client)
+
+      // items 2 and 3 have no events, thus their timestamp columns are null in the left join
+      expect(
+        result.sort(
+          (a, b) =>
+            (a.eventTimestamp?.getTime() ?? a.itemId) -
+            (b.eventTimestamp?.getTime() ?? b.itemId),
+        ),
+      ).toEqual([
+        { itemId: 2, eventTimestamp: null },
+        { itemId: 3, eventTimestamp: null },
+        { itemId: 1, eventTimestamp: new Date('2016-01-12T19:20:00.000Z') },
+        { itemId: 1, eventTimestamp: new Date('2016-03-01T17:30:00.000Z') },
+        { itemId: 1, eventTimestamp: new Date('2017-02-12T12:00:00.000Z') },
+        { itemId: 1, eventTimestamp: new Date('2017-06-12T15:20:00.000Z') },
+        { itemId: 4, eventTimestamp: new Date('2018-07-12T15:20:00.000Z') },
+        { itemId: 4, eventTimestamp: new Date('2018-08-12T01:50:00.000Z') },
+        { itemId: 4, eventTimestamp: new Date('2019-01-12T19:50:00.000Z') },
+        { itemId: 5, eventTimestamp: new Date('2020-11-08T22:45:00.000Z') },
+        { itemId: 5, eventTimestamp: new Date('2022-10-05T09:20:00.000Z') },
+      ])
+    })
+
     test('fetching left joined json aggregates', async () => {
       const result = await query(users.select('userId'))
         .leftJoin(

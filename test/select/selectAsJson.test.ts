@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, users } from '../helpers'
+import { client, users, events, items } from '../helpers'
 
 describe('selectAsJson', () => {
   test('plain selectAsJson', async () => {
@@ -51,6 +51,27 @@ describe('selectAsJson', () => {
         },
       },
     ])
+  })
+
+  test('fromJson Date conversion of a non-nullable date which is null in a left-join', async () => {
+    const result = await query(items.select('itemId'))
+      .leftJoin(items.itemId, events.selectAsJson('event').eventItemId)
+      .fetch(client)
+
+    expect(result).toContainEqual({
+      itemId: 1,
+      event: {
+        eventId: 1,
+        eventItemId: 1,
+        eventType: 'A',
+        eventTimestamp: new Date('2016-01-12T19:20:00.000Z'),
+        eventPayload: null,
+      },
+    })
+
+    // items 2 and 3 have no events, thus their timestamp columns are null in the left join
+    expect(result).toContainEqual({ itemId: 2, event: null })
+    expect(result).toContainEqual({ itemId: 3, event: null })
   })
 
   test('in combination with select', async () => {

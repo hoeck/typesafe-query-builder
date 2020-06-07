@@ -741,6 +741,7 @@ The exact error depends on your validation/runtype implementation.
 ## Roadmap
 
 - add `updateOne` and `updateExactlyOne` methods
+- add an `alias(aliasName): Table` method to `Table` to be able to use the same table many times in a query via an explicit alias
 - Documentation
   - utility types: `TableType`
   - subselects and nesting via `query.table`

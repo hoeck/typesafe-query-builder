@@ -181,30 +181,19 @@ export class TableImplementation {
         .join(',')
     } else if (this.projection.type === 'jsonBuildObject') {
       // project all columns into a json object
-      return (
-        'json_build_object(' +
-        selected
-          .map(columnKey => {
-            const column = this.tableColumns[columnKey]
-            const columnResultKey = this.getColumnResultKey(columnKey)
-
-            return `'${columnResultKey}',${aliasPrefix}"${column.name}"`
-          })
-          .join(',') +
-        `) AS "${this.projection.name}"`
-      )
+      return `${aliasPrefix}__json_object_column__ AS "${this.projection.name}"`
     } else if (this.projection.type === 'jsonAgg') {
       return (
         // for left joins with missing values, make postgres return an
         // empty json array [] instead of [null]
         // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
-        `coalesce(json_agg(${aliasPrefix}__json_agg_column__` +
+        `coalesce(json_agg(${aliasPrefix}__json_object_column__` +
         (this.projection.orderBy
           ? ` ORDER BY ${aliasPrefix}"${
               this.tableColumns[this.projection.orderBy].name
             }" ${this.projection.direction || ''}`
           : '') +
-        `) FILTER (WHERE ${aliasPrefix}__json_agg_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
+        `) FILTER (WHERE ${aliasPrefix}__json_object_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
       )
     } else {
       assert.fail(
@@ -218,8 +207,13 @@ export class TableImplementation {
       ? `(${this.tableQuery(ctx)})`
       : `"${this.tableName}"`
 
-    if (this.projection && this.projection.type === 'jsonAgg') {
-      // subselect is required to turn `[null]` when using json_agg left joins into `[]`
+    if (
+      this.projection?.type === 'jsonAgg' ||
+      this.projection?.type === 'jsonBuildObject'
+    ) {
+      // subselect is required for left joins to
+      // 1) get `null` instead of `{col1: null, col2: null}` when using json_build_object
+      // 2) turn `[null]` into `[]` when using json_agg
       return (
         '(SELECT json_build_object(' +
         (this.selected || Object.keys(this.tableColumns))
@@ -230,7 +224,7 @@ export class TableImplementation {
             return `'${columnResultKey}', x."${column.name}"`
           })
           .join(',') +
-        `) AS __json_agg_column__, *` +
+        `) AS __json_object_column__, *` +
         `FROM ${tableSql} x) ${alias}`
       )
     } else {
@@ -313,6 +307,13 @@ export class TableImplementation {
     if (this.projection === undefined) {
       return (row: any) => {
         columnConverters.forEach(([name, fromJson]) => {
+          if (row[name] === null) {
+            // null caused by a left joins and missing data
+            // NOTE: actually, this check is only required if we're actually
+            // using this table in a left-join, but we don't know it here
+            return
+          }
+
           row[name] = fromJson(row[name])
         })
       }

@@ -1,3 +1,8 @@
+### master
+
+- fix `fromJson` and left joining to not crash on non-null columns
+- fix `selectAsJson` left joining (was creating an object with all keys null instead of a single null value)
+
 ### 3.1.0
 
 - make `Query.use()` passing a Query (not a `Statement`) to allow modifying the query
