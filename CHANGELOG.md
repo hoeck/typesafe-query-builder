@@ -1,4 +1,4 @@
-### master
+### 3.2.0
 
 - fix empty `select`
 - fix `fromJson` conversions in left-joined subqueries that use `selectAsJson`
