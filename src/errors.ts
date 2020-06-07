@@ -18,9 +18,10 @@ export class QueryBuilderUsageError extends QueryBuilderError {}
 export class QueryBuilderValidationError extends QueryBuilderError {}
 
 /**
- * Thrown by specialized fetchX functions.
+ * Thrown by specialized fetch and update functions.
  *
- * E.g. if fetchOne encountered more than 1 row.
+ * E.g. if fetchOne, fetchExactlyOne, updateOne or updateExactlyOne
+ * encounter more than 1 row.
  */
 export class QueryBuilderResultError extends QueryBuilderError {
   constructor(message?: string) {

@@ -393,9 +393,35 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
   /// update
 
   /**
-   * Update rows of the table
+   * Update the rows selected by this query.
+   *
+   * Not supported with joins, limit, offset, orderBy and the like.
    */
   update(client: DatabaseClient, params: P, data: Partial<T>): U
+
+  /**
+   * Update at most a single row selected by this query.
+   *
+   * Throws a QueryBuilderResultError when more than 1 row *was updated*.
+   * Use this in a transaction that rollbacks on exceptions to revert the update.
+   *
+   * Not supported with joins, limit, offset, orderBy and the like.
+   *
+   * Returns a list of updated rows bc. its simpler to type just as `.update`.
+   */
+  updateOne(client: DatabaseClient, params: P, data: Partial<T>): U
+
+  /**
+   * Update a single row selected by this query.
+   *
+   * Throws a QueryBuilderResultError when no row or more than 1 row *was updated*.
+   * Use this in a transaction that rollbacks on exceptions to revert the update.
+   *
+   * Not supported with joins, limit, offset, orderBy and the like.
+   *
+   * Returns a list of updated rows bc. its simpler to type just as `.update`.
+   */
+  updateExactlyOne(client: DatabaseClient, params: P, data: Partial<T>): U
 
   /**
    * Append and ORDER BY clause to the query.

@@ -2,6 +2,7 @@
 
 - fix empty `select`
 - fix `fromJson` conversions in left-joined subqueries that use `selectAsJson`
+- add `updateOne` and `updateExactlyOne`
 
 ### 3.1.2
 

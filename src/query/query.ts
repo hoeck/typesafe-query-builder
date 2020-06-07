@@ -395,6 +395,30 @@ class QueryImplementation {
       )
     ).rows
   }
+
+  async updateOne(client: DatabaseClient, params: any, data: any) {
+    const rows = await this.update(client, params, data)
+
+    if (rows.length > 1) {
+      throw new QueryBuilderResultError(
+        `expected at most one updated row but the query updated: ${rows.length}`,
+      )
+    }
+
+    return rows
+  }
+
+  async updateExactlyOne(client: DatabaseClient, params: any, data: any) {
+    const rows = await this.update(client, params, data)
+
+    if (rows.length !== 1) {
+      throw new QueryBuilderResultError(
+        `expected exactly one updated row but the query updated: ${rows.length}`,
+      )
+    }
+
+    return rows
+  }
 }
 
 /**
