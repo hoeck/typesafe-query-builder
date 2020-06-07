@@ -276,6 +276,45 @@ describe('query', () => {
       ])
     })
 
+    test('left joining a subquery with selectAsJson', async () => {
+      const subQuery = query(items)
+        .join(
+          items.itemId,
+          events.select('eventId', 'eventType').selectAsJson('event')
+            .eventItemId,
+        )
+        // include only items of user 1 so that we get null for other users
+        .whereEq(items.itemUserId, 'subUserId')
+        .table()
+
+      const result = await query(users.select('userName', 'userId'))
+        // that selectAsJson triggers a specific check in the fromJson conversion functions
+        .leftJoin(
+          users.userId,
+          subQuery.select('itemLabel', 'event').selectAsJson('subQuery')
+            .itemUserId,
+        )
+        .fetch(client, { subUserId: 1 })
+
+      expect(result).toContainEqual({
+        userId: 1,
+        userName: 'user-a',
+        subQuery: {
+          itemLabel: 'item-1',
+          event: {
+            eventId: 1,
+            eventType: 'A',
+          },
+        },
+      })
+
+      expect(result).toContainEqual({
+        userId: 2,
+        userName: 'user-c',
+        subQuery: null,
+      })
+    })
+
     test('fetching left joined json aggregates', async () => {
       const result = await query(users.select('userId'))
         .leftJoin(

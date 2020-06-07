@@ -306,6 +306,13 @@ export class TableImplementation {
 
     if (this.projection === undefined) {
       return (row: any) => {
+        if (row === null) {
+          // null caused by a left joins of a json projection that is checked using the
+          // NOTE: actually, this check is only required if we're actually
+          // using this table in a left-join, but we don't know it here
+          return
+        }
+
         columnConverters.forEach(([name, fromJson]) => {
           if (row[name] === null) {
             // null caused by a left joins and missing data
@@ -321,7 +328,7 @@ export class TableImplementation {
       const key = this.projection.name
 
       return (row: any) => {
-        if (row[key] === null) {
+        if (row === null || row[key] === null) {
           // null caused by a left joins and missing data
           return
         }
