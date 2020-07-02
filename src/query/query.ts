@@ -248,7 +248,7 @@ class QueryImplementation {
   table(): any {
     uniqueTableNameCounter += 1
 
-    // table name which does not clash with some real tables
+    // table name which does not clash with real tables
     const tableName = '__typesafe_query_builder_' + uniqueTableNameCounter
 
     const tableImplementation = new TableImplementation(
@@ -262,8 +262,6 @@ class QueryImplementation {
     tableImplementation.tableQuery = (ctx: BuildContext) => {
       return buildSqlQuery(this.query, ctx)
     }
-
-    tableImplementation.tableResultConverter = buildResultConverter(this.query)
 
     return tableImplementation.getTableProxy() as any
   }

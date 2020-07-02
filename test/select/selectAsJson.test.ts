@@ -85,4 +85,19 @@ describe('selectAsJson', () => {
       { user: { userId: 3 } },
     ])
   })
+
+  test('in combination with selectAs', async () => {
+    const result = await query(
+      users
+        .select('userId', 'userActive')
+        .selectAs({ userId: 'id', userActive: 'lastSeen' } as const)
+        .selectAsJson('user'),
+    ).fetch(client)
+
+    expect(result).toEqual([
+      { user: { id: 1, lastSeen: null } },
+      { user: { id: 2, lastSeen: null } },
+      { user: { id: 3, lastSeen: new Date('2016-01-16T10:00:00.000Z') } },
+    ])
+  })
 })

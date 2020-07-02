@@ -78,6 +78,17 @@ export class Column<T> {
     this.isNullable = params.isNullable
   }
 
+  // private but part of ColumnImplementation
+  private copy(params: { name: string }) {
+    return new Column({
+      name: params.name,
+      columnValue: this.columnValue,
+      fromJson: this.fromJson,
+      isPrimaryKey: this.isPrimaryKey,
+      isNullable: this.isNullable,
+    })
+  }
+
   /// column sql attributes
 
   /**
@@ -433,6 +444,7 @@ export interface ColumnImplementation {
   isNullable?: true
   isPrimaryKey?: true
   name: string
+  copy: (params: { name: string }) => ColumnImplementation
 }
 
 /**

@@ -30,18 +30,13 @@ export class TableImplementation {
   // the final query is assembled
   tableQuery?: (ctx: BuildContext) => string
 
-  // same as tableQuery: custom result converter function to use when this
-  // table is a subselect: TODO: better naming: explicit 'subselect' prefix in
-  // these names
-  tableResultConverter?: (row: any) => void
-
   // all columns available in this table to use in selection, projection, where, etc.
   tableColumns: { [key: string]: ColumnImplementation }
 
   // currently selected columns, undefined == all
   selected?: string[]
 
-  // rename projection
+  // rename projection, maps original to renamed
   renamed?: Record<string, string>
 
   // single-column projections
@@ -87,7 +82,6 @@ export class TableImplementation {
     res.projection = this.projection
     res.referencedColumn = this.referencedColumn
     res.tableQuery = this.tableQuery
-    res.tableResultConverter = this.tableResultConverter
 
     return res
   }
@@ -135,13 +129,65 @@ export class TableImplementation {
     }) as any
   }
 
+  // return the columns that are selected / renamed/ json-projected by this
+  // table as Column objects to be used in new tables that cover a subselect
   getColumns() {
     if (this.projection === undefined) {
-      return this.selected || Object.keys(this.tableColumns)
+      const res: Record<string, ColumnImplementation> = {}
+      const cols = this.selected || Object.keys(this.tableColumns)
+
+      cols.forEach(key => {
+        const colKey = this.renamed?.hasOwnProperty(key)
+          ? this.renamed[key]
+          : key
+        const colImpl = this.tableColumns[key].copy({ name: colKey })
+
+        res[colKey] = colImpl
+      })
+
+      return res
     } else if (this.projection.type === 'jsonBuildObject') {
-      return [this.projection.name]
+      // a single column that validates & fromJson-izes correctly
+      const fromJsonConverter = this.getFromJsonRowConverter()
+
+      return {
+        [this.projection.name]: new Column<unknown>({
+          name: this.projection.name,
+          columnValue: () => {
+            throw new QueryBuilderUsageError(
+              'cannot use subselected tables in inserts / updates',
+            )
+          },
+          fromJson: (v: any) => {
+            // use the converter in the cols fromJson so that we are free to
+            // combine the from json in any way
+            fromJsonConverter(v)
+
+            return v
+          },
+        }),
+      }
     } else if (this.projection.type === 'jsonAgg') {
-      return [this.projection.name]
+      // a single column that validates & fromJson-izes the resulting json-agg array correctly
+      const fromJsonConverter = this.getFromJsonRowConverter()
+
+      return {
+        [this.projection.name]: new Column<unknown>({
+          name: this.projection.name,
+          columnValue: () => {
+            throw new QueryBuilderUsageError(
+              'cannot use subselected tables in inserts / updates',
+            )
+          },
+          fromJson: (v: any) => {
+            for (let i = 0; i < v.length; i++) {
+              fromJsonConverter(v[i])
+            }
+
+            return v
+          },
+        }),
+      }
     } else {
       assert.fail(
         `invalid projection in table ${this.tableName} - ${this.projection}`,
@@ -214,6 +260,7 @@ export class TableImplementation {
       // subselect is required for left joins to
       // 1) get `null` instead of `{col1: null, col2: null}` when using json_build_object
       // 2) turn `[null]` into `[]` when using json_agg
+      // TODO: remove this and use the primary key to check for null instead
       return (
         '(SELECT json_build_object(' +
         (this.selected || Object.keys(this.tableColumns))
@@ -261,99 +308,84 @@ export class TableImplementation {
     return !!(this.projection && this.projection.type === 'jsonAgg')
   }
 
+  // Return a function that converts a flat row of column values according to
+  // each selected / renamed columns `fromJson` method.
+  // Used internally to build up subselect and projection aware result converters.
+  private getFromJsonRowConverter() {
+    // collect the `fromJson` method from each selected column
+    const keys: string[] = []
+    const fromJsons: ((v: unknown) => any)[] = []
+    const allSelectedCols = this.selected || Object.keys(this.tableColumns)
+
+    for (let i = 0; i < allSelectedCols.length; i++) {
+      const colKey = allSelectedCols[i]
+      const colImpl = this.tableColumns[colKey]
+
+      if (colImpl.fromJson) {
+        keys.push(this.getColumnResultKey(colKey)) // possibly renamed colKey
+        fromJsons.push(colImpl.fromJson)
+      }
+    }
+
+    // not a single column needs a result conversion
+    if (fromJsons.length === 0) {
+      return () => {}
+    }
+
+    return (row: any) => {
+      for (let i = 0; i < fromJsons.length; i++) {
+        const key = keys[i]
+        const fromJson = fromJsons[i]
+
+        if (row[key] === null) {
+          // possible null caused by a left join
+          // NOTE: actually, this check is only required if we're actually
+          // using this table in a left-join, but we don't know it here
+          return
+        }
+
+        row[key] = fromJson(row[key])
+      }
+    }
+  }
+
   // turn any Date columns selected via pg json functions into into real dates
   // (because while being selected as json, postgres converts them to strings
   // first so they fit into the json column)
   // so basically this is a custom datatype serialization on top of what
   // node-postgres already provides
   getResultConverter() {
-    if (this.tableResultConverter) {
-      // This table is a wrapper around a query so it has no useful column
-      // information because they're hidden behind a subselect.
-      // We have to use the provided converter function.
-      const converter = this.tableResultConverter
-
-      if (this.projection === undefined) {
-        return converter
-      } else if (this.projection.type === 'jsonBuildObject') {
-        const key = this.projection.name
-
-        return (row: any) => converter(row[key])
-      } else if (this.projection.type === 'jsonAgg') {
-        const key = this.projection.name
-
-        // json agg -> key is an array of the joined rows
-        return (row: any) => row[key].forEach(converter)
-      } else {
-        assert.fail(
-          `invalid projection in table ${this.tableName} - ${this.projection}`,
-        )
-      }
-    }
-
-    // collect the `fromJson` method from each column
-    const columnConverters = (this.selected || Object.keys(this.tableColumns))
-      .map(name => [name, this.tableColumns[name].fromJson])
-      .filter((x: any): x is [string, (v: any) => void] => x[1])
-
-    // not a single selected column needs a result conversion
-    if (columnConverters.length === 0) {
-      return () => {} // nothing to do
-    }
-
     // return a function that converts fields of a single row *in-place* (to
     // save on memory allocations)
+    const rowConverter = this.getFromJsonRowConverter()
 
     if (this.projection === undefined) {
-      return (row: any) => {
-        if (row === null) {
-          // null caused by a left joins of a json projection that is checked using the
-          // NOTE: actually, this check is only required if we're actually
-          // using this table in a left-join, but we don't know it here
-          return
-        }
-
-        columnConverters.forEach(([name, fromJson]) => {
-          if (row[name] === null) {
-            // null caused by a left joins and missing data
-            // NOTE: actually, this check is only required if we're actually
-            // using this table in a left-join, but we don't know it here
-            return
-          }
-
-          row[name] = fromJson(row[name])
-        })
-      }
+      return rowConverter
     } else if (this.projection.type === 'jsonBuildObject') {
+      // plain json projection: all selected columns are grouped below `key`
       const key = this.projection.name
 
       return (row: any) => {
-        if (row === null || row[key] === null) {
-          // null caused by a left joins and missing data
+        if (row[key] === null) {
+          // null caused by a left join and missing data
           return
         }
 
-        columnConverters.forEach(([columnKey, fromJson]) => {
-          const columnResultKey = this.getColumnResultKey(columnKey)
-
-          // plain json projection: all selected columns are grouped below `key`
-          row[key][columnResultKey] = fromJson(row[key][columnResultKey])
-        })
+        rowConverter(row[key])
       }
     } else if (this.projection.type === 'jsonAgg') {
+      // json agg -> key is an array of the joined rows
       const key = this.projection.name
 
       return (row: any) => {
-        columnConverters.forEach(([columnKey, fromJson]) => {
-          const columnResultKey = this.getColumnResultKey(columnKey)
+        // row[key] is never null because with json-agg we use coalesce
+        // and json-agg where filter to create an empty array instead and
+        // remove all null values
+        const jsonAggValue: any[] = row[key]
 
-          // json agg -> key is an array of the joined rows
-          row[key].forEach((aggregatedRow: any) => {
-            aggregatedRow[columnResultKey] = fromJson(
-              aggregatedRow[columnResultKey],
-            )
-          })
-        })
+        for (let i = 0; i < jsonAggValue.length; i++) {
+          rowConverter(jsonAggValue[i])
+        }
       }
     } else {
       assert.fail(

@@ -391,13 +391,31 @@ export function buildResultConverter(query: QueryItem[]) {
 
         // table 1 is already present in the query so we don't need to add its
         // result converter again
-        converters.push(table2.getResultConverter())
+
+        if (item.joinType === 'join') {
+          converters.push(table2.getResultConverter())
+        } else if (item.joinType === 'leftJoin') {
+          converters.push(table2.getResultConverter()) // TODO: pass nullable???
+        } else {
+          assertNever(item.joinType)
+        }
 
         break
       }
-      default:
+
       // ignore all other query item types because they do not introduce new
       // tables/columns into the query
+      case 'limit':
+      case 'lock':
+      case 'offset':
+      case 'orderBy':
+      case 'whereEq':
+      case 'whereIn':
+      case 'whereSql':
+        break
+
+      default:
+        assertNever(item)
     }
   })
 
@@ -513,38 +531,40 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 // return the columns to select when building subselects
 export function buildColumns(
   query: QueryItem[],
-): { [key: string]: ColumnImplementation } {
-  const columns: any = {}
+): Record<string, ColumnImplementation> {
+  const columns: Record<string, ColumnImplementation> = {}
 
   query.forEach(item => {
     switch (item.queryType) {
       case 'from': {
         const { table } = item
 
-        table.getColumns().forEach(c => {
-          // subselect-columns are never used for insertion
-          const validator: any = undefined
-
-          columns[c] = column(c, validator)
-        })
+        Object.assign(columns, table.getColumns())
 
         break
       }
       case 'join': {
         const { column2: table2 } = item
 
-        table2.getColumns().forEach(c => {
-          // subselect-columns are never used for insertion
-          const validator: any = undefined
-
-          columns[c] = column(c, validator)
-        })
+        // TODO: PASS INFO WETHER ITS A LEFT  JOIN (NULLABLE)
+        Object.assign(columns, table2.getColumns())
 
         break
       }
-      default:
+
       // ignore all other query item types, we only care about the ones that
       // modify column type information
+      case 'limit':
+      case 'lock':
+      case 'offset':
+      case 'orderBy':
+      case 'whereEq':
+      case 'whereIn':
+      case 'whereSql':
+        break
+
+      default:
+        assertNever(item)
     }
   })
 
