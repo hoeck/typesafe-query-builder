@@ -211,7 +211,13 @@ export class TableImplementation {
     return key
   }
 
-  getSelectSql(alias: string | undefined) {
+  // Return the select expression to fetch this tables selected / renamed /
+  // json-projected columns.
+  // alias is undefined when generating insert or update statements, otherwise its prepended in front of any accessed table column.
+  // Set left join to true to make the returned sql check for null primary
+  // keys in order to detect empty left joins and build json objects
+  // accordingly.
+  getSelectSql(alias: string | undefined, isLeftJoin: boolean) {
     const selected = this.selected || Object.keys(this.tableColumns)
     const aliasPrefix = alias ? alias + '.' : ''
 
@@ -225,21 +231,48 @@ export class TableImplementation {
           return `${aliasPrefix}"${column.name}" AS "${columnResultKey}"`
         })
         .join(',')
-    } else if (this.projection.type === 'jsonBuildObject') {
-      // project all columns into a json object
-      return `${aliasPrefix}__json_object_column__ AS "${this.projection.name}"`
+    }
+
+    // build a json object with sql
+    const jsonBuildObject = this.getJsonBuildObjectExpression(alias)
+
+    // identify a null row caused by a left join
+    // need this as otherwise we would create json objects full with null
+    // values e.g.: `{id: null, userName: null}` instead of just `null`
+    const primaryKeyColumnsExprList = this.getPrimaryColumnsSql(alias)
+    const jsonIsNotNull = primaryKeyColumnsExprList
+      .map(pkSql => `${pkSql} IS NOT NULL`)
+      .join(' AND ')
+
+    if (this.projection.type === 'jsonBuildObject') {
+      // this is just an optimization to only generate the CASE expresssion when its needed
+      if (isLeftJoin) {
+        return `(CASE WHEN ${jsonIsNotNull} THEN ${jsonBuildObject} ELSE null END) AS "${this.projection.name}"`
+      } else {
+        return `${jsonBuildObject} AS "${this.projection.name}"`
+      }
     } else if (this.projection.type === 'jsonAgg') {
+      // json_agg supports order by
+      const jsonAggOrderBy = this.projection.orderBy
+        ? ` ORDER BY ${aliasPrefix}"${
+            this.tableColumns[this.projection.orderBy].name
+          }" ${this.projection.direction || ''}`
+        : ''
+
+      // For left joins with missing values, make postgres return an
+      // empty json array [] instead of [null]
+      // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
+      // To check that the result will be empty, use the tables primary key which never should be null unless left-joined.
+
       return (
-        // for left joins with missing values, make postgres return an
-        // empty json array [] instead of [null]
-        // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
-        `coalesce(json_agg(${aliasPrefix}__json_object_column__` +
-        (this.projection.orderBy
-          ? ` ORDER BY ${aliasPrefix}"${
-              this.tableColumns[this.projection.orderBy].name
-            }" ${this.projection.direction || ''}`
-          : '') +
-        `) FILTER (WHERE ${aliasPrefix}__json_object_column__ IS NOT NULL), '[]') AS "${this.projection.name}"`
+        'COALESCE(JSON_AGG(' +
+        jsonBuildObject +
+        jsonAggOrderBy +
+        ') FILTER (WHERE ' +
+        jsonIsNotNull +
+        `), '[]') AS "` +
+        this.projection.name +
+        '"'
       )
     } else {
       assert.fail(
@@ -253,30 +286,24 @@ export class TableImplementation {
       ? `(${this.tableQuery(ctx)})`
       : `"${this.tableName}"`
 
-    if (
-      this.projection?.type === 'jsonAgg' ||
-      this.projection?.type === 'jsonBuildObject'
-    ) {
-      // subselect is required for left joins to
-      // 1) get `null` instead of `{col1: null, col2: null}` when using json_build_object
-      // 2) turn `[null]` into `[]` when using json_agg
-      // TODO: remove this and use the primary key to check for null instead
-      return (
-        '(SELECT json_build_object(' +
-        (this.selected || Object.keys(this.tableColumns))
-          .map(columnKey => {
-            const column = this.tableColumns[columnKey]
-            const columnResultKey = this.getColumnResultKey(columnKey)
+    return `${tableSql} ${alias}`
+  }
 
-            return `'${columnResultKey}', x."${column.name}"`
-          })
-          .join(',') +
-        `) AS __json_object_column__, *` +
-        `FROM ${tableSql} x) ${alias}`
-      )
-    } else {
-      return `${tableSql} ${alias}`
-    }
+  getJsonBuildObjectExpression(alias: string | undefined) {
+    const aliasPrefix = alias ? alias + '.' : ''
+
+    return (
+      'JSON_BUILD_OBJECT(' +
+      (this.selected || Object.keys(this.tableColumns))
+        .map(columnKey => {
+          const column = this.tableColumns[columnKey]
+          const columnResultKey = this.getColumnResultKey(columnKey)
+
+          return `'${columnResultKey}', ${aliasPrefix}"${column.name}"`
+        })
+        .join(',') +
+      ')'
+    )
   }
 
   getReferencedColumn(): ColumnImplementation {
@@ -294,11 +321,12 @@ export class TableImplementation {
   }
 
   // return a list of primary column expressions to build "group by" clauses
-  getPrimaryColumnsSql(alias: string): string[] {
+  getPrimaryColumnsSql(alias: string | undefined): string[] {
+    const aliasPrefix = alias ? alias + '.' : ''
     return Object.values(this.tableColumns)
       .filter((c: ColumnImplementation) => c.isPrimaryKey)
       .map((pk: ColumnImplementation) => {
-        return `${alias}."${pk.name}"`
+        return `${aliasPrefix}"${pk.name}"`
       })
   }
 

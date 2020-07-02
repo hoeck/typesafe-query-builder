@@ -433,11 +433,11 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
           const alias = sql.getAlias(table.tableName)
 
           sql.addFrom(table.getTableSql(alias, ctx))
-          sql.addSelect(table.getSelectSql(alias))
+          sql.addSelect(table.getSelectSql(alias, false))
         }
         break
       case 'join': {
-        const { column1: table1, column2: table2 } = item
+        const { column1: table1, column2: table2, joinType } = item
 
         const alias1 = sql.getAlias(table1.tableName)
         const alias2 = sql.getAlias(table2.tableName)
@@ -448,7 +448,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
           table1.getReferencedColumnSql(alias1),
           table2.getReferencedColumnSql(alias2),
         )
-        sql.addSelect(table2.getSelectSql(alias2))
+        sql.addSelect(table2.getSelectSql(alias2, joinType === 'leftJoin'))
 
         if (table2.needsGroupBy()) {
           const pkColumnSql = table1.getPrimaryColumnsSql(alias1)
@@ -628,7 +628,7 @@ export function buildInsert(
     ') VALUES (' +
     insertParams.join('),(') +
     ') RETURNING ' +
-    table.getSelectSql(undefined)
+    table.getSelectSql(undefined, false)
 
   return [insertStatement, insertValues]
 }
@@ -712,7 +712,7 @@ export function buildUpdate(
   }
 
   const alias = sql.getAlias(table.tableName)
-  const returning = table.getSelectSql(alias)
+  const returning = table.getSelectSql(alias, false)
 
   return sql.buildUpdate(table.tableColumns, columnsToSet, dataCtx, returning)
 }
