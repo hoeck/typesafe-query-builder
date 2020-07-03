@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { UserRow, client, emptyTable, users, events } from '../helpers'
+import { UserRow, client, emptyTable, users, events, items } from '../helpers'
 
 describe('selectAsJsonAgg', () => {
   test('plain selectAsJsonAgg', async () => {
@@ -127,5 +127,108 @@ describe('selectAsJsonAgg', () => {
     ).fetch(client)
 
     expect(result).toEqual([{ empty: [] }])
+  })
+
+  test('joining 3 tables with selectAsJson and selectAsJsonAgg', async () => {
+    // this ensures that a correct group-by clause is created
+    const res = await query(items.select('itemId', 'itemUserId'))
+      .join(
+        items.itemUserId,
+        users.select('userId').selectAsJson('user').userId,
+      )
+      .leftJoin(
+        items.itemId,
+        events
+          .select('eventId', 'eventItemId')
+          .selectAsJsonAgg('events', 'eventId').eventItemId,
+      )
+      .orderBy(items.itemId)
+      .fetch(client)
+
+    expect(res).toEqual([
+      {
+        itemId: 1,
+        itemUserId: 1,
+        user: { userId: 1 },
+        events: [
+          { eventId: 1, eventItemId: 1 },
+          { eventId: 2, eventItemId: 1 },
+          { eventId: 3, eventItemId: 1 },
+          { eventId: 4, eventItemId: 1 },
+        ],
+      },
+      { itemId: 2, itemUserId: 1, user: { userId: 1 }, events: [] },
+      { itemId: 3, itemUserId: 2, user: { userId: 2 }, events: [] },
+      {
+        itemId: 4,
+        itemUserId: 2,
+        user: { userId: 2 },
+        events: [
+          { eventId: 5, eventItemId: 4 },
+          { eventId: 6, eventItemId: 4 },
+          { eventId: 7, eventItemId: 4 },
+        ],
+      },
+      {
+        itemId: 5,
+        itemUserId: 2,
+        user: { userId: 2 },
+        events: [
+          { eventId: 8, eventItemId: 5 },
+          { eventId: 9, eventItemId: 5 },
+        ],
+      },
+    ])
+  })
+
+  test('joining 2 tables and the third with selectAsJsonAgg', async () => {
+    // this ensures that a correct group-by clause is created
+    const res = await query(users.select('userId'))
+      .leftJoin(users.userId, items.select('itemId', 'itemUserId').itemUserId)
+      .leftJoin(
+        items.itemId,
+        events
+          .select('eventId', 'eventItemId')
+          .selectAsJsonAgg('events', 'eventId').eventItemId,
+      )
+      .orderBy(users.userId)
+      .orderBy(items.itemId)
+      .fetch(client)
+
+    expect(res).toEqual([
+      {
+        userId: 1,
+        itemId: 1,
+        itemUserId: 1,
+        events: [
+          { eventId: 1, eventItemId: 1 },
+          { eventId: 2, eventItemId: 1 },
+          { eventId: 3, eventItemId: 1 },
+          { eventId: 4, eventItemId: 1 },
+        ],
+      },
+      { userId: 1, itemId: 2, itemUserId: 1, events: [] },
+      { userId: 2, itemId: 3, itemUserId: 2, events: [] },
+      {
+        userId: 2,
+        itemId: 4,
+        itemUserId: 2,
+        events: [
+          { eventId: 5, eventItemId: 4 },
+          { eventId: 6, eventItemId: 4 },
+          { eventId: 7, eventItemId: 4 },
+        ],
+      },
+      {
+        userId: 2,
+        itemId: 5,
+        itemUserId: 2,
+        events: [
+          { eventId: 8, eventItemId: 5 },
+          { eventId: 9, eventItemId: 5 },
+        ],
+      },
+      { userId: 3, itemId: null, itemUserId: null, events: [] },
+    ])
   })
 })

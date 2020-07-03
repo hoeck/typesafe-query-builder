@@ -425,6 +425,9 @@ export function buildResultConverter(query: QueryItem[]) {
 export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
   const sql = new SqlQuery(ctx)
 
+  let groupByNeeded = false
+  const groupByTables: Set<TableImplementation> = new Set()
+
   query.forEach(item => {
     switch (item.queryType) {
       case 'from':
@@ -434,6 +437,8 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 
           sql.addFrom(table.getTableSql(alias, ctx))
           sql.addSelect(table.getSelectSql(alias, false))
+
+          groupByTables.add(table)
         }
         break
       case 'join': {
@@ -450,14 +455,10 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
         )
         sql.addSelect(table2.getSelectSql(alias2, joinType === 'leftJoin'))
 
-        if (table2.needsGroupBy()) {
-          const pkColumnSql = table1.getPrimaryColumnsSql(alias1)
-
-          if (!pkColumnSql.length) {
-            assert.fail(`table has no primary columns: ${table1.debugInfo()}`)
-          }
-
-          sql.addGroupBy(pkColumnSql)
+        if (table2.isJsonAggProjection()) {
+          groupByNeeded = true
+        } else {
+          groupByTables.add(table2)
         }
 
         break
@@ -524,6 +525,15 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
         assertNever(item)
     }
   })
+
+  // group by for json aggregations
+  if (groupByNeeded) {
+    groupByTables.forEach(table => {
+      const alias = sql.getAlias(table.tableName)
+
+      sql.addGroupBy(table.getPrimaryColumnsSql(alias))
+    })
+  }
 
   return sql.build()
 }

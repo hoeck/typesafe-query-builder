@@ -128,6 +128,9 @@ class QueryImplementation {
     // reason: catch usage errors where one tries pass a tablecolref with selected columns to join, because they get ignored
     // but it must be allowed to store a table with selections in a variable and then use it also in the join again
 
+    // raise an error if selectAsJsonAgg is used more than once in a query
+    // raise an error if selected columns of different conlfict with each other (e.g. multiple id cols)
+
     return new QueryImplementation(
       [...this.tables, table2],
       [

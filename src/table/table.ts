@@ -323,16 +323,23 @@ export class TableImplementation {
   // return a list of primary column expressions to build "group by" clauses
   getPrimaryColumnsSql(alias: string | undefined): string[] {
     const aliasPrefix = alias ? alias + '.' : ''
-    return Object.values(this.tableColumns)
+
+    const res = Object.values(this.tableColumns)
       .filter((c: ColumnImplementation) => c.isPrimaryKey)
       .map((pk: ColumnImplementation) => {
         return `${aliasPrefix}"${pk.name}"`
       })
+
+    if (!res.length) {
+      assert.fail(`table has no primary columns: ${this.debugInfo()}`)
+    }
+
+    return res
   }
 
   // using the json_agg (via selectAsJsonAgg) function implies a
   // "group by <primary-key-columns>"
-  needsGroupBy() {
+  isJsonAggProjection() {
     return !!(this.projection && this.projection.type === 'jsonAgg')
   }
 
