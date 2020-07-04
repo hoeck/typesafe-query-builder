@@ -230,6 +230,11 @@ export interface Statement<S, P> {
   explain: (client: DatabaseClient, params?: P) => Promise<string>
 
   /**
+   * Run an SQL EXPLAIN ANALYZE on this query.
+   */
+  explainAnalyze: (client: DatabaseClient, params?: P) => Promise<string>
+
+  /**
    * Execute the query and return all rows.
    */
   fetch: keyof P extends never

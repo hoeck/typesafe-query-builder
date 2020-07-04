@@ -283,6 +283,16 @@ class QueryImplementation {
       .join('\n')
   }
 
+  async explainAnalyze(client: DatabaseClient, params?: any): Promise<string> {
+    const ctx = new BuildContext()
+    const sql = 'EXPLAIN ANALYZE ' + this.sql(ctx)
+    const paramArray = params ? ctx.getParameters(params) : []
+
+    return (await client.query(sql, paramArray)).rows
+      .map(r => r['QUERY PLAN'])
+      .join('\n')
+  }
+
   async fetch(client: DatabaseClient, params?: any): Promise<any[]> {
     const ctx = new BuildContext()
     const sql = this.sql(ctx)

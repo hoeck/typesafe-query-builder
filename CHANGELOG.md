@@ -1,5 +1,6 @@
 ### master
 
+- add `explainAnalyze`
 - internals: selecting into json or json agg does not generate subselects any more
 
 ### 3.2.0
