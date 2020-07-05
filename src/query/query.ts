@@ -118,18 +118,95 @@ class QueryImplementation {
   ) {
     this.tables = tables
     this.query = query
-  }
-
-  join(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
-    const table1 = getTableImplementation(ref1)
-    const table2 = getTableImplementation(ref2)
 
     // TODO: raise an error if table1 has selected cols that differ from the selection that is used in the table
     // reason: catch usage errors where one tries pass a tablecolref with selected columns to join, because they get ignored
     // but it must be allowed to store a table with selections in a variable and then use it also in the join again
 
+    this.checkSingleJsonAgg()
+    this.checkDuplicateSelectedColumns()
+  }
+
+  private checkSingleJsonAgg() {
     // raise an error if selectAsJsonAgg is used more than once in a query
-    // raise an error if selected columns of different conlfict with each other (e.g. multiple id cols)
+    if (
+      this.tables.length > 1 &&
+      this.tables.filter(t => t.isJsonAggProjection()).length > 1
+    ) {
+      throw new QueryBuilderUsageError(
+        '`selectAsJsonAgg` must only be used once in each query (use subqueries in case you want to have multiple `selectAsJsonAgg` aggregations)',
+      )
+    }
+  }
+
+  // raise an error if selected columns of different conlfict with each other
+  // (e.g. multiple id cols)
+  private checkDuplicateSelectedColumns() {
+    if (this.tables.length < 2) {
+      return
+    }
+
+    let columnMultiset: Map<string, Set<TableImplementation>> = new Map()
+
+    this.tables.forEach(t => {
+      t.getResultingColumnNames().forEach(c => {
+        const entry = columnMultiset.get(c)
+
+        if (entry) {
+          entry.add(t)
+        } else {
+          columnMultiset.set(c, new Set([t]))
+        }
+      })
+    })
+
+    const containsDuplicate = Array.from(columnMultiset.values()).some(
+      s => s.size > 1,
+    )
+
+    if (!containsDuplicate) {
+      return
+    }
+
+    // table-names -> list of duplicated column names
+    const duplicatesReport = new Map<string, string[]>()
+
+    columnMultiset.forEach((tableSet, columnName) => {
+      if (tableSet.size < 2) {
+        // column is just present in a single table
+        return
+      }
+
+      const reportKeyList: string[] = []
+
+      tableSet.forEach(t => {
+        reportKeyList.push(t.tableName)
+      })
+
+      const reportKey = reportKeyList.join(', ')
+      const entry = duplicatesReport.get(reportKey)
+
+      if (!entry) {
+        duplicatesReport.set(reportKey, [columnName])
+      } else {
+        entry.push(columnName)
+      }
+    })
+
+    const msg: string[] = []
+
+    duplicatesReport.forEach((cols, tables) => {
+      msg.push(`in tables ${tables}: ${cols.join(', ')}`)
+    })
+
+    throw new QueryBuilderResultError(
+      `Ambiguous selected column names ${msg.join(' and ')}`,
+    )
+  }
+
+  join(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
+    const table1 = getTableImplementation(ref1)
+    const table2 = getTableImplementation(ref2)
 
     return new QueryImplementation(
       [...this.tables, table2],

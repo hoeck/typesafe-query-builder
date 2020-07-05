@@ -231,4 +231,17 @@ describe('selectAsJsonAgg', () => {
       { userId: 3, itemId: null, itemUserId: null, events: [] },
     ])
   })
+
+  test.only('using more than 1 selectAsJsonAgg throws an error', async () => {
+    expect(() => {
+      query(users.selectAsJsonAgg('userId'))
+        .leftJoin(users.userId, items.select('itemId', 'itemUserId').itemUserId)
+        .leftJoin(
+          items.itemId,
+          events
+            .select('eventId', 'eventItemId')
+            .selectAsJsonAgg('events', 'eventId').eventItemId,
+        )
+    }).toThrow('`selectAsJsonAgg` must only be used once in each query')
+  })
 })

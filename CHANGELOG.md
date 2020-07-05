@@ -1,5 +1,6 @@
 ### master
 
+- add explicit checks for ambiguous columns when building a query
 - add `explainAnalyze`
 - internals: selecting into json or json agg does not generate subselects any more
 

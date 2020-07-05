@@ -429,6 +429,18 @@ export class TableImplementation {
     }
   }
 
+  // return the names of all columns as they appear in the query result
+  // use this to check shadowed columns in query.ts
+  getResultingColumnNames() {
+    if (this.projection) {
+      return [this.projection.name]
+    }
+
+    const keys = this.selected || Object.keys(this.tableColumns)
+
+    return keys.map(k => this.getColumnResultKey(k))
+  }
+
   /// TableProjectionMethods implementation
 
   // choose columns to appear in the result.
