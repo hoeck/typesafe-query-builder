@@ -1,4 +1,4 @@
-### master
+### 3.3.0
 
 - add explicit checks for ambiguous columns when building a query
 - add `explainAnalyze`
