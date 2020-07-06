@@ -738,14 +738,39 @@ The exact error depends on your validation/runtype implementation.
   what is onerous to type by hand: simple joins and left joins, selects
   and where/groupby
 
-## Roadmap
+## Roadmap / Todos
 
+- wrap column sql names in "" already in Column and leave it off if the column sql name is a safe sql identifier
+- api renames: `selectAsJson[Agg]` -> `asJson[Agg]` -> `selectAs` -> `rename`/`as`/`renameInto`
+- support passing neutral values as where parameters:
+  e.g. in `whereEq(Table.column, 'p')` passing `{p: query.anyParam}` will ignore the condition in the `whereEq`
+- support literal values in `sql` which are directly embedded into the sql string `sql.value(val: any)`
+- change to explicit selects (just querying or joining a table won't select any columns)
+  bc its easy to have joined tables overwriting columns and creating the 'ambiguous column: id' postgres error
+- implement SUBSELECTS for `where` like
+   ```
+   query(Users).whereIn(Users.id, query(Items).whereSql(`${Item.type} = 'A'`).table().userId)
+   query(Users).whereEq(Users.id, query(Items).whereSql(`${Item.type} = 'A'`).limit(1).table().userId)
+   ```
+- derive runtypes from the table schema
+- add support for "first N items of group" joins via
+  `CROSS/LEFT JOIN LATERAL (SELECT ... WHERE <lateral-join-condition> ORDER BY ... LIMIT ...) [ON true]`
+  see the excellent answers of Mr. Brandstetter:
+  - https://stackoverflow.com/questions/25536422/optimize-group-by-query-to-retrieve-latest-row-per-user/25536748#25536748
+  - https://stackoverflow.com/questions/25957558/query-last-n-related-rows-per-row/25965393#25965393
+  for the user of the query builder it should look like a normal `.join` or
+  `.leftJoin` and also support `selectAsJson` and `selectAsJsonAgg`
 - add the table name (and maybe the alias too) to the table-type so that two identically-shaped tables will not be interchangeable in TS
 - add an `alias(aliasName): Table` method to `Table` to be able to use the same table many times in a query via an explicit alias
 - Documentation
   - utility types: `TableType`
   - subselects and nesting via `query.table`
   - building query functions via `query.use`
+  - advanced queries / query recipes:
+    - subqueries / aliasing
+    - correlated subqueries
+    - query reuse
+    - lateral joins / first/last n rows of group joins, with json agg
 - `whereEq` and null values:
   revise the transparent `is null` checks, not sure if that is a good idea
   or whether a dedicated `whereIsNull` would be safer
