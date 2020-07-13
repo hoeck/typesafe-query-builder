@@ -740,6 +740,19 @@ The exact error depends on your validation/runtype implementation.
 
 ## Roadmap / Todos
 
+- `query.NOW` or `sql.NOW` constant that will generate an sql `now()` function call to use in insert and where expression params
+- discriminated unions for table types, maybe like this:
+```
+const Foo = tableUnion(
+  'foo',
+  {type: column('type').literal('a'), ...},
+  {type: column('type').literal('b'), ...},
+  {type: column('type').literal('c'), ...},
+)
+```
+that should result in a tagged union type and in an insert/update check that
+ensures that columns that don't belong to a union must be null
+- automatically generate a `left join` when joining a json-agg aggregated table, bc it makes no sense in that case to distinguish between left and normal join
 - wrap column sql names in "" already in Column and leave it off if the column sql name is a safe sql identifier
 - api renames: `selectAsJson[Agg]` -> `asJson[Agg]` -> `selectAs` -> `rename`/`as`/`renameInto`
 - support passing neutral values as where parameters:
@@ -762,6 +775,7 @@ The exact error depends on your validation/runtype implementation.
   `.leftJoin` and also support `selectAsJson` and `selectAsJsonAgg`
 - add the table name (and maybe the alias too) to the table-type so that two identically-shaped tables will not be interchangeable in TS
 - add an `alias(aliasName): Table` method to `Table` to be able to use the same table many times in a query via an explicit alias
+- add `union` and `unionAll` for merging queries
 - Documentation
   - utility types: `TableType`
   - subselects and nesting via `query.table`
