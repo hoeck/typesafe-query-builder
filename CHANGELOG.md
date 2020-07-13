@@ -1,3 +1,8 @@
+### master
+
+- add `lockParam` to pass locking behaviour in query parameters and extend
+  `LockMode` with `'none'` to request no locking
+
 ### 3.3.0
 
 - add explicit checks for ambiguous columns when building a query

@@ -224,6 +224,18 @@ class SqlQuery {
   }
 
   setLock(lockMode: LockMode) {
+    if (lockMode !== 'none' && lockMode !== 'share' && lockMode !== 'update') {
+      throw new QueryBuilderUsageError(
+        `invalid lock mode parameter: ${lockMode}`,
+      )
+    }
+
+    if (this.lock) {
+      throw new QueryBuilderUsageError(
+        'lock has already been set in that query',
+      )
+    }
+
     this.lock = lockMode
   }
 
@@ -304,6 +316,9 @@ class SqlQuery {
       case 'update':
         lockStatement = 'UPDATE'
         break
+      case 'none':
+        // disable locking, especially when using lockParam
+        return ''
       default:
         assertNever(this.lock)
     }
@@ -407,6 +422,7 @@ export function buildResultConverter(query: QueryItem[]) {
       // tables/columns into the query
       case 'limit':
       case 'lock':
+      case 'lockParam':
       case 'offset':
       case 'orderBy':
       case 'whereEq':
@@ -422,7 +438,15 @@ export function buildResultConverter(query: QueryItem[]) {
   return (row: any) => converters.forEach(c => c(row))
 }
 
-export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
+export function buildSqlQuery(
+  query: QueryItem[],
+  ctx: BuildContext,
+
+  // required as it may contain a param to determine locking
+  // TODO: maybe in the future it will also contain parameters for query
+  // objects which are enabled/disabled depending on a parameter
+  params?: any,
+): string {
   const sql = new SqlQuery(ctx)
 
   let groupByNeeded = false
@@ -435,7 +459,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
           const { table } = item
           const alias = sql.getAlias(table.tableName)
 
-          sql.addFrom(table.getTableSql(alias, ctx))
+          sql.addFrom(table.getTableSql(alias, ctx, params))
           sql.addSelect(table.getSelectSql(alias, false))
 
           groupByTables.add(table)
@@ -449,7 +473,7 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
 
         sql.addJoin(
           item.joinType,
-          table2.getTableSql(alias2, ctx),
+          table2.getTableSql(alias2, ctx, params),
           table1.getReferencedColumnSql(alias1),
           table2.getReferencedColumnSql(alias2),
         )
@@ -521,6 +545,20 @@ export function buildSqlQuery(query: QueryItem[], ctx: BuildContext): string {
       case 'lock':
         sql.setLock(item.lockMode)
         break
+      case 'lockParam':
+        {
+          if (params) {
+            const lockMode = params[item.paramKey]
+
+            sql.setLock(lockMode)
+            break
+          } else {
+            throw new QueryBuilderUsageError(
+              'lockParam: parameter to determine lock mode is missing or empty',
+            )
+          }
+        }
+        break
       default:
         assertNever(item)
     }
@@ -566,6 +604,7 @@ export function buildColumns(
       // modify column type information
       case 'limit':
       case 'lock':
+      case 'lockParam':
       case 'offset':
       case 'orderBy':
       case 'whereEq':
@@ -708,6 +747,7 @@ export function buildUpdate(
       case 'limit':
       case 'offset':
       case 'lock':
+      case 'lockParam':
         throw new QueryBuilderUsageError(
           `queryType is not allowed in updates: ${item.queryType}`,
         )

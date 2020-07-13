@@ -28,7 +28,8 @@ export class TableImplementation {
   // when this table wraps a query as a subselect it may contain where
   // parameters which we need to be preserved so they can be templated when
   // the final query is assembled
-  tableQuery?: (ctx: BuildContext) => string
+  // it also may contain a lockParam item that needs its lock type specified
+  tableQuery?: (ctx: BuildContext, params?: any) => string
 
   // all columns available in this table to use in selection, projection, where, etc.
   tableColumns: { [key: string]: ColumnImplementation }
@@ -281,9 +282,9 @@ export class TableImplementation {
     }
   }
 
-  getTableSql(alias: string, ctx: BuildContext) {
+  getTableSql(alias: string, ctx: BuildContext, params?: any) {
     const tableSql = this.tableQuery
-      ? `(${this.tableQuery(ctx)})`
+      ? `(${this.tableQuery(ctx, params)})`
       : `"${this.tableName}"`
 
     return `${tableSql} ${alias}`

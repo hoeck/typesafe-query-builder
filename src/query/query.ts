@@ -325,6 +325,13 @@ class QueryImplementation {
     ])
   }
 
+  lockParam(paramKey: string) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      { queryType: 'lockParam', paramKey },
+    ])
+  }
+
   table(): any {
     uniqueTableNameCounter += 1
 
@@ -339,20 +346,24 @@ class QueryImplementation {
     // to be able to generate postgres positional arguments and map them to
     // the `params: P` object we need delay building the sql until we know all
     // parameters
-    tableImplementation.tableQuery = (ctx: BuildContext) => {
-      return buildSqlQuery(this.query, ctx)
+    tableImplementation.tableQuery = (ctx: BuildContext, params?: any) => {
+      return buildSqlQuery(this.query, ctx, params)
     }
 
     return tableImplementation.getTableProxy() as any
   }
 
-  sql(ctx?: BuildContext): string {
-    return buildSqlQuery(this.query, ctx || new BuildContext())
+  buildSql(ctx?: BuildContext, params?: any): string {
+    return buildSqlQuery(this.query, ctx || new BuildContext(), params)
+  }
+
+  sql(params?: any): string {
+    return this.buildSql(undefined, params)
   }
 
   async explain(client: DatabaseClient, params?: any): Promise<string> {
     const ctx = new BuildContext()
-    const sql = 'EXPLAIN ' + this.sql(ctx)
+    const sql = 'EXPLAIN ' + this.buildSql(ctx, params)
     const paramArray = params ? ctx.getParameters(params) : []
 
     return (await client.query(sql, paramArray)).rows
@@ -362,7 +373,7 @@ class QueryImplementation {
 
   async explainAnalyze(client: DatabaseClient, params?: any): Promise<string> {
     const ctx = new BuildContext()
-    const sql = 'EXPLAIN ANALYZE ' + this.sql(ctx)
+    const sql = 'EXPLAIN ANALYZE ' + this.buildSql(ctx, params)
     const paramArray = params ? ctx.getParameters(params) : []
 
     return (await client.query(sql, paramArray)).rows
@@ -372,7 +383,7 @@ class QueryImplementation {
 
   async fetch(client: DatabaseClient, params?: any): Promise<any[]> {
     const ctx = new BuildContext()
-    const sql = this.sql(ctx)
+    const sql = this.buildSql(ctx, params)
     const paramArray = params ? ctx.getParameters(params) : []
     const resultConverter = buildResultConverter(this.query)
 
@@ -385,7 +396,7 @@ class QueryImplementation {
 
   async fetchOne(client: DatabaseClient, params?: any): Promise<any> {
     const ctx = new BuildContext()
-    const sql = this.sql(ctx)
+    const sql = this.buildSql(ctx, params)
     const paramArray = params ? ctx.getParameters(params) : []
     const resultConverter = buildResultConverter(this.query)
 
@@ -408,7 +419,7 @@ class QueryImplementation {
 
   async fetchExactlyOne(client: DatabaseClient, params?: any): Promise<any> {
     const ctx = new BuildContext()
-    const sql = this.sql(ctx)
+    const sql = this.buildSql(ctx, params)
     const paramArray = params ? ctx.getParameters(params) : []
     const resultConverter = buildResultConverter(this.query)
 

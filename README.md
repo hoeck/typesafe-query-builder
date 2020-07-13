@@ -35,7 +35,8 @@ Create and fetch PostgresSQL selects, joins and JSON aggregations and let Typesc
     + [`.orderBy(column, [direction, [nulls]])`](#orderbycolumn-direction-nulls)
     + [`.limit(count)`](#limitcount)
     + [`.offset(count)`](#offsetcount)
-    + [`.lock(lockMode: 'update' | 'share')`](#locklockmode-update--share)
+    + [`.lock(lockMode: 'update' | 'share' | 'none')`](#locklockmode-update--share--none)
+    + [`.lockParam(paramKey: string)`](#lockparamparamkey-string)
   * [Updates and Inserts](#updates-and-inserts)
     + [Untrusted data](#untrusted-data)
     + [`async query.insert(client, data)`](#async-queryinsertclient-data)
@@ -43,7 +44,7 @@ Create and fetch PostgresSQL selects, joins and JSON aggregations and let Typesc
     + [`async query.update(client, parameterValues, data)`](#async-queryupdateclient-parametervalues-data)
     + [JSON Columns](#json-columns)
 - [Design Decisions / Opinions](#design-decisions--opinions)
-- [Roadmap](#roadmap)
+- [Roadmap / Todos](#roadmap--todos)
 - [Local Development](#local-development)
 - [Similar Projects](#similar-projects)
 
@@ -583,9 +584,22 @@ Append a `LIMIT` clause to the query.
 
 Append an `OFFSET` clause to the query.
 
-#### `.lock(lockMode: 'update' | 'share')`
+#### `.lock(lockMode: 'update' | 'share' | 'none')`
 
 Append a `FOR UPDATE` or `FOR SHARE` [lock](https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE) statement to a query.
+
+#### `.lockParam(paramKey: string)`
+
+Create a query parameter that determines which lock mode to use when fetching the query.
+Use `'none'` to skip locking.
+
+```
+const userQuery = query(Users)
+  .whereEq(Users.id, 'id')
+  .lockParam('lock')
+
+await userQuery.fetch(client, {id: 1, lock: 'update'})
+```
 
 ### Updates and Inserts
 

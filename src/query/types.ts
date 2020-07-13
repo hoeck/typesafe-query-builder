@@ -14,6 +14,7 @@ export type QueryItem =
   | LimitItem
   | OffsetItem
   | LockItem
+  | LockParamItem
 
 export interface FromItem {
   queryType: 'from'
@@ -66,9 +67,14 @@ export interface LockItem {
   lockMode: LockMode
 }
 
+export interface LockParamItem {
+  queryType: 'lockParam'
+  paramKey: string
+}
+
 // postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
 // for now only implementing those which I have used myself, there are more locking modes
-export type LockMode = 'update' | 'share'
+export type LockMode = 'update' | 'share' | 'none'
 
 // bc. databases work with null rather than undefined
 export type NullableLeftJoin<T> = {
@@ -222,7 +228,7 @@ export interface Statement<S, P> {
   /**
    * Return the generated sql
    */
-  sql(): string
+  sql: keyof P extends never ? () => string : (params: P) => string
 
   /**
    * Run an SQL EXPLAIN on this query.
@@ -461,6 +467,16 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
    * Add a row lock statement to the query (e.g. 'FOR UPDATE')
    */
   lock(lockMode: LockMode): QueryBottom<T, S, P, U>
+
+  /**
+   * Add a row lock statement depending on a parameter
+   *
+   * Use this to delay the decision which lock mode (or not locking at all) to
+   * use until executing the query.
+   */
+  lockParam<K extends string>(
+    paramKey: K,
+  ): QueryBottom<T, S, P & { [KK in K]: LockMode }, U>
 
   /**
    * Call a factory function with this query.
