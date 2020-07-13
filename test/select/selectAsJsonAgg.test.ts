@@ -232,7 +232,7 @@ describe('selectAsJsonAgg', () => {
     ])
   })
 
-  test.only('using more than 1 selectAsJsonAgg throws an error', async () => {
+  test('using more than 1 selectAsJsonAgg throws an error', async () => {
     expect(() => {
       query(users.selectAsJsonAgg('userId'))
         .leftJoin(users.userId, items.select('itemId', 'itemUserId').itemUserId)
