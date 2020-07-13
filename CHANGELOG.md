@@ -1,4 +1,4 @@
-### master
+### 3.4.0
 
 - add `lockParam` to pass locking behaviour in query parameters and extend
   `LockMode` with `'none'` to request no locking
