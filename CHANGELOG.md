@@ -1,4 +1,4 @@
-### master
+### 3.4.1
 
 - fix `Column.enum()` validation for number based enums.
 
