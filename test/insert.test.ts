@@ -242,42 +242,59 @@ describe('insert', () => {
     )
   })
 
-  test('enum data', async () => {
-    const res = await query(eventTypesWithEnum).insertOne(client, {
-      active: false,
-      description: 'test',
-      type: EventTypeEnum.TypeD,
-    })
-
-    expect(res).toEqual({
-      active: false,
-      description: 'test',
-      type: 'D',
-    })
-  })
-
-  test('enum data validation', async () => {
-    await expect(
-      query(eventTypesWithEnum).insertOne(client, {
+  describe('inserting with enums', () => {
+    test('enum data', async () => {
+      const res = await query(eventTypesWithEnum).insertOne(client, {
         active: false,
         description: 'test',
-        type: 'TypeA',
-      } as any),
-    ).rejects.toThrow(
-      "column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeA'",
-    )
-  })
+        type: EventTypeEnum.TypeD,
+      })
 
-  test('enum data validation - checking typescript reverse number enum mappings', async () => {
-    await expect(
-      query(eventTypesWithEnum).insertOne(client, {
+      expect(res).toEqual({
         active: false,
         description: 'test',
-        type: 'TypeNumber',
-      } as any),
-    ).rejects.toThrow(
-      "column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeNumber'",
-    )
+        type: 'D',
+      })
+    })
+
+    test('number enum data', async () => {
+      // because this builds on typescripts reverse enum mapping for numbers
+      const res = await query(eventTypesWithEnum).insertOne(client, {
+        active: false,
+        description: 'test',
+        type: EventTypeEnum.TypeNumber,
+      })
+
+      expect(res).toEqual({
+        active: false,
+        description: 'test',
+        type: '0', // postgres has no string | number type and node-pg stringifies our '0'
+      })
+    })
+
+    test('enum data validation', async () => {
+      await expect(
+        query(eventTypesWithEnum).insertOne(client, {
+          active: false,
+          description: 'test',
+          type: 'TypeA',
+        } as any),
+      ).rejects.toThrow(
+        "column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeA'",
+      )
+    })
+
+    test('enum data validation - checking typescript reverse number enum mappings', async () => {
+      await expect(
+        query(eventTypesWithEnum).insertOne(client, {
+          active: false,
+          description: 'test',
+          type: 'TypeNumber',
+        } as any),
+      ).rejects.toThrow(
+        "column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeNumber'",
+      )
+    })
   })
 
   // TODO what about non-base tables?

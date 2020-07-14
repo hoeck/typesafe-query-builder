@@ -90,7 +90,8 @@ export const sql: SqlFragmentBuilder = sqlImplementation
 
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
-// call each columns validation function for the given data
+// call each columns validation function for the given data and assign the
+// validated value
 function validateRowData(
   table: TableImplementation,
   keys: string[],
@@ -104,7 +105,8 @@ function validateRowData(
       assert.fail('column is missing from table implementation ' + k)
     }
 
-    column.columnValue(value) // throw on invalid data
+    // throws on invalid data
+    data[k] = column.columnValue(value)
   })
 }
 

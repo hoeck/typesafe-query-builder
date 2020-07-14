@@ -414,6 +414,11 @@ export class Column<T> {
     const anyThis: any = this
 
     anyThis.columnValue = (value: unknown) => {
+      // reverse lookup for number enums
+      if (typeof value === 'number' && enumObject[value] !== undefined) {
+        return value
+      }
+
       if (typeof value !== 'string' || !valueIndex.has(value)) {
         throw new QueryBuilderValidationError(
           `column ${this.name} - expected a member of the enum ${inspect(
@@ -425,6 +430,8 @@ export class Column<T> {
           )} but got: ${inspect(value).slice(0, 128)}`,
         )
       }
+
+      return value
     }
 
     return anyThis
