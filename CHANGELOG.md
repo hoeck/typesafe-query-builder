@@ -1,3 +1,7 @@
+### 3.4.2
+
+- fix crash when consuming subselects via `selectAsJson` or `selectAsJsonAgg` and deselecting their primary column(s)
+
 ### 3.4.1
 
 - fix `Column.enum()` validation for number based enums.
