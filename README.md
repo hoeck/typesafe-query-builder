@@ -754,6 +754,10 @@ The exact error depends on your validation/runtype implementation.
 
 ## Roadmap / Todos
 
+- detect bad `orderBy`s, e.g order-by a column used in a json-agg
+- fix `query(Table.select()).update(...)` to not generate a broken, empty `RETURNING` clause
+- deal with `FOR UPDATE is not allowed with GROUP BY clause` errors
+  (detect it when building a query with lock or lockParam and json agg)
 - `query.NOW` or `sql.NOW` constant that will generate an sql `now()` function call to use in insert and where expression params
 - discriminated unions for table types, maybe like this:
 ```

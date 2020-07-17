@@ -428,6 +428,7 @@ export function buildResultConverter(query: QueryItem[]) {
       case 'whereEq':
       case 'whereIn':
       case 'whereSql':
+      case 'canaryColumn':
         break
 
       default:
@@ -559,6 +560,9 @@ export function buildSqlQuery(
           }
         }
         break
+      case 'canaryColumn':
+        sql.addSelect(`true AS ${item.columnName}`)
+        break
       default:
         assertNever(item)
     }
@@ -610,6 +614,7 @@ export function buildColumns(
       case 'whereEq':
       case 'whereIn':
       case 'whereSql':
+      case 'canaryColumn':
         break
 
       default:
@@ -748,6 +753,7 @@ export function buildUpdate(
       case 'offset':
       case 'lock':
       case 'lockParam':
+      case 'canaryColumn':
         throw new QueryBuilderUsageError(
           `queryType is not allowed in updates: ${item.queryType}`,
         )

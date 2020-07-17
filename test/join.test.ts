@@ -234,6 +234,42 @@ describe('query', () => {
       ])
     })
 
+    test('json aggregating over a subquery without a primary key', async () => {
+      // items is selected without its primary key
+      const nested = query(items.select('itemUserId'))
+        .join(items.itemId, events.select('eventType').eventItemId)
+        .orderBy(items.itemUserId)
+        .orderBy(events.eventType, 'desc')
+        .table()
+
+      const result = await query(users.select('userId'))
+        .join(users.userId, nested.selectAsJsonAgg('items').itemUserId)
+        // todo: catch bad order bys e.g: `.orderBy(nested.eventType)`
+        .fetch(client)
+
+      expect(result).toEqual([
+        {
+          userId: 1,
+          items: [
+            { itemUserId: 1, eventType: 'C' },
+            { itemUserId: 1, eventType: 'B' },
+            { itemUserId: 1, eventType: 'A' },
+            { itemUserId: 1, eventType: 'A' },
+          ],
+        },
+        {
+          userId: 2,
+          items: [
+            { itemUserId: 2, eventType: 'C' },
+            { itemUserId: 2, eventType: 'B' },
+            { itemUserId: 2, eventType: 'B' },
+            { itemUserId: 2, eventType: 'A' },
+            { itemUserId: 2, eventType: 'A' },
+          ],
+        },
+      ])
+    })
+
     test('fetching left joins', async () => {
       const result = await query(users.select('userName'))
         .leftJoin(users.userId, items.select('itemId', 'itemLabel').itemUserId)

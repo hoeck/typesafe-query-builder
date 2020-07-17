@@ -15,6 +15,7 @@ export type QueryItem =
   | OffsetItem
   | LockItem
   | LockParamItem
+  | CanaryColumnItem
 
 export interface FromItem {
   queryType: 'from'
@@ -70,6 +71,12 @@ export interface LockItem {
 export interface LockParamItem {
   queryType: 'lockParam'
   paramKey: string
+}
+
+// add a static `true AS "<columnName>" to the query
+export interface CanaryColumnItem {
+  queryType: 'canaryColumn'
+  columnName: string
 }
 
 // postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE

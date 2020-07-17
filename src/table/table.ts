@@ -29,7 +29,11 @@ export class TableImplementation {
   // parameters which we need to be preserved so they can be templated when
   // the final query is assembled
   // it also may contain a lockParam item that needs its lock type specified
-  tableQuery?: (ctx: BuildContext, params?: any) => string
+  tableQuery?: (
+    ctx: BuildContext,
+    params?: any,
+    canaryColumnName?: string,
+  ) => string
 
   // all columns available in this table to use in selection, projection, where, etc.
   tableColumns: { [key: string]: ColumnImplementation }
@@ -57,6 +61,8 @@ export class TableImplementation {
   // (a reference to a specific column of this table for joins and
   // where/order-by expresssions)
   referencedColumn?: string
+
+  private jsonAggCanaryColumnName = '__typesafe_query_builder_canary_column'
 
   constructor(
     tableName: string,
@@ -240,10 +246,7 @@ export class TableImplementation {
     // identify a null row caused by a left join
     // need this as otherwise we would create json objects full with null
     // values e.g.: `{id: null, userName: null}` instead of just `null`
-    const primaryKeyColumnsExprList = this.getPrimaryColumnsSql(alias)
-    const jsonIsNotNull = primaryKeyColumnsExprList
-      .map(pkSql => `${pkSql} IS NOT NULL`)
-      .join(' AND ')
+    const jsonIsNotNull = this.getLeftJoinIsNullCanaryColumnSql(alias)
 
     if (this.projection.type === 'jsonBuildObject') {
       // this is just an optimization to only generate the CASE expresssion when its needed
@@ -283,9 +286,33 @@ export class TableImplementation {
   }
 
   getTableSql(alias: string, ctx: BuildContext, params?: any) {
-    const tableSql = this.tableQuery
-      ? `(${this.tableQuery(ctx, params)})`
-      : `"${this.tableName}"`
+    let tableSql: string
+
+    if (this.tableQuery) {
+      // subquery created with Query.table()
+
+      if (this.isJsonAggProjection() || this.isJsonProjection()) {
+        // In case that we are a table projection, we need to add a canary
+        // column that serves us to check whether a left joined culumn was all
+        // nulls so its not included in the json agg array at all.
+        // (Cant use `<table> IS NULL` because that would also filter out
+        // legitimate `{foo: null}` values from the json agg array.
+        // In normal tables we can simply rely on the tables primary key but
+        // in subqueries the PK might have been omitted from the result.
+        // that column can be static bc. there is only ever a single json
+        // agg per table / query anyway.
+        tableSql = `(${this.tableQuery(
+          ctx,
+          params,
+          this.jsonAggCanaryColumnName,
+        )})`
+      } else {
+        tableSql = `(${this.tableQuery(ctx, params)})`
+      }
+    } else {
+      // plain table select, use the primary keys to detect nulls
+      tableSql = `"${this.tableName}"`
+    }
 
     return `${tableSql} ${alias}`
   }
@@ -338,10 +365,32 @@ export class TableImplementation {
     return res
   }
 
+  // return an sql expression used to test whether this left joined table is null or present
+  getLeftJoinIsNullCanaryColumnSql(alias: string | undefined): string {
+    if (this.tableQuery) {
+      // subquery created with Query.table()
+      // tableQuery for an explanation of jsonAggCanaryColumnName
+      return `${alias}.${this.jsonAggCanaryColumnName}`
+    } else {
+      // plain table select, use the primary keys to detect nulls
+      const pks = this.getPrimaryColumnsSql(alias)
+
+      if (!pks.length) {
+        assert.fail(`table has no primary columns: ${this.debugInfo()}`)
+      }
+
+      return pks.map(pkSql => `${pkSql} IS NOT NULL`).join(' AND ')
+    }
+  }
+
   // using the json_agg (via selectAsJsonAgg) function implies a
   // "group by <primary-key-columns>"
   isJsonAggProjection() {
     return !!(this.projection && this.projection.type === 'jsonAgg')
+  }
+
+  isJsonProjection() {
+    return !!(this.projection && this.projection.type === 'jsonBuildObject')
   }
 
   // Return a function that converts a flat row of column values according to

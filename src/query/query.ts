@@ -348,8 +348,19 @@ class QueryImplementation {
     // to be able to generate postgres positional arguments and map them to
     // the `params: P` object we need delay building the sql until we know all
     // parameters
-    tableImplementation.tableQuery = (ctx: BuildContext, params?: any) => {
-      return buildSqlQuery(this.query, ctx, params)
+    tableImplementation.tableQuery = (
+      ctx: BuildContext,
+      params?: any,
+      canaryColumnName?: string,
+    ) => {
+      const query: QueryItem[] = !canaryColumnName
+        ? this.query
+        : [
+            { queryType: 'canaryColumn', columnName: canaryColumnName },
+            ...this.query,
+          ]
+
+      return buildSqlQuery(query, ctx, params)
     }
 
     return tableImplementation.getTableProxy() as any
