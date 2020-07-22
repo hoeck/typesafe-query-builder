@@ -760,16 +760,16 @@ The exact error depends on your validation/runtype implementation.
   (detect it when building a query with lock or lockParam and json agg)
 - `query.NOW` or `sql.NOW` constant that will generate an sql `now()` function call to use in insert and where expression params
 - discriminated unions for table types, maybe like this:
-```
-const Foo = tableUnion(
-  'foo',
-  {type: column('type').literal('a'), ...},
-  {type: column('type').literal('b'), ...},
-  {type: column('type').literal('c'), ...},
-)
-```
-that should result in a tagged union type and in an insert/update check that
-ensures that columns that don't belong to a union must be null
+  ```
+  const Foo = tableUnion(
+    'foo',
+    {type: column('type').literal('a'), ...},
+    {type: column('type').literal('b'), ...},
+    {type: column('type').literal('c'), ...},
+  )
+  ```
+  that should result in a tagged union type and in an insert/update check that
+  ensures that columns that don't belong to a union must be null
 - automatically generate a `left join` when joining a json-agg aggregated table, bc it makes no sense in that case to distinguish between left and normal join
 - wrap column sql names in "" already in Column and leave it off if the column sql name is a safe sql identifier
 - api renames: `selectAsJson[Agg]` -> `asJson[Agg]` -> `selectAs` -> `rename`/`as`/`renameInto`
@@ -778,6 +778,9 @@ ensures that columns that don't belong to a union must be null
 - support literal values in `sql` which are directly embedded into the sql string `sql.value(val: any)`
 - change to explicit selects (just querying or joining a table won't select any columns)
   bc its easy to have joined tables overwriting columns and creating the 'ambiguous column: id' postgres error
+  by default do not select anything, explicitly use `select()`, `selectAll` or `selectWithout` to choose which columns to use
+- add custom join conditions, maybe: `joinWhereSql` and `leftJoinWhereSql` similar to `whereSql`
+  to do joins like `FROM left JOIN right ON left.id = right.id AND right.removedAt IS NULL`
 - implement SUBSELECTS for `where` like
    ```
    query(Users).whereIn(Users.id, query(Items).whereSql(`${Item.type} = 'A'`).table().userId)
