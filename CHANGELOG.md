@@ -1,3 +1,7 @@
+### 3.5.1
+
+- do not crash on empty inserts
+
 ### 3.5.0
 
 - wrap any runtype errors raised in column validators in `QueryBuilderValidationError`

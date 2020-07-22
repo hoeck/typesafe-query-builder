@@ -509,6 +509,10 @@ class QueryImplementation {
   }
 
   async insert(client: DatabaseClient, data: any[]) {
+    if (!data.length) {
+      return []
+    }
+
     if (this.tables.length !== 1) {
       // this is actually prohibited by the type system
       assert.fail('expected exactly one table')
