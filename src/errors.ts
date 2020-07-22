@@ -13,9 +13,40 @@ export class QueryBuilderError extends Error {}
 export class QueryBuilderUsageError extends QueryBuilderError {}
 
 /**
- * Thrown upon validation fails when using the builtin column types.
+ * Thrown upon validation fails when using column validation.
+ *
+ * Either directly by the builtin colum types or as a wrapper around checking
+ * insert data to add column and row information to exceptions thrown by
+ * columns runtypes.
  */
-export class QueryBuilderValidationError extends QueryBuilderError {}
+export class QueryBuilderValidationError extends QueryBuilderError {
+  // wrapped error thrown by column validator and additional context info to
+  // determine what was invalid
+  originalError?: Error
+  table?: string
+  column?: string
+  rowNumber?: number
+  row?: any
+
+  constructor(
+    message?: string,
+    table?: string,
+    column?: string,
+    rowNumber?: number,
+    row?: string,
+    originalError?: Error,
+  ) {
+    super(message)
+
+    this.name = 'QueryBuilderValidationError'
+
+    this.table = table
+    this.column = column
+    this.rowNumber = rowNumber
+    this.row = row
+    this.originalError = originalError
+  }
+}
 
 /**
  * Thrown by specialized fetch and update functions.
@@ -26,5 +57,7 @@ export class QueryBuilderValidationError extends QueryBuilderError {}
 export class QueryBuilderResultError extends QueryBuilderError {
   constructor(message?: string) {
     super(message)
+
+    this.name = 'QueryBuilderResultError'
   }
 }

@@ -1,6 +1,10 @@
 import assert from 'assert'
 
-import { QueryBuilderResultError, QueryBuilderUsageError } from '../errors'
+import {
+  QueryBuilderResultError,
+  QueryBuilderUsageError,
+  QueryBuilderValidationError,
+} from '../errors'
 import {
   Table,
   TableColumnRef,
@@ -455,18 +459,64 @@ class QueryImplementation {
 
   // DML methods
 
+  private validateRowsData(table: TableImplementation, data: any[]) {
+    // keep track of the current validation location so we can use one big
+    // try-catch and don't have to wrap every column validator which might be
+    // inefficient for large inserts
+    let currentRowIndex: number = 0
+    let currentRow: any = undefined
+    let currentKey: string = ''
+
+    try {
+      // validate the data of each column before insertion
+      data.forEach((row, i) => {
+        currentRow = row
+        currentRowIndex = i
+
+        const keys = Object.keys(row)
+
+        keys.forEach(k => {
+          currentKey = k
+
+          const value = row[k]
+          const column = table.tableColumns[k]
+
+          if (!column) {
+            assert.fail('column is missing from table implementation ' + k)
+          }
+
+          // throws on invalid data
+          row[k] = column.columnValue(value)
+        })
+      })
+    } catch (e) {
+      // Provide additional context info when the validation fails.
+      // Otherwise its next to impossible to find the invalid column esp for
+      // large tables with many custom (json) runtypes.
+      const msg = `validation failed for column ${JSON.stringify(
+        currentKey,
+      )} at row number ${currentRowIndex} with: ${JSON.stringify(e.message)}`
+
+      throw new QueryBuilderValidationError(
+        msg,
+        table.tableName,
+        currentKey,
+        currentRowIndex,
+        currentRow,
+        e,
+      )
+    }
+  }
+
   async insert(client: DatabaseClient, data: any[]) {
     if (this.tables.length !== 1) {
       // this is actually prohibited by the type system
       assert.fail('expected exactly one table')
     }
 
-    const table = this.tables[0]
-
-    // validate the data of each column before insertion
-    data.forEach(row => {
-      validateRowData(table, Object.keys(row), row)
-    })
+    // validate and sanitize data in place according to the tables column
+    // definitions
+    this.validateRowsData(this.tables[0], data)
 
     const [sql, insertValues] = buildInsert(this.tables[0], data)
 
@@ -494,8 +544,9 @@ class QueryImplementation {
       return []
     }
 
-    // validate column values before updating the db
-    validateRowData(table, dataColumns, data)
+    // validate and sanitize data in place according to the tables column
+    // definitions
+    this.validateRowsData(table, [data])
 
     const columns = Object.keys(data)
     const sql = buildUpdate(this.query, paramsCtx, columns, dataCtx)

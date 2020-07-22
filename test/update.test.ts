@@ -170,7 +170,9 @@ describe('update methods', () => {
           .update(client, { id: 1 }, {
             userEmail: 123,
           } as any),
-      ).rejects.toThrow('expected a string but got: 123')
+      ).rejects.toThrow(
+        'validation failed for column "userEmail" at row number 0 with: "column email - expected a string but got: 123"',
+      )
     })
 
     test('empty update', async () => {

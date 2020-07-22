@@ -12,7 +12,12 @@ function identity(value: unknown): unknown {
  *
  * `sqlName` is the name of the column in the database table, e.g. `user_id`.
  * `validator` is a function that checks the columns value before inserts and
- *             updates and also serves to determine the columns type
+ *             updates and also serves to determine the columns type.
+ *             When the value doesn't match the expected type or shape, any
+ *             error that function raises will be catched and wrapped in a
+ *             QueryBuilderValidationError that contains additional context
+ *             information such as table and column name where the error
+ *             occured.
  * `fromJson` is a function that is called to turn a projected json value into
  *            the columns type, e.g. turn an iso-date-string into a Javascript
  *            Date. We need this when using `selectAsJson` or
@@ -26,7 +31,7 @@ export function column<T>(
 ): Column<T>
 export function column(
   sqlName: string,
-  validator?: (value: unknown) => any, // checks/converts the datatype when inserting a column
+  validator?: (value: unknown) => any, // checks and or converts the datatype when inserting a column
   fromJson?: (value: unknown) => any, // converts the selected value from json
 ): Column<any> {
   if (!validator) {

@@ -1,3 +1,8 @@
+### 3.5.0
+
+- wrap any runtype errors raised in column validators in `QueryBuilderValidationError`
+- extend `QueryBuilderValidationError` to contain context info on where validation failed
+
 ### 3.4.2
 
 - fix crash when consuming subselects via `selectAsJson` or `selectAsJsonAgg` and deselecting their primary column(s)

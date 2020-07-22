@@ -188,7 +188,9 @@ describe('insert', () => {
 
     await expect(
       query(users.select('userId')).insertOne(client, data),
-    ).rejects.toThrow('expected a string but got: 123')
+    ).rejects.toThrow(
+      'validation failed for column "userAvatar" at row number 0 with: "column avatar - expected a string but got: 123"',
+    )
   })
 
   test('null data validation', async () => {
@@ -202,7 +204,9 @@ describe('insert', () => {
 
     await expect(
       query(users.select('userId')).insertOne(client, data),
-    ).rejects.toThrow('expected an integer but got: null')
+    ).rejects.toThrow(
+      'validation failed for column "userId" at row number 0 with: "column id - expected an integer but got: null"',
+    )
   })
 
   test('json data validation', async () => {
@@ -213,7 +217,9 @@ describe('insert', () => {
         eventTimestamp: new Date(),
         eventType: 'A',
       } as any),
-    ).rejects.toThrow('expected a data:string attribute')
+    ).rejects.toThrow(
+      'validation failed for column "eventPayload" at row number 0 with: "expected a data:string attribute"',
+    )
   })
 
   test('string literal union data', async () => {
@@ -238,7 +244,7 @@ describe('insert', () => {
         type: 'U',
       } as any),
     ).rejects.toThrow(
-      "column type - expected a string of A,B,C,D,E,X but got: 'U'",
+      'validation failed for column "type" at row number 0 with: "column type - expected a string of A,B,C,D,E,X but got: \'U\'"',
     )
   })
 
@@ -280,7 +286,7 @@ describe('insert', () => {
           type: 'TypeA',
         } as any),
       ).rejects.toThrow(
-        "column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeA'",
+        "validation failed for column \"type\" at row number 0 with: \"column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeA'\"",
       )
     })
 
@@ -292,7 +298,7 @@ describe('insert', () => {
           type: 'TypeNumber',
         } as any),
       ).rejects.toThrow(
-        "column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeNumber'",
+        "validation failed for column \"type\" at row number 0 with: \"column type - expected a member of the enum { '0': 'TypeNumber', TypeA: 'A', TypeB: 'B', TypeC: 'C', TypeD: 'D', TypeE: 'E', TypeX: 'X', TypeNumber: 0 } but got: 'TypeNumber'\"",
       )
     })
   })
