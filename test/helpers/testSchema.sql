@@ -77,3 +77,8 @@ CREATE TABLE empty_table (
   value TEXT NOT NULL,
   active BOOLEAN NOT NULL
 );
+
+CREATE TABLE json_any_table (
+  id SERIAL PRIMARY KEY,
+  value JSON
+);

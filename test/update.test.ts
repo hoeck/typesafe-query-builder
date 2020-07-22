@@ -1,6 +1,6 @@
 import { query, sql } from '../src'
 
-import { client, users } from './helpers'
+import { client, users, jsonAnyTable } from './helpers'
 
 describe('update methods', () => {
   async function queryUsers(ids: number[]) {
@@ -173,6 +173,29 @@ describe('update methods', () => {
       ).rejects.toThrow(
         'validation failed for column "userEmail" at row number 0 with: "column email - expected a string but got: 123"',
       )
+    })
+
+    test('json is stringified before being passed into the query', async () => {
+      // 1. insert something
+      const insertResult = await query(jsonAnyTable).insertOne(client, {
+        value: 'foo',
+      })
+
+      expect(insertResult.value).toEqual('foo')
+
+      // update it
+
+      const updateResult = await query(jsonAnyTable)
+        .whereEq(jsonAnyTable.id, 'id')
+        .update(
+          client,
+          { id: insertResult.id },
+          {
+            value: '{}',
+          },
+        )
+
+      expect(updateResult).toEqual([expect.objectContaining({ value: '{}' })])
     })
 
     test('empty update', async () => {

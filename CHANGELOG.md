@@ -1,6 +1,8 @@
 ### 3.5.1
 
 - do not crash on empty inserts
+- json-stringify json column parameters that are passed into insert and update queries
+  (see https://github.com/brianc/node-postgres/issues/442)
 
 ### 3.5.0
 

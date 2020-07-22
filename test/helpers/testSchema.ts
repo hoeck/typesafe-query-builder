@@ -142,3 +142,11 @@ export const emptyTable = table('empty_table', {
   value: col('value').string(),
   active: col('active').boolean(),
 })
+
+export const jsonAnyTable = table('json_any_table', {
+  id: col('id')
+    .integer()
+    .primary()
+    .default(),
+  value: col('value').json(v => v as any),
+})

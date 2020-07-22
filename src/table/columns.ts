@@ -317,7 +317,8 @@ export class Column<T> {
    * Map this column to an json object.
    *
    * Validator should be function that validates the type of the incoming
-   * data. Validator is called before inserting or updating.
+   * data. Validator is called before inserting or updating and stringifies
+   * any data before passing it to postgres.
    *
    * postgres types: JSON, JSONB
    */
@@ -326,7 +327,13 @@ export class Column<T> {
 
     const anyThis: any = this
 
-    anyThis.columnValue = validator
+    anyThis.columnValue = (value: unknown) => {
+      // stringify before insert / update because node-pg does not know when
+      // we're inserting / updating json data so we have to pass it as a string
+      // (node-pg only stringifies js objects but not arrays or strings)
+      // see https://github.com/brianc/node-postgres/issues/442
+      return JSON.stringify(validator(value))
+    }
 
     return anyThis
   }

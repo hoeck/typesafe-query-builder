@@ -1,12 +1,13 @@
 import { query } from '../src'
 
 import {
+  EventTypeEnum,
   client,
-  events,
-  users,
   eventTypes,
   eventTypesWithEnum,
-  EventTypeEnum,
+  events,
+  jsonAnyTable,
+  users,
 } from './helpers'
 
 describe('insert', () => {
@@ -145,6 +146,21 @@ describe('insert', () => {
     }
   })
 
+  test('empty insert', async () => {
+    const data = {
+      userId: 123,
+      userAvatar: 'foo.png',
+      userEmail: 'foo@foo',
+      userName: 'foo',
+      userActive: new Date('2020-02-02'),
+    }
+
+    const emptyData: Array<typeof data> = []
+    const insertResult = await query(users).insert(client, emptyData)
+
+    expect(insertResult).toEqual([])
+  })
+
   test('returning partial results', async () => {
     // not sure whether I like this feature ...
     const data = {
@@ -220,6 +236,14 @@ describe('insert', () => {
     ).rejects.toThrow(
       'validation failed for column "eventPayload" at row number 0 with: "expected a data:string attribute"',
     )
+  })
+
+  test('json is stringified before being passed into the query', async () => {
+    const insertResult = await query(jsonAnyTable).insertOne(client, {
+      value: '{{foo',
+    })
+
+    expect(insertResult.value).toEqual('{{foo')
   })
 
   test('string literal union data', async () => {
