@@ -797,6 +797,13 @@ The exact error depends on your validation/runtype implementation.
 - add the table name (and maybe the alias too) to the table-type so that two identically-shaped tables will not be interchangeable in TS
 - add an `alias(aliasName): Table` method to `Table` to be able to use the same table many times in a query via an explicit alias
 - add `union` and `unionAll` for merging queries
+- add support for common table expressions (`WITH`), syntax idea:
+```
+    query
+        .with(() => table1)
+        .with((a) => table2.join(a))
+        .with((a,b) => b.whereEq(x))
+```
 - Documentation
   - utility types: `TableType`
   - subselects and nesting via `query.table`
