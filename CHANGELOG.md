@@ -1,3 +1,7 @@
+### 3.6.0
+
+- `ANY_PARAM` to disable `whereEq` and `whereIn` queries
+
 ### 3.5.1
 
 - do not crash on empty inserts

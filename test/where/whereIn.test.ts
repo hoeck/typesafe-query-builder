@@ -41,4 +41,14 @@ describe('whereIn', () => {
 
     expect(result).toEqual([{ userName: 'user-b' }])
   })
+
+  test('anyParam', async () => {
+    const result = await query(users.select('userId'))
+      .whereIn(users.userId, 'ids')
+      .fetch(client, {
+        ids: query.anyParam,
+      })
+
+    expect(result.map(r => r.userId).sort()).toEqual([1, 2, 3])
+  })
 })

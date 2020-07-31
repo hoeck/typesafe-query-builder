@@ -6,7 +6,6 @@ import {
   QueryBuilderValidationError,
 } from '../errors'
 import {
-  Table,
   TableColumnRef,
   TableImplementation,
   getTableImplementation,
@@ -20,13 +19,14 @@ import {
 } from './build'
 import { BuildContext } from './buildContext'
 import {
+  QueryRoot,
   DatabaseClient,
-  Query,
   QueryItem,
   LockMode,
   SqlFragment,
   SqlFragmentBuilder,
   SqlFragmentParam,
+  anyParam,
 } from './types'
 
 const sqlImplementation = (
@@ -371,6 +371,7 @@ class QueryImplementation {
   }
 
   buildSql(ctx?: BuildContext, params?: any): string {
+    // TODO: cache queries - take special param values into account (locking & ANY_PARAM)
     return buildSqlQuery(this.query, ctx || new BuildContext(), params)
   }
 
@@ -553,7 +554,7 @@ class QueryImplementation {
     this.validateRowsData(table, [data])
 
     const columns = Object.keys(data)
-    const sql = buildUpdate(this.query, paramsCtx, columns, dataCtx)
+    const sql = buildUpdate(this.query, paramsCtx, columns, dataCtx, params)
 
     return (
       await client.query(
@@ -588,13 +589,13 @@ class QueryImplementation {
   }
 }
 
-/**
- * Chaining API root.
- */
-export function query<T, S, P>(table: Table<T, S, P>): Query<T, S, P> {
+export const query: QueryRoot = function query(table: any) {
   const ti = getTableImplementation(table)
+
   return new QueryImplementation(
     [ti],
     [{ queryType: 'from', table: ti }],
   ) as any
-}
+} as any
+
+query.anyParam = anyParam

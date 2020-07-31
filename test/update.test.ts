@@ -113,6 +113,36 @@ describe('update methods', () => {
       ])
     })
 
+    test('with whereEq and anyParam', async () => {
+      const result = await query(users)
+        .whereEq(users.userId, 'id')
+        .update(
+          client,
+          { id: query.anyParam }, // update params
+          {
+            userEmail: 'x',
+          },
+        )
+
+      expect(result.map(r => r.userId).sort()).toEqual([1, 2, 3])
+      expect(result.map(r => r.userEmail)).toEqual(['x', 'x', 'x'])
+    })
+
+    test('with whereIn and ANY_PARAM', async () => {
+      const result = await query(users)
+        .whereIn(users.userId, 'ids')
+        .update(
+          client,
+          { ids: query.anyParam }, // update params
+          {
+            userEmail: 'y',
+          },
+        )
+
+      expect(result.map(r => r.userId).sort()).toEqual([1, 2, 3])
+      expect(result.map(r => r.userEmail)).toEqual(['y', 'y', 'y'])
+    })
+
     test('with custom returning', async () => {
       const result = await query(users.select('userEmail'))
         .whereEq(users.userId, 'id')

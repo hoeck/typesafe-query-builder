@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, users } from '../helpers'
+import { client, users, items } from '../helpers'
 
 describe('whereEq', () => {
   test('equals', async () => {
@@ -45,5 +45,44 @@ describe('whereEq', () => {
       { userName: 'user-a', userAvatar: null },
       { userName: 'user-c', userAvatar: null },
     ])
+  })
+
+  test('anyParam', async () => {
+    const userQuery = await query(users)
+      .whereEq(users.userId, 'id')
+      .whereEq(users.userActive, 'userActive')
+
+    expect(
+      (
+        await userQuery.fetch(client, {
+          id: query.anyParam,
+          userActive: query.anyParam,
+        })
+      )
+        .map(r => r.userId)
+        .sort(),
+    ).toEqual([1, 2, 3])
+
+    expect(
+      (
+        await userQuery.fetch(client, {
+          id: 2,
+          userActive: query.anyParam,
+        })
+      )
+        .map(r => r.userId)
+        .sort(),
+    ).toEqual([2])
+
+    expect(
+      (
+        await userQuery.fetch(client, {
+          id: query.anyParam,
+          userActive: null,
+        })
+      )
+        .map(r => r.userId)
+        .sort(),
+    ).toEqual([1, 2])
   })
 })

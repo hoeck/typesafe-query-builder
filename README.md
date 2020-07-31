@@ -460,6 +460,8 @@ Using these `where`-methods introduces query parameters which need to be passed 
 
 Internally, it maps the query parameters to postgres `$n` positional parameters and a parameter value array to guarantee that the values are escaped properly and the generated query is safe against sql injections.
 
+Conditions created with `whereEq` and `whereIn` additionally accept the special `query.anyParam` value to disable this condition.
+
 #### `query.whereEq(column, parameterKey)`
 
 Append a `WHERE col = $parameter` condition to the query.
@@ -476,7 +478,7 @@ Transparently switches to `IS NULL` if the parameter value is `null`
 ```typescript
 const usersQuery = query(Users).whereEq(Users.name, 'nameParam')
 
-await user.fetch(userByName, {nameParam: null})
+await usersQuery.fetch(client, {nameParam: null})
 // => [{name: null, ...}, ...]
 ```
 
@@ -487,8 +489,21 @@ const usersQuery = query(Users)
   .whereEq(Users.id, 'id')
   .whereEq(Users.name, 'name')
 
-await user.fetch(usersQuery, {id: 1, name 'user-2'})
+await usersQuery.fetch(client, {id: 1, name 'user-2'})
 // => []
+```
+
+Passing `query.anyParam` causes the condition to be evaluated to true (disabling it). This allows you to use the same query for different purposes:
+
+```typescript
+const usersQuery = query(Users)
+  .whereEq(Users.id, 'id')
+  .whereEq(Users.removedAt, 'removedAt')
+
+const activeUser = await usersQuery.fetch(client, {id: 11, removedAt: null})
+const anyUser = await usersQuery.fetch(client, {id: 8, removedAt: query.anyParam})
+const allActiveUsers = await usersQuery.fetch(client, {id: query.anyParam, removedAt: null})
+const allUsers = await usersQuery.fetch(client, {id: query.anyParam, removedAt: query.anyParam})
 ```
 
 #### `query.whereIn(column, parameterKey)`
@@ -503,7 +518,7 @@ Transparently handles `NULL`s similar to `whereEq`.
 const usersQuery = query(Users)
   .whereIn(Users.name, 'names')
 
-await user.fetch(usersQuery, {names: ['user-1', null, 'user-2']})
+await usersQuery.fetch(client, {names: ['user-1', null, 'user-2']})
 // => [
 //   {name: 'user-1', ...},
 //   {name: 'user-2', ...},
@@ -754,6 +769,8 @@ The exact error depends on your validation/runtype implementation.
 
 ## Roadmap / Todos
 
+- add `whereNotEq` *or* provide this via a parameter wrapper similar to `query.anyParam`, maybe:
+  `query(Foo).whereEq(Foo.id, 'id').fetch(client, {id: query.not(null)})` evaluating to `where id is not null`
 - detect bad `orderBy`s, e.g order-by a column used in a json-agg
 - fix `query(Table.select()).update(...)` to not generate a broken, empty `RETURNING` clause
 - deal with `FOR UPDATE is not allowed with GROUP BY clause` errors
@@ -773,8 +790,6 @@ The exact error depends on your validation/runtype implementation.
 - automatically generate a `left join` when joining a json-agg aggregated table, bc it makes no sense in that case to distinguish between left and normal join
 - wrap column sql names in "" already in Column and leave it off if the column sql name is a safe sql identifier
 - api renames: `selectAsJson[Agg]` -> `asJson[Agg]` -> `selectAs` -> `rename`/`as`/`renameInto`
-- support passing neutral values as where parameters:
-  e.g. in `whereEq(Table.column, 'p')` passing `{p: query.anyParam}` will ignore the condition in the `whereEq`
 - support literal values in `sql` which are directly embedded into the sql string `sql.value(val: any)`
 - change to explicit selects (just querying or joining a table won't select any columns)
   bc its easy to have joined tables overwriting columns and creating the 'ambiguous column: id' postgres error

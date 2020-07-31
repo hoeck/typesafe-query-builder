@@ -271,14 +271,11 @@ export interface Statement<S, P> {
   fetchExactlyOne: keyof P extends never
     ? (client: DatabaseClient) => Promise<S>
     : (client: DatabaseClient, params: P) => Promise<S>
-
-  // TODO:
-  // - create a dedicated QueryResultException and a type predicate so we
-  //   can write a middleware that responds to not found or too-many-results
-  //   with a generic 404 message instead of coding it into every single
-  //   handler
-  //   or give this function a separate name: fetchExactlyOne, fetchPrimary, fetchById, fetchRecord, fetchSingle ... ????
 }
+
+export const anyParam = Symbol('anyParam')
+
+type AnyParam = typeof anyParam
 
 /**
  * Access the row type of a query for use e.g. in data consuming functions.
@@ -314,19 +311,25 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
    * Append a WHERE col = value condition.
    *
    * Multiple `where` conditions are combined with an SQL `AND`
+   *
+   * Passing `query.ANY_PARAM` as the parameter will cause the expression to
+   * be ommitted from the query (basically evaluating to `true`)
    */
   whereEq<CP, K extends string>(
     col: TableColumnRef<T, CP, any, any>,
     paramKey: K,
-  ): QueryBottom<T, S, P & { [KK in K]: CP }, U>
+  ): QueryBottom<T, S, P & { [KK in K]: CP | AnyParam }, U>
 
   /**
    * Append a WHERE col IN (value1, value2, ...) condition.
+   *
+   * Passing `query.ANY_PARAM` as the parameter will cause the expression to
+   * be ommitted from the query (basically evaluating to `true`)
    */
   whereIn<CP, K extends string>(
     col: TableColumnRef<T, CP, any, any>,
     paramKey: K,
-  ): QueryBottom<T, S, P & { [KK in K]: CP[] }, U>
+  ): QueryBottom<T, S, P & { [KK in K]: CP[] | AnyParam }, U>
 
   /**
    * Universal SQL where condition using template literals.
@@ -662,3 +665,11 @@ export interface Join6<T1, T2, T3, T4, T5, T6, S, P>
 
 export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>
   extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6 | T7, S, P> {}
+
+/**
+ * Chaining API root.
+ */
+export interface QueryRoot {
+  <T, S, P>(table: Table<T, S, P>): Query<T, S, P>
+  anyParam: AnyParam
+}

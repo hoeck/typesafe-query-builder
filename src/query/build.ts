@@ -7,6 +7,7 @@ import {
   JoinItem,
   LockMode,
   SqlFragmentImplementation,
+  anyParam,
 } from './types'
 import { BuildContext } from './buildContext'
 
@@ -327,25 +328,19 @@ class SqlQuery {
   }
 
   build(): string {
-    return (
-      this.buildSelect() +
-      '\n' +
-      this.buildFrom() +
-      '\n' +
-      this.buildJoin() +
-      '\n' +
-      this.buildWhere() +
-      '\n' +
-      this.buildGroupBy() +
-      '\n' +
-      this.buildOrderBy() +
-      '\n' +
-      this.buildLimit() +
-      '\n' +
-      this.buildOffset() +
-      '\n' +
-      this.buildLock()
-    )
+    return [
+      this.buildSelect(),
+      this.buildFrom(),
+      this.buildJoin(),
+      this.buildWhere(),
+      this.buildGroupBy(),
+      this.buildOrderBy(),
+      this.buildLimit(),
+      this.buildOffset(),
+      this.buildLock(),
+    ]
+      .filter(x => x)
+      .join('\n')
   }
 
   buildUpdate(
@@ -443,9 +438,9 @@ export function buildSqlQuery(
   query: QueryItem[],
   ctx: BuildContext,
 
-  // required as it may contain a param to determine locking
-  // TODO: maybe in the future it will also contain parameters for query
-  // objects which are enabled/disabled depending on a parameter
+  // required as it may contain a param to determine locking OR the ANY_PARAM
+  // placeholder that disables a whereEq or whereIn expression
+  // TODO: merge params with the BuildContext
   params?: any,
 ): string {
   const sql = new SqlQuery(ctx)
@@ -491,20 +486,28 @@ export function buildSqlQuery(
       case 'whereEq': {
         const table = item.column
         const alias = sql.getAlias(table.tableName)
+        const paramValue = params?.[item.paramKey]
 
-        sql.addWhereEq(
-          table.getReferencedColumnSql(alias),
-          item.paramKey,
-          !!table.getReferencedColumn().isNullable,
-        )
+        // the any param basically provides the missing neutral value that causes any
+        // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
+        if (paramValue !== anyParam) {
+          sql.addWhereEq(
+            table.getReferencedColumnSql(alias),
+            item.paramKey,
+            !!table.getReferencedColumn().isNullable,
+          )
+        }
 
         break
       }
       case 'whereIn': {
         const table = item.column
         const alias = sql.getAlias(table.tableName)
+        const paramValue = params?.[item.paramKey]
 
-        sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
+        if (paramValue !== anyParam) {
+          sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
+        }
 
         break
       }
@@ -692,6 +695,7 @@ export function buildUpdate(
   paramsCtx: BuildContext,
   columnsToSet: string[],
   dataCtx: BuildContext,
+  params?: any,
 ): string {
   const sql = new SqlQuery(paramsCtx)
   let table: TableImplementation | undefined
@@ -712,21 +716,26 @@ export function buildUpdate(
         {
           const table = item.column
           const alias = sql.getAlias(table.tableName)
+          const paramValue = params?.[item.paramKey]
 
-          sql.addWhereEq(
-            table.getReferencedColumnSql(alias),
-            item.paramKey,
-            !!table.getReferencedColumn().isNullable,
-          )
+          if (paramValue !== anyParam) {
+            sql.addWhereEq(
+              table.getReferencedColumnSql(alias),
+              item.paramKey,
+              !!table.getReferencedColumn().isNullable,
+            )
+          }
         }
         break
 
       case 'whereIn': {
         const table = item.column
         const alias = sql.getAlias(table.tableName)
+        const paramValue = params?.[item.paramKey]
 
-        sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
-
+        if (paramValue !== anyParam) {
+          sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
+        }
         break
       }
 
