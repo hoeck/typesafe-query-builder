@@ -205,7 +205,7 @@ class QueryImplementation {
       msg.push(`in tables ${tables}: ${cols.join(', ')}`)
     })
 
-    throw new QueryBuilderResultError(
+    throw new QueryBuilderUsageError(
       `Ambiguous selected column names ${msg.join(' and ')}`,
     )
   }
