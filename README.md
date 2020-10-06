@@ -769,6 +769,16 @@ The exact error depends on your validation/runtype implementation.
 
 ## Roadmap / Todos
 
+- use TS 4.1 template literals to implement `where` by parsing a string
+  directly similar to how the [SQL-Implementation in Types](https://github.com/codemix/ts-sql)
+  parses the sql queries: `.where('columnName > :paramName')`
+  Also, try looking to find other uses for template literals (selectAs, join.on, ...)
+- add a simple "trait" system that works well with the database:
+  - `getTrait(record, ['field1', 'field2']) => {field1: val, field2: val} | null`
+    where `record[field]` must extend `null | T`
+  - and maybe:
+    - `getRequiredTrait(record, ['field1', 'field2']) => {field1: val, field2: val} or throw new Error()`
+    - `assertTrait(...)`
 - add `whereNotEq` *or* provide this via a parameter wrapper similar to `query.anyParam`, maybe:
   `query(Foo).whereEq(Foo.id, 'id').fetch(client, {id: query.not(null)})` evaluating to `where id is not null`
 - detect bad `orderBy`s, e.g order-by a column used in a json-agg
