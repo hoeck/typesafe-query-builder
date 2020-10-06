@@ -9,7 +9,7 @@ import {
   getColumnImplementation,
 } from './columns'
 
-import { Table } from './types'
+import { Table, TableFactory } from './types'
 
 // access the tables internals for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
@@ -574,17 +574,16 @@ export class TableImplementation {
 
   // column accessor, in case a column name clashes with a table method
   column(name: string) {
-    return this.createTableColumn(name)
+    const res = getTableImplementation(this)
+
+    return res.createTableColumn(name)
   }
 }
 
-/**
- * Define a relation consisting of typed columns.
- */
-export function table<T, S extends T, P = {}>(
+export const table: TableFactory = function(
   tableName: string,
-  columns: { [K in keyof T]: Column<T[K]> },
-): Table<T, S, P> {
+  columns: Column<any>[],
+) {
   // remove type info from columns to access their private attributes
   const columnImplementations: { [key: string]: ColumnImplementation } = {}
 
@@ -607,7 +606,9 @@ export function table<T, S extends T, P = {}>(
     tableName,
     columnImplementations,
   ).getTableProxy() as any
-}
+} as any
+
+table.union = function(...tables: any[]) {} as any
 
 export function getTableImplementation(table: any): TableImplementation {
   const implementation = (table as any)[tableImplementationSymbol]

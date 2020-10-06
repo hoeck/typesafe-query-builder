@@ -32,6 +32,27 @@ describe('query', () => {
       expect(result.length).toBe(5)
     })
 
+    test('fetching a plain join using `column()` accessor', async () => {
+      const result: Array<ItemRow & UserRow> = await query(items)
+        .join(items.column('itemUserId'), users.column('userId'))
+        .fetch(client)
+
+      expect(result[0]).toEqual({
+        itemId: 1,
+        itemLabel: 'item-1',
+        itemUserId: 1,
+        itemActive: true,
+        userId: 1,
+        userName: 'user-a',
+        userEmail: 'a@user',
+        userAvatar: null,
+        userActive: null,
+      })
+
+      expect(result.every(r => r.itemUserId === r.userId)).toBe(true)
+      expect(result.length).toBe(5)
+    })
+
     test('fetching with selected columns', async () => {
       const result: Array<Pick<ItemRow, 'itemId' | 'itemLabel'> &
         Pick<UserRow, 'userName'>> = await query(

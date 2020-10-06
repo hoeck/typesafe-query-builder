@@ -404,6 +404,27 @@ export class Column<T> {
     return anyThis
   }
 
+  /**
+   * String or number literal value.
+   */
+  literal<T extends number | string>(value: T): Column<T> {
+    this.checkThatColumnValueIsIdentity()
+
+    const anyThis: any = this
+
+    anyThis.columnValue = (unknownValue: unknown) => {
+      if (unknownValue !== value) {
+        throw new QueryBuilderValidationError(
+          `column ${this.name} - expected the literal ${JSON.stringify(
+            value,
+          )} but got: ${inspect(value).slice(0, 128)}`,
+        )
+      }
+    }
+
+    return anyThis
+  }
+
   enum<T extends EnumObject, S extends keyof T>(enumObject: T): Column<T[S]> {
     this.checkThatColumnValueIsIdentity()
 
