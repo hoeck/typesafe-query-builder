@@ -767,8 +767,40 @@ The exact error depends on your validation/runtype implementation.
   what is onerous to type by hand: simple joins and left joins, selects
   and where/groupby
 
-## Roadmap / Todos
+## Ideas / Roadmap / Todos
 
+- deprecate/remove json-agg join:
+  - it is too complicated and contains magic (causes an implicit group-by)
+  - it is not composable: due to the group by, you can only have one json-agg per query
+  - atm there is no way to get an aggregated array of scalars
+  -> replace with correlated subqueries - they don't have any of the downsides (maybe perf but I don't care about that right now)
+- publish simple insert and update methods that work with json objects which
+  is useful in migration queries (writing that by hand is cumbersome and
+  typeorm does not provide anything useful)
+- is is possible to change the way selection works?
+  - instead of implicitly selecting on `join`, add a separate `select` method on the query:
+  ```
+      query()
+        .select(
+          Table.include('id', 'name').exclude('isRemoved'),
+          Table2.json().as('id'),
+          query().select(Table3.jsonAgg()).join(Table3.id, Table2.id).as('t3Values'),
+        )
+        .from(Table)
+        .join(Table.id, Table2.id)
+        .whereIn(Table2.id, 'ids')
+  ```
+- find a different way to "tag" columns with default values:
+  - need that info really only for inserts on a raw, unjoined table
+    - it gets in the way during all other queries
+  - maybe introduce a separate Generic variable that includes all default cols
+    so we can type `insert()` properly but drop this information as soon as
+    we're starting to do anything else (join, query, where etc)
+- Use and document the `UnionToIntersection` type for mapping discriminated unions on database tables
+- more subquery types: `subselect(theTable.selectExists('data'))`, `selectCount`, `selectMax`, `selectMin`, `selectSql` ...
+- `selectAsJsonAggArray` that aggregates a single column into an array without wrapping it into an object
+  e.g. `[1,2,3]` instead of `[{id: 1}, {id: 2}, {id: 3}]`
+- use nominal types as primary and foreign keys in table definitions to enable type-checking joins!
 - use TS 4.1 template literals to implement `where` by parsing a string
   directly similar to how the [SQL-Implementation in Types](https://github.com/codemix/ts-sql)
   parses the sql queries: `.where('columnName > :paramName')`
