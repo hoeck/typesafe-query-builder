@@ -39,6 +39,8 @@ export type TableType<T> = T extends Table<infer C, any, any> ? C : never
 /**
  * Helper type that resolves to a union of all columns that have defaults
  */
+// TODO: this is too messy for the user because as the resulting `TYPE & {default: true}` messes up all other type  listing and makes errors unreadable
+// maybe replace it with a fourth type parameter on tables that contains default cols and is ignored in all other type defs (-> any)
 export type TableColumnsWithDefaults<T> = {
   [K in keyof T]: null extends T[K]
     ? K
@@ -74,6 +76,36 @@ export type TableColumnRef<T, C, S, P> = {
  * Selecting and Aggregation over tables
  */
 export interface TableProjectionMethods<T, S, P> {
+  all(this: Table<T, S, P>): Table<T, S, P>
+
+  /**
+   * Choose columns to appear in the result.
+   */
+  include<K extends keyof T>(
+    this: Table<T, S, P>,
+    ...keys: K[]
+  ): Table<T, Pick<T, K>, P>
+
+  /**
+   * Choose columns to omit from the result
+   */
+  exclude(): Table<T, S, P>
+
+  // rename parts of the selection
+  rename(): Table<T, S, P>
+
+  // turns the selection into a json
+  json(): Table<T, S, P>
+
+  // postgres json agg (aggregate whatever is in a subquery into a json array)
+  jsonAgg(): Table<T, S, P>
+
+  // postgres array agg (aggregate whatever is in a subquery into a postgres array)
+  arrayAgg(): Table<T, S, P>
+
+  // sql exists subquery
+  exists(): Table<T, S, P>
+
   /**
    * Choose columns to appear in the result.
    */

@@ -116,7 +116,9 @@ export class TableImplementation {
           prop === 'selectAsJson' ||
           prop === 'selectAsJsonAgg' ||
           prop === 'selectWithout' ||
-          prop === 'column'
+          prop === 'column' ||
+          prop === 'include' ||
+          prop === 'exclude'
         ) {
           return this[prop]
         }
@@ -576,15 +578,43 @@ export class TableImplementation {
   column(name: string) {
     return this.createTableColumn(name)
   }
+
+  // select methods
+
+  // choose columns to appear in the result.
+  include(...keys: string[]) {
+    const res = getTableImplementation(this).copy()
+
+    if (res.selected) {
+      throw new QueryBuilderUsageError(
+        `only a single include call is allowed for a Table (tableName: ${this.tableName}`,
+      )
+    }
+
+    res.selected = keys
+
+    return res.getTableProxy()
+  }
+
+  // choose columns to *hide* from the result.
+  exclude(...keys: string[]) {
+    const res = getTableImplementation(this).copy()
+
+    res.selected = (res.selected || Object.keys(res.tableColumns)).filter(
+      k => !keys.includes(k),
+    )
+
+    return res.getTableProxy()
+  }
 }
 
 /**
  * Define a relation consisting of typed columns.
  */
-export function table<T, S extends T, P = {}>(
+export function table<T, P = {}>(
   tableName: string,
-  columns: { [K in keyof T]: Column<T[K]> },
-): Table<T, S, P> {
+  columns: { [K in keyof T]: Column<T[K]> }, // TODO: investigate alternative columns syntaxes, e.g. just a list of columns
+): Table<T, {}, P> {
   // remove type info from columns to access their private attributes
   const columnImplementations: { [key: string]: ColumnImplementation } = {}
 
@@ -592,16 +622,17 @@ export function table<T, S extends T, P = {}>(
     columnImplementations[k] = getColumnImplementation((columns as any)[k])
   })
 
-  // each table needs at least 1 primary key column
-  const hasPrimaryKey = Object.values(columnImplementations).some(
-    (c: any) => c.isPrimaryKey,
-  )
-
-  if (!hasPrimaryKey) {
-    throw new QueryBuilderUsageError(
-      `table ${tableName} does not have any primary keys`,
-    )
-  }
+  // TODO: remove json-agg primary key magic
+  // // each table needs at least 1 primary key column
+  // const hasPrimaryKey = Object.values(columnImplementations).some(
+  //   (c: any) => c.isPrimaryKey,
+  // )
+  //
+  // if (!hasPrimaryKey) {
+  //   throw new QueryBuilderUsageError(
+  //     `table ${tableName} does not have any primary keys`,
+  //   )
+  // }
 
   return new TableImplementation(
     tableName,

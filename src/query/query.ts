@@ -6,6 +6,7 @@ import {
   QueryBuilderValidationError,
 } from '../errors'
 import {
+  Table,
   TableColumnRef,
   TableImplementation,
   getTableImplementation,
@@ -92,6 +93,7 @@ sqlImplementation.stringArray = createSqlParam
 
 export const sql: SqlFragmentBuilder = sqlImplementation
 
+type AnyTable = Table<any, any, any>
 type AnyTableColumnRef = TableColumnRef<any, any, any, any>
 
 // call each columns validation function for the given data and assign the
@@ -279,6 +281,16 @@ class QueryImplementation {
           literals: f.literals,
           paramKey: f.paramKey,
         })),
+      },
+    ])
+  }
+
+  select(tables: AnyTable[]) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'select',
+        tables,
       },
     ])
   }

@@ -780,15 +780,21 @@ The exact error depends on your validation/runtype implementation.
 - is is possible to change the way selection works?
   - instead of implicitly selecting on `join`, add a separate `select` method on the query:
   ```
-      query()
+      query
+        .from(Table)
+        .join(Table.id, Table2.id)
+        .whereIn(Table2.id, 'ids')
         .select(
           Table.include('id', 'name').exclude('isRemoved'),
           Table2.json().as('id'),
           query().select(Table3.jsonAgg()).join(Table3.id, Table2.id).as('t3Values'),
         )
-        .from(Table)
-        .join(Table.id, Table2.id)
-        .whereIn(Table2.id, 'ids')
+        .order()
+
+    // also get more SQL-y
+    query.insertInto(Table).values({})
+    query.insertInto(Table).manyValues([{}, ...]) ??
+    query.update(Table).whereEq().whereIn().set()
   ```
 - find a different way to "tag" columns with default values:
   - need that info really only for inserts on a raw, unjoined table

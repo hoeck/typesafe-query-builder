@@ -7,16 +7,23 @@
   "repository": "github:hoeck/typesafe-query-builder",
   "main": "dist/index.js",
   "module": "dist/typesafe-query-builder.esm.js",
-  "typings": "dist/index.d.ts",
+  "types": "dist/index.d.ts",
+  "tsd": {
+    "directory": "test"
+  },
   "files": [
     "dist"
   ],
   "scripts": {
     "prepare": "tsdx build",
     "start": "tsdx watch",
-    "build": "tsdx build",
+    "build": "tsdx build --tsconfig tsconfig.build.json",
     "test": "tsdx test",
     "test:watch": "tsdx test --watchAll",
+    "test:types": "tsd",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck:watch": "tsc --project tsconfig.json --noEmit --watch --preserveWatchOutput --pretty",
+    "typecheck:verbose": "tsc --project tsconfig.json --noEmit --noErrorTruncation",
     "lint": "tsdx lint",
     "test-database:start": "docker run --rm -e POSTGRES_PASSWORD=password --publish 54321:5432 --volume $PWD/test/helpers:/docker-entrypoint-initdb.d postgres:latest",
     "test-database:psql": "docker run --network=host --rm -it -e PGPASSWORD=password postgres:latest psql --port=54321 --host=127.0.0.1 --user=postgres test_schema",
@@ -34,6 +41,7 @@
     "@types/pg": "^7.14.7",
     "markdown-toc": "^1.2.0",
     "pg": "^8.5.1",
+    "tsd": "^0.14.0",
     "tsdx": "^0.14.1",
     "tslib": "^2.0.3",
     "typescript": "^4.1.3"

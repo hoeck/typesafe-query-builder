@@ -16,6 +16,7 @@ export type QueryItem =
   | LockItem
   | LockParamItem
   | CanaryColumnItem
+  | SelectItem
 
 export interface FromItem {
   queryType: 'from'
@@ -77,6 +78,11 @@ export interface LockParamItem {
 export interface CanaryColumnItem {
   queryType: 'canaryColumn'
   columnName: string
+}
+
+export interface SelectItem {
+  queryType: 'select'
+  tables: Table<any, any, any>[]
 }
 
 // postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
@@ -291,7 +297,8 @@ export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 //   - ensure that query(x).insert() is possible but not query(x).where().insert()
 //
 // Type params:
-//   T .. (union) of all tables present in the query
+//   T .. union of all tables present in the query
+//   L .. union of all left-joined tables
 //   S .. the selected data
 //   P .. parameters used when fetching the query
 //   U .. the type returned by .update (defaults to never bc only queries without joins but with wheres are allowed to have an update method)
@@ -411,38 +418,27 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
     ...sqlFragments: Array<SqlFragment<any, any, any>>
   ): QueryBottom<T, S, P & { [key: string]: any }, U>
 
-  /// update
+  // SELECT
 
-  /**
-   * Update the rows selected by this query.
-   *
-   * Not supported with joins, limit, offset, orderBy and the like.
-   */
-  update(client: DatabaseClient, params: P, data: Partial<T>): U
+  select<T1 extends T, S1, P1>(
+    t1: Table<T1, S1, P1>,
+  ): QueryBottom<T, S & S1, P & P1>
 
-  /**
-   * Update at most a single row selected by this query.
-   *
-   * Throws a QueryBuilderResultError when more than 1 row *was updated*.
-   * Use this in a transaction that rollbacks on exceptions to revert the update.
-   *
-   * Not supported with joins, limit, offset, orderBy and the like.
-   *
-   * Returns a list of updated rows bc. its simpler to type just as `.update`.
-   */
-  updateOne(client: DatabaseClient, params: P, data: Partial<T>): U
+  // ): QueryBottom<T, T1 extends LeftJoineds ? S & Nullable<S1> : S & S1, P & P1>
 
-  /**
-   * Update a single row selected by this query.
-   *
-   * Throws a QueryBuilderResultError when no row or more than 1 row *was updated*.
-   * Use this in a transaction that rollbacks on exceptions to revert the update.
-   *
-   * Not supported with joins, limit, offset, orderBy and the like.
-   *
-   * Returns a list of updated rows bc. its simpler to type just as `.update`.
-   */
-  updateExactlyOne(client: DatabaseClient, params: P, data: Partial<T>): U
+  select<T1 extends T, T2 extends T, S1, S2, P1, P2>(
+    t1: Table<T1, S1, P1>,
+    t2: Table<T2, S2, P2>,
+  ): QueryBottom<T, S & S1 & S2, P & P1 & P2>
+
+  select<T1 extends T, T2 extends T, T3 extends T, S1, S2, S3, P1, P2, P3>(
+    t1: Table<T1, S1, P1>,
+    t2: Table<T2, S2, P2>,
+    t3: Table<T3, S3, P3>,
+  ): QueryBottom<T, S & S1 & S2 & S3, P & P1 & P2 & P3>
+
+  // TODO: subselect? or embed into selects?
+  // TODO: up to t7 (or whatever the join limit is)
 
   /**
    * Append and ORDER BY clause to the query.
@@ -488,6 +484,39 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
     paramKey: K,
   ): QueryBottom<T, S, P & { [KK in K]: LockMode }, U>
 
+  /// update
+
+  /**
+   * Update the rows selected by this query.
+   *
+   * Not supported with joins, limit, offset, orderBy and the like.
+   */
+  update(client: DatabaseClient, params: P, data: Partial<T>): U
+
+  /**
+   * Update at most a single row selected by this query.
+   *
+   * Throws a QueryBuilderResultError when more than 1 row *was updated*.
+   * Use this in a transaction that rollbacks on exceptions to revert the update.
+   *
+   * Not supported with joins, limit, offset, orderBy and the like.
+   *
+   * Returns a list of updated rows bc. its simpler to type just as `.update`.
+   */
+  updateOne(client: DatabaseClient, params: P, data: Partial<T>): U
+
+  /**
+   * Update a single row selected by this query.
+   *
+   * Throws a QueryBuilderResultError when no row or more than 1 row *was updated*.
+   * Use this in a transaction that rollbacks on exceptions to revert the update.
+   *
+   * Not supported with joins, limit, offset, orderBy and the like.
+   *
+   * Returns a list of updated rows bc. its simpler to type just as `.update`.
+   */
+  updateExactlyOne(client: DatabaseClient, params: P, data: Partial<T>): U
+
   /**
    * Call a factory function with this query.
    *
@@ -519,6 +548,7 @@ export interface Query<T, S, P> extends QueryBottom<T, S, P, Promise<S[]>> {
     t1: TableColumnRef<T, CJ, any, any>,
     t2: TableColumnRef<T2, CJ, S2, PJ>,
   ): Join2<T, T2, S & NullableLeftJoin<S2>, P & PJ>
+  // Join2<T, T2, L | T2, P & PJ>
 
   /// inserts
 

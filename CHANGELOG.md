@@ -1,3 +1,7 @@
+### 4.0.0
+
+- `Query.select` and new methods on `Table`: `include`, `exclude`, `all`, `json`
+
 ### 3.6.0
 
 - `ANY_PARAM` to disable `whereEq` and `whereIn` queries
