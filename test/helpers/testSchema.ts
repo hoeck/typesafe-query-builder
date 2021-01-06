@@ -1,26 +1,4 @@
-import { Client } from 'pg'
-
 import { table, column as col } from '../../src'
-
-// enable "deep" console.log
-require('util').inspect.defaultOptions.depth = null
-
-// test database
-export const client = new Client({
-  user: 'postgres',
-  host: '127.0.0.1',
-  database: 'test_schema',
-  password: 'password',
-  port: 54321,
-})
-
-beforeAll(async () => {
-  await client.connect()
-})
-
-afterAll(async () => {
-  await client.end()
-})
 
 // basic example schema for use in tests
 // all columns contain prefixes to help debugging types
