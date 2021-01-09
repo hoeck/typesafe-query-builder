@@ -7,25 +7,54 @@ import {
   Games,
 } from '../helpers/classicGames'
 
-const fakeClient: DatabaseClient = {} as DatabaseClient
+const client: DatabaseClient = {} as DatabaseClient
 
 const selectTests = (async () => {
+  // `.include`
+
   expectType<{ name: string }[]>(
     await query(Systems)
       .select(Systems.include('name'))
-      .fetch(fakeClient),
+      .fetch(client),
   )
 
-  expectAssignable<{ id: number }[]>(
+  expectType<{ id: number; name: string }[]>(
     await query(Systems)
-      .select(Systems.include('id'))
-      .fetch(fakeClient),
+      .select(Systems.include('id', 'name'))
+      .fetch(client),
   )
 
-  const xx = await query(Franchises).leftJoin(
-    Franchises.manufacturerId,
-    Manufacturers.id,
+  // `.all`
+
+  expectType<
+    { id: number; name: string; year: number; manufacturerId: number }[]
+  >(
+    await query(Systems)
+      .select(Systems.all())
+      .fetch(client),
   )
+
+  // selecting left-joined columns
+
+  expectType<{ name: string | null }[]>(
+    await query(Franchises)
+      .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+      .select(Manufacturers.include('name'))
+      .fetch(client),
+  )
+
+  expectType<{ id: number | null; name: string | null }[]>(
+    await query(Franchises)
+      .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+      .select(Manufacturers.include('id', 'name'))
+      .fetch(client),
+  )
+
+  // const xx = await query(Franchises)
+  //   .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+  //   .select(Franchises.all())
+  //   .fetch(client)
+
   //.select(Systems.include('id'))
   //.fetch(fakeClient),
 

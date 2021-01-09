@@ -1,4 +1,4 @@
-import { Table, TableColumnRef, TableColumnsWithDefaults } from '../table/types'
+import { Table, TableColumn, Selection } from '../table/types'
 import { TableImplementation } from '../table'
 
 /**
@@ -82,12 +82,14 @@ export interface CanaryColumnItem {
 
 export interface SelectItem {
   queryType: 'select'
-  tables: Table<any, any, any>[]
+  tables: any
 }
 
 // postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
 // for now only implementing those which I have used myself, there are more locking modes
 export type LockMode = 'update' | 'share' | 'none'
+
+type Nullable<T> = { [K in keyof T]: T[K] | null }
 
 // bc. databases work with null rather than undefined
 export type NullableLeftJoin<T> = {
@@ -117,114 +119,118 @@ export interface DatabaseClient {
   }>
 }
 
-/**
- * Encode an SqlFragment parameter key
- */
-export interface SqlFragmentParam<C, K> {
-  // marker key to distinguish sql fragment params from a table implementation
-  __typesafQueryBuilderSqlFragmentParam: true
-
-  // name of the parameter
-  paramKey: K
-
-  // parameter type, only present in the typesystem
-  paramValue?: C
-}
-
-/**
- * Encode type params of an sql snippet used in custom where conditions.
- */
-export interface SqlFragment<T, K extends string | never, C> {
-  // the column used in the fragment
-  column: TableColumnRef<T, any, any, any> | undefined
-
-  // when true the column appears first in the template string, must be false if column is undefined
-  columnFirst: boolean
-
-  // the name of the parameter (optional null)
-  paramKey: K
-
-  // value attribute to keep the type of paramKey
-  paramValue: C
-
-  // TemplateStringsArray.raw
-  literals: string[]
-}
-
-/**
- * SqlFragment from template-string constructor
- *
- * Allows to express a bit of an sql query that optionally contains a single
- * reference to a table column and an optional single reference to a paramter
- * key.
- *
- * Use with `Query.whereSql`
- *
- * Examples:
- *
- *   sql`${table.column} IS NULL`
- *   sql`${table.column} >= ${sqk.number(key)}`
- *
- * If you need more than 1 parameter key, pass multiple sql fragments to the method, e.g. whereSql:
- *
- *   whereSql(
- *     sql`${table.column} BETWEEN ${low}`,
- *     sql`AND ${high}`,
- *   )
- */
-export interface SqlFragmentBuilder {
-  // overload the tagged template function but allow only a handful of
-  // sensible combinations to keep the type complexity low:
-
-  // - just sql: "sql`IS NULL`"
-  <T>(literals: TemplateStringsArray): SqlFragment<T, never, never>
-
-  // - single parameter: "sql`AND ${sql.number('id')}`"
-  <T, K extends string, C>(
-    literals: TemplateStringsArray,
-    param1: SqlFragmentParam<K, C>,
-  ): SqlFragment<T, K, C>
-
-  // - single column: "sql`${users.id}` = 1`"
-  <T>(
-    literals: TemplateStringsArray,
-    param1: TableColumnRef<T, any, any, any>,
-  ): SqlFragment<T, never, never>
-
-  // - parameter and column: "sql`${sql.number('id')} = ${users.id}"
-  <T, K extends string, C>(
-    literals: TemplateStringsArray,
-    param1: SqlFragmentParam<K, C>,
-    param2: TableColumnRef<T, any, any, any>,
-  ): SqlFragment<T, K, C>
-
-  // - column and parameter: "sql`${users.id} = ${sql.number('id')}"
-  <T, K extends string, C>(
-    literals: TemplateStringsArray,
-    param1: TableColumnRef<T, any, any, any>,
-    param2: SqlFragmentParam<K, C>,
-  ): SqlFragment<T, K, C>
-
-  // type constructors to assign types to params:
-
-  param<K extends string, T>(key: K): SqlFragmentParam<K, T>
-  number<K extends string>(key: K): SqlFragmentParam<K, number>
-  string<K extends string>(key: K): SqlFragmentParam<K, string>
-  boolean<K extends string>(key: K): SqlFragmentParam<K, boolean>
-  date<K extends string>(key: K): SqlFragmentParam<K, Date>
-  numberArray<K extends string>(key: K): SqlFragmentParam<K, number[]>
-  stringArray<K extends string>(key: K): SqlFragmentParam<K, string[]>
-}
-
-/**
- * The part of the SqlFragment that is used in the query builder.
- */
-export interface SqlFragmentImplementation {
-  column: TableImplementation | undefined
-  columnFirst: boolean
-  paramKey: string | null
-  literals: string[]
-}
+// /**
+//  * Encode an SqlFragment parameter key
+//  */
+// export interface SqlFragmentParam<C, K> {
+//   // marker key to distinguish sql fragment params from a table implementation
+//   __typesafQueryBuilderSqlFragmentParam: true
+//
+//   // name of the parameter
+//   paramKey: K
+//
+//   // parameter type, only present in the typesystem
+//   paramValue?: C
+// }
+//
+// /**
+//  * Encode type params of an sql snippet used in custom where conditions.
+//  */
+// export interface SqlFragment<T, K extends string | never, C> {
+//   // the column used in the fragment
+//   column: TableColumn<T, any, any, any> | undefined
+//
+//   // when true the column appears first in the template string, must be false if column is undefined
+//   columnFirst: boolean
+//
+//   // the name of the parameter (optional null)
+//   paramKey: K
+//
+//   // value attribute to keep the type of paramKey
+//   paramValue: C
+//
+//   // TemplateStringsArray.raw
+//   literals: string[]
+// }
+//
+// /**
+//  * SqlFragment from template-string constructor
+//  *
+//  * Allows to express a bit of an sql query that optionally contains a single
+//  * reference to a table column and an optional single reference to a paramter
+//  * key.
+//  *
+//  * Use with `Query.whereSql`
+//  *
+//  * Examples:
+//  *
+//  *   sql`${table.column} IS NULL`
+//  *   sql`${table.column} >= ${sqk.number(key)}`
+//  *
+//  * If you need more than 1 parameter key, pass multiple sql fragments to the method, e.g. whereSql:
+//  *
+//  *   whereSql(
+//  *     sql`${table.column} BETWEEN ${low}`,
+//  *     sql`AND ${high}`,
+//  *   )
+//  */
+// export interface SqlFragmentBuilder {
+//   // overload the tagged template function but allow only a handful of
+//   // sensible combinations to keep the type complexity low:
+//
+//   // - just sql: "sql`IS NULL`"
+//   <T>(literals: TemplateStringsArray): SqlFragment<T, never, never>
+//
+//   // - single parameter: "sql`AND ${sql.number('id')}`"
+//   <T, K extends string, C>(
+//     literals: TemplateStringsArray,
+//     param1: SqlFragmentParam<K, C>,
+//   ): SqlFragment<T, K, C>
+//
+//   // - single column: "sql`${users.id}` = 1`"
+//   <T>(
+//     literals: TemplateStringsArray,
+//     param1: TableColumn<T, any, any, any>,
+//   ): SqlFragment<T, never, never>
+//
+//   // - parameter and column: "sql`${sql.number('id')} = ${users.id}"
+//   <T, K extends string, C>(
+//     literals: TemplateStringsArray,
+//     param1: SqlFragmentParam<K, C>,
+//     param2: TableColumn<T, any, any, any>,
+//   ): SqlFragment<T, K, C>
+//
+//   // - column and parameter: "sql`${users.id} = ${sql.number('id')}"
+//   <T, K extends string, C>(
+//     literals: TemplateStringsArray,
+//     param1: TableColumn<T, any, any, any>,
+//     param2: SqlFragmentParam<K, C>,
+//   ): SqlFragment<T, K, C>
+//
+//   // type constructors to assign types to params:
+//
+//   param<K extends string, T>(key: K): SqlFragmentParam<K, T>
+//   number<K extends string>(key: K): SqlFragmentParam<K, number>
+//   string<K extends string>(key: K): SqlFragmentParam<K, string>
+//   boolean<K extends string>(key: K): SqlFragmentParam<K, boolean>
+//   date<K extends string>(key: K): SqlFragmentParam<K, Date>
+//   numberArray<K extends string>(key: K): SqlFragmentParam<K, number[]>
+//   stringArray<K extends string>(key: K): SqlFragmentParam<K, string[]>
+// }
+//
+// /**
+//  * The part of the SqlFragment that is used in the query builder.
+//  */
+// export interface SqlFragmentImplementation {
+//   column: TableImplementation | undefined
+//   columnFirst: boolean
+//   paramKey: string | null
+//   literals: string[]
+// }
+export type SqlFragmentImplementation = any
+export type SqlFragment<T, K, C> = any
+export type SqlFragmentParam<X, Y> = any
+export type SqlFragmentBuilder = any
 
 /**
  * A query that can be executed with Params resulting in Selection row data.
@@ -236,7 +242,7 @@ export interface Statement<S, P> {
    * Use it also to alias a table, e.g. to join the same table twice in a
    * query.
    */
-  table(): Table<S, S, P>
+  table(): Table<S, P>
 
   /**
    * Return the generated sql
@@ -298,11 +304,10 @@ export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 //
 // Type params:
 //   T .. union of all tables present in the query
+//   P .. parameters of this query
 //   L .. union of all left-joined tables
-//   S .. the selected data
-//   P .. parameters used when fetching the query
-//   U .. the type returned by .update (defaults to never bc only queries without joins but with wheres are allowed to have an update method)
-export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
+//   S .. shape of the selected data
+export interface QueryBottom<T, P, L = never, S = {}> extends Statement<S, P> {
   // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq
   // * use a separate `whereEqOrNull` or `whereNull`
@@ -323,232 +328,249 @@ export interface QueryBottom<T, S, P, U = never> extends Statement<S, P> {
    * be ommitted from the query (basically evaluating to `true`)
    */
   whereEq<CP, K extends string>(
-    col: TableColumnRef<T, CP, any, any>,
+    col: TableColumn<T, any, CP>,
     paramKey: K,
-  ): QueryBottom<T, S, P & { [KK in K]: CP | AnyParam }, U>
+  ): QueryBottom<T, P & { [KK in K]: CP | AnyParam }, L, S>
 
-  /**
-   * Append a WHERE col IN (value1, value2, ...) condition.
-   *
-   * Passing `query.ANY_PARAM` as the parameter will cause the expression to
-   * be ommitted from the query (basically evaluating to `true`)
-   */
-  whereIn<CP, K extends string>(
-    col: TableColumnRef<T, CP, any, any>,
-    paramKey: K,
-  ): QueryBottom<T, S, P & { [KK in K]: CP[] | AnyParam }, U>
+  // // overload for subqueries
+  // whereEq<CP, CC extends TableColumn<T, any, CP>>(
+  //   col: TableColumn<T, any, CP>,
+  //   otherCol: CC,
+  // ): CorrelatedQueryBottom<T, S, P, U, CCT, CCP>
 
-  /**
-   * Universal SQL where condition using template literals.
-   */
-  whereSql<K1 extends string, C1>(
-    sqlFragment: SqlFragment<T, K1, C1>,
-  ): QueryBottom<T, S, P & { [KK in K1]: C1 }, U>
-  whereSql<K1 extends string, K2 extends string, C1, C2>(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-  ): QueryBottom<T, S, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }, U>
-  whereSql<K1 extends string, K2 extends string, K3 extends string, C1, C2, C3>(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-    sqlFragment3: SqlFragment<T, K3, C3>,
-  ): QueryBottom<
-    T,
-    S,
-    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 },
-    U
-  >
-  whereSql<
-    K1 extends string,
-    K2 extends string,
-    K3 extends string,
-    K4 extends string,
-    C1,
-    C2,
-    C3,
-    C4
-  >(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-    sqlFragment3: SqlFragment<T, K3, C3>,
-    sqlFragment4: SqlFragment<T, K4, C4>,
-  ): QueryBottom<
-    T,
-    S,
-    P &
-      { [KK in K1]: C1 } &
-      { [KK in K2]: C2 } &
-      { [KK in K3]: C3 } &
-      { [KK in K4]: C4 },
-    U
-  >
-  whereSql<
-    K1 extends string,
-    K2 extends string,
-    K3 extends string,
-    K4 extends string,
-    K5 extends string,
-    C1,
-    C2,
-    C3,
-    C4,
-    C5
-  >(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-    sqlFragment3: SqlFragment<T, K3, C3>,
-    sqlFragment4: SqlFragment<T, K4, C4>,
-    sqlFragment5: SqlFragment<T, K5, C5>,
-  ): QueryBottom<
-    T,
-    S,
-    P &
-      { [KK in K1]: C1 } &
-      { [KK in K2]: C2 } &
-      { [KK in K3]: C3 } &
-      { [KK in K4]: C4 } &
-      { [KK in K5]: C5 },
-    U
-  >
+  // /**
+  //  * Append a WHERE col IN (value1, value2, ...) condition.
+  //  *
+  //  * Passing `query.ANY_PARAM` as the parameter will cause the expression to
+  //  * be ommitted from the query (basically evaluating to `true`)
+  //  */
+  // whereIn<CP, K extends string>(
+  //   col: TableColumn<T, any, CP>,
+  //   paramKey: K,
+  // ): QueryBottom<T, S, P & { [KK in K]: CP[] | AnyParam }, U>
 
-  /**
-   * Untyped whereSql in case you need more than 5 SqlFragments.
-   */
-  whereSqlUntyped(
-    ...sqlFragments: Array<SqlFragment<any, any, any>>
-  ): QueryBottom<T, S, P & { [key: string]: any }, U>
+  // /**
+  //  * Universal SQL where condition using template literals.
+  //  */
+  // whereSql<K1 extends string, C1>(
+  //   sqlFragment: SqlFragment<T, K1, C1>,
+  // ): QueryBottom<T, S, P & { [KK in K1]: C1 }, U>
+  // whereSql<K1 extends string, K2 extends string, C1, C2>(
+  //   sqlFragment1: SqlFragment<T, K1, C1>,
+  //   sqlFragment2: SqlFragment<T, K2, C2>,
+  // ): QueryBottom<T, S, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }, U>
+  // whereSql<K1 extends string, K2 extends string, K3 extends string, C1, C2, C3>(
+  //   sqlFragment1: SqlFragment<T, K1, C1>,
+  //   sqlFragment2: SqlFragment<T, K2, C2>,
+  //   sqlFragment3: SqlFragment<T, K3, C3>,
+  // ): QueryBottom<
+  //   T,
+  //   S,
+  //   P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 },
+  //   U
+  // >
+  // whereSql<
+  //   K1 extends string,
+  //   K2 extends string,
+  //   K3 extends string,
+  //   K4 extends string,
+  //   C1,
+  //   C2,
+  //   C3,
+  //   C4
+  // >(
+  //   sqlFragment1: SqlFragment<T, K1, C1>,
+  //   sqlFragment2: SqlFragment<T, K2, C2>,
+  //   sqlFragment3: SqlFragment<T, K3, C3>,
+  //   sqlFragment4: SqlFragment<T, K4, C4>,
+  // ): QueryBottom<
+  //   T,
+  //   S,
+  //   P &
+  //     { [KK in K1]: C1 } &
+  //     { [KK in K2]: C2 } &
+  //     { [KK in K3]: C3 } &
+  //     { [KK in K4]: C4 },
+  //   U
+  // >
+  // whereSql<
+  //   K1 extends string,
+  //   K2 extends string,
+  //   K3 extends string,
+  //   K4 extends string,
+  //   K5 extends string,
+  //   C1,
+  //   C2,
+  //   C3,
+  //   C4,
+  //   C5
+  // >(
+  //   sqlFragment1: SqlFragment<T, K1, C1>,
+  //   sqlFragment2: SqlFragment<T, K2, C2>,
+  //   sqlFragment3: SqlFragment<T, K3, C3>,
+  //   sqlFragment4: SqlFragment<T, K4, C4>,
+  //   sqlFragment5: SqlFragment<T, K5, C5>,
+  // ): QueryBottom<
+  //   T,
+  //   S,
+  //   P &
+  //     { [KK in K1]: C1 } &
+  //     { [KK in K2]: C2 } &
+  //     { [KK in K3]: C3 } &
+  //     { [KK in K4]: C4 } &
+  //     { [KK in K5]: C5 },
+  //   U
+  // >
+  //
+  // /**
+  //  * Untyped whereSql in case you need more than 5 SqlFragments.
+  //  */
+  // whereSqlUntyped(
+  //   ...sqlFragments: Array<SqlFragment<any, any, any>>
+  // ): QueryBottom<T, S, P & { [key: string]: any }, U>
 
   // SELECT
 
-  select<T1 extends T, S1, P1>(
-    t1: Table<T1, S1, P1>,
-  ): QueryBottom<T, S & S1, P & P1>
+  select<T1 extends T, P1, S1, C extends T>(
+    t1: Selection<T1, P1, S1, C>,
+  ): QueryBottom<T, P & P1, L, S & (T1 extends L ? Nullable<S1> : S1)>
 
   // ): QueryBottom<T, T1 extends LeftJoineds ? S & Nullable<S1> : S & S1, P & P1>
 
-  select<T1 extends T, T2 extends T, S1, S2, P1, P2>(
-    t1: Table<T1, S1, P1>,
-    t2: Table<T2, S2, P2>,
-  ): QueryBottom<T, S & S1 & S2, P & P1 & P2>
-
-  select<T1 extends T, T2 extends T, T3 extends T, S1, S2, S3, P1, P2, P3>(
-    t1: Table<T1, S1, P1>,
-    t2: Table<T2, S2, P2>,
-    t3: Table<T3, S3, P3>,
-  ): QueryBottom<T, S & S1 & S2 & S3, P & P1 & P2 & P3>
+  // select<T1 extends T, T2 extends T, S1, S2, P1, P2>(
+  //   t1: Table<T1, S1, P1>,
+  //   t2: Table<T2, S2, P2>,
+  // ): QueryBottom<T, S & S1 & S2, P & P1 & P2>
+  //
+  // select<T1 extends T, T2 extends T, T3 extends T, S1, S2, S3, P1, P2, P3>(
+  //   t1: Table<T1, S1, P1>,
+  //   t2: Table<T2, S2, P2>,
+  //   t3: Table<T3, S3, P3>,
+  // ): QueryBottom<T, S & S1 & S2 & S3, P & P1 & P2 & P3>
 
   // TODO: subselect? or embed into selects?
   // TODO: up to t7 (or whatever the join limit is)
 
-  /**
-   * Append and ORDER BY clause to the query.
-   *
-   * When no direction is given, use the database default (ASC).
-   * nulls directly map to the optional NULLS FIRST or NULLS LAST option
-   * (by pg default, null values sort as if larger than any non-null value).
-   *
-   * Use multiple orderBy calls to sort by more than one column.
-   *
-   * See https://www.postgresql.org/docs/current/queries-order.html
-   */
-  orderBy(
-    // Postgres allows any column in an order by statement,
-    // standard sql only allows order by the selected columns
-    col: TableColumnRef<T, any, any, any>,
-    direction?: 'asc' | 'desc',
-    nulls?: 'nullsFirst' | 'nullsLast',
-  ): QueryBottom<T, S, P, U>
-
-  /**
-   * Append an SQL LIMIT clause to the query.
-   */
-  limit(count: number): QueryBottom<T, S, P, U>
-
-  /**
-   * Append an SQL OFFSET clause to the query.
-   */
-  offset(offset: number): QueryBottom<T, S, P, U>
-
-  /**
-   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
-   */
-  lock(lockMode: LockMode): QueryBottom<T, S, P, U>
-
-  /**
-   * Add a row lock statement depending on a parameter
-   *
-   * Use this to delay the decision which lock mode (or not locking at all) to
-   * use until executing the query.
-   */
-  lockParam<K extends string>(
-    paramKey: K,
-  ): QueryBottom<T, S, P & { [KK in K]: LockMode }, U>
+  // /**
+  //  * Append and ORDER BY clause to the query.
+  //  *
+  //  * When no direction is given, use the database default (ASC).
+  //  * nulls directly map to the optional NULLS FIRST or NULLS LAST option
+  //  * (by pg default, null values sort as if larger than any non-null value).
+  //  *
+  //  * Use multiple orderBy calls to sort by more than one column.
+  //  *
+  //  * See https://www.postgresql.org/docs/current/queries-order.html
+  //  */
+  // orderBy(
+  //   // Postgres allows any column in an order by statement,
+  //   // standard sql only allows order by the selected columns
+  //   col: TableColumn<T, any, any, any>,
+  //   direction?: 'asc' | 'desc',
+  //   nulls?: 'nullsFirst' | 'nullsLast',
+  // ): QueryBottom<T, S, P, U>
+  //
+  // /**
+  //  * Append an SQL LIMIT clause to the query.
+  //  */
+  // limit(count: number): QueryBottom<T, S, P, U>
+  //
+  // /**
+  //  * Append an SQL OFFSET clause to the query.
+  //  */
+  // offset(offset: number): QueryBottom<T, S, P, U>
+  //
+  // /**
+  //  * Add a row lock statement to the query (e.g. 'FOR UPDATE')
+  //  */
+  // lock(lockMode: LockMode): QueryBottom<T, S, P, U>
+  //
+  // /**
+  //  * Add a row lock statement depending on a parameter
+  //  *
+  //  * Use this to delay the decision which lock mode (or not locking at all) to
+  //  * use until executing the query.
+  //  */
+  // lockParam<K extends string>(
+  //   paramKey: K,
+  // ): QueryBottom<T, S, P & { [KK in K]: LockMode }, U>
 
   /// update
 
-  /**
-   * Update the rows selected by this query.
-   *
-   * Not supported with joins, limit, offset, orderBy and the like.
-   */
-  update(client: DatabaseClient, params: P, data: Partial<T>): U
+  // /**
+  //  * Update the rows selected by this query.
+  //  *
+  //  * Not supported with joins, limit, offset, orderBy and the like.
+  //  */
+  // update(client: DatabaseClient, params: P, data: Partial<T>): U
+  //
+  // /**
+  //  * Update at most a single row selected by this query.
+  //  *
+  //  * Throws a QueryBuilderResultError when more than 1 row *was updated*.
+  //  * Use this in a transaction that rollbacks on exceptions to revert the update.
+  //  *
+  //  * Not supported with joins, limit, offset, orderBy and the like.
+  //  *
+  //  * Returns a list of updated rows bc. its simpler to type just as `.update`.
+  //  */
+  // updateOne(client: DatabaseClient, params: P, data: Partial<T>): U
+  //
+  // /**
+  //  * Update a single row selected by this query.
+  //  *
+  //  * Throws a QueryBuilderResultError when no row or more than 1 row *was updated*.
+  //  * Use this in a transaction that rollbacks on exceptions to revert the update.
+  //  *
+  //  * Not supported with joins, limit, offset, orderBy and the like.
+  //  *
+  //  * Returns a list of updated rows bc. its simpler to type just as `.update`.
+  //  */
+  // updateExactlyOne(client: DatabaseClient, params: P, data: Partial<T>): U
+  //
+  // /**
+  //  * Call a factory function with this query.
+  //  *
+  //  * The factory should return a function that fetches from this statement.
+  //  *
+  //  * This way you will cache the query object and sql string and save some
+  //  * overhead when executing the same query repeatedly (with or without
+  //  * different arguments).
+  //  */
+  // use<R>(factory: (query: QueryBottom<T, S, P, U>) => R): R
+}
 
-  /**
-   * Update at most a single row selected by this query.
-   *
-   * Throws a QueryBuilderResultError when more than 1 row *was updated*.
-   * Use this in a transaction that rollbacks on exceptions to revert the update.
-   *
-   * Not supported with joins, limit, offset, orderBy and the like.
-   *
-   * Returns a list of updated rows bc. its simpler to type just as `.update`.
-   */
-  updateOne(client: DatabaseClient, params: P, data: Partial<T>): U
-
-  /**
-   * Update a single row selected by this query.
-   *
-   * Throws a QueryBuilderResultError when no row or more than 1 row *was updated*.
-   * Use this in a transaction that rollbacks on exceptions to revert the update.
-   *
-   * Not supported with joins, limit, offset, orderBy and the like.
-   *
-   * Returns a list of updated rows bc. its simpler to type just as `.update`.
-   */
-  updateExactlyOne(client: DatabaseClient, params: P, data: Partial<T>): U
-
-  /**
-   * Call a factory function with this query.
-   *
-   * The factory should return a function that fetches from this statement.
-   *
-   * This way you will cache the query object and sql string and save some
-   * overhead when executing the same query repeatedly (with or without
-   * different arguments).
-   */
-  use<R>(factory: (query: QueryBottom<T, S, P, U>) => R): R
+/**
+ * T .. Table
+ * S .. Selection
+ * P .. Parameters
+ *
+ */
+export interface CorrelatedQueryBottom<T, S, P> {
+  table(): void
+  json(): void
+  jsonAgg(): void
 }
 
 /**
  * Query for a single table ("select * from table")
  */
-export interface Query<T, S, P> extends QueryBottom<T, S, P, Promise<S[]>> {
+export interface Query<T, P> extends QueryBottom<T, P> {
   /**
    * JOIN this query with another table T2.
    */
-  join<T2, S2, CJ, PJ>(
-    t1: TableColumnRef<T, CJ, any, any>,
-    t2: TableColumnRef<T2, CJ, S2, PJ>,
-  ): Join2<T, T2, S & S2, P & PJ>
+  join<T2, PJ, CJ>(
+    t1: TableColumn<T, any, CJ>,
+    t2: TableColumn<T2, PJ, CJ>,
+  ): Join2<T, T2, P & PJ, never>
 
   /**
    * LEFT JOIN this query with another table T2.
    */
-  leftJoin<T2, S2, CJ, PJ>(
-    t1: TableColumnRef<T, CJ, any, any>,
-    t2: TableColumnRef<T2, CJ, S2, PJ>,
-  ): Join2<T, T2, S & NullableLeftJoin<S2>, P & PJ>
-  // Join2<T, T2, L | T2, P & PJ>
+  leftJoin<T2, PJ, CJ>(
+    t1: TableColumn<T, any, CJ>,
+    t2: TableColumn<T2, PJ, CJ>,
+  ): Join2<T, T2, P & PJ, T2>
 
   /// inserts
 
@@ -557,149 +579,149 @@ export interface Query<T, S, P> extends QueryBottom<T, S, P, Promise<S[]>> {
   //  https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING
   //  for inserts across multiple tables
 
-  /**
-   * Insert rows into the table.
-   *
-   * Use defaults for all ommited columns (via explicit `.default()` or
-   * because they are `.null()`).
-   *
-   * Return all selected columns.
-   */
-  insert(
-    client: DatabaseClient,
-    row: Array<
-      Partial<Pick<T, TableColumnsWithDefaults<T>>> &
-        Omit<T, TableColumnsWithDefaults<T>>
-    >,
-  ): Promise<S[]>
+  // /**
+  //  * Insert rows into the table.
+  //  *
+  //  * Use defaults for all ommited columns (via explicit `.default()` or
+  //  * because they are `.null()`).
+  //  *
+  //  * Return all selected columns.
+  //  */
+  // insert(
+  //   client: DatabaseClient,
+  //   row: Array<
+  //     Partial<Pick<T, TableColumnsWithDefaults<T>>> &
+  //       Omit<T, TableColumnsWithDefaults<T>>
+  //   >,
+  // ): Promise<S[]>
 
   // Use a separate method for inserting one row only and no method overloading:
   // When overloading a single method, the type errors get messy (sth like:
   // 'no suitable overload found' when the row type does not match.
   // Without overloading they read like 'property X,Y,Z are missing from row'.
 
-  /**
-   * Single row Insert
-   *
-   * Like insert but only insert one row and return the inserted row directly.
-   */
-  insertOne(
-    client: DatabaseClient,
-    row: Partial<Pick<T, TableColumnsWithDefaults<T>>> &
-      Omit<T, TableColumnsWithDefaults<T>>,
-  ): Promise<S>
+  // /**
+  //  * Single row Insert
+  //  *
+  //  * Like insert but only insert one row and return the inserted row directly.
+  //  */
+  // insertOne(
+  //   client: DatabaseClient,
+  //   row: Partial<Pick<T, TableColumnsWithDefaults<T>>> &
+  //     Omit<T, TableColumnsWithDefaults<T>>,
+  // ): Promise<S>
 }
 
 /**
  * Join over two tables
  */
-export interface Join2<T1, T2, S, P> extends QueryBottom<T1 | T2, S, P> {
-  join<T3, S3, CV>(
-    t: TableColumnRef<T1, CV, any, any> | TableColumnRef<T2, CV, any, any>,
-    t3: TableColumnRef<T3, CV, S3, P>,
-  ): Join3<T1, T2, T3, S & S3, P>
-
-  leftJoin<T3, S3, CV>(
-    t: TableColumnRef<T1, CV, any, any> | TableColumnRef<T2, CV, any, any>,
-    t3: TableColumnRef<T3, CV, S3, P>,
-  ): Join3<T1, T2, T3, S & NullableLeftJoin<S3>, P>
+export interface Join2<T1, T2, P, L> extends QueryBottom<T1 | T2, P, L> {
+  // join<T3, S3, CV>(
+  //   t: TableColumn<T1, CV, any, any> | TableColumn<T2, CV, any, any>,
+  //   t3: TableColumn<T3, CV, S3, P>,
+  // ): Join3<T1, T2, T3, S & S3, P>
+  //
+  // leftJoin<T3, S3, CV>(
+  //   t: TableColumn<T1, CV, any, any> | TableColumn<T2, CV, any, any>,
+  //   t3: TableColumn<T3, CV, S3, P>,
+  // ): Join3<T1, T2, T3, S & NullableLeftJoin<S3>, P>
 }
 
-export interface Join3<T1, T2, T3, S, P>
-  extends QueryBottom<T1 | T2 | T3, S, P> {
-  join<T4, S4, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>,
-    t4: TableColumnRef<T4, CV, S4, P>,
-  ): Join4<T1, T2, T3, T4, S & S4, P>
-
-  leftJoin<T4, S4, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>,
-    t4: TableColumnRef<T4, CV, S4, P>,
-  ): Join4<T1, T2, T3, T4, S & NullableLeftJoin<S4>, P>
-}
-
-export interface Join4<T1, T2, T3, T4, S, P>
-  extends QueryBottom<T1 | T2 | T3 | T4, S, P> {
-  join<T5, S5, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>
-      | TableColumnRef<T4, CV, any, any>,
-    t5: TableColumnRef<T5, CV, S5, P>,
-  ): Join5<T1, T2, T3, T4, T5, S & S5, P>
-
-  leftJoin<T5, S5, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>
-      | TableColumnRef<T4, CV, any, any>,
-    t5: TableColumnRef<T5, CV, S5, P>,
-  ): Join5<T1, T2, T3, T4, T5, S & NullableLeftJoin<S5>, P>
-}
-
-export interface Join5<T1, T2, T3, T4, T5, S, P>
-  extends QueryBottom<T1 | T2 | T3 | T4 | T5, S, P> {
-  join<T6, S6, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>
-      | TableColumnRef<T4, CV, any, any>
-      | TableColumnRef<T5, CV, any, any>,
-    t6: TableColumnRef<T6, CV, S6, P>,
-  ): Join6<T1, T2, T3, T4, T5, T6, S & S6, P>
-
-  leftJoin<T6, S6, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>
-      | TableColumnRef<T4, CV, any, any>
-      | TableColumnRef<T5, CV, any, any>,
-    t6: TableColumnRef<T6, CV, S6, P>,
-  ): Join6<T1, T2, T3, T4, T5, T6, S & NullableLeftJoin<S6>, P>
-}
-
-export interface Join6<T1, T2, T3, T4, T5, T6, S, P>
-  extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6, S, P> {
-  join<T7, S7, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>
-      | TableColumnRef<T4, CV, any, any>
-      | TableColumnRef<T5, CV, any, any>
-      | TableColumnRef<T6, CV, any, any>,
-    t7: TableColumnRef<T7, CV, S7, P>,
-  ): Join7<T1, T2, T3, T4, T5, T6, T7, S & S7, P>
-
-  leftJoin<T7, S7, CV>(
-    t:
-      | TableColumnRef<T1, CV, any, any>
-      | TableColumnRef<T2, CV, any, any>
-      | TableColumnRef<T3, CV, any, any>
-      | TableColumnRef<T4, CV, any, any>
-      | TableColumnRef<T5, CV, any, any>
-      | TableColumnRef<T6, CV, any, any>,
-    t7: TableColumnRef<T7, CV, S7, P>,
-  ): Join7<T1, T2, T3, T4, T5, T6, T7, S & NullableLeftJoin<S7>, P>
-}
-
-export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>
-  extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6 | T7, S, P> {}
+// export interface Join3<T1, T2, T3, S, P>
+//   extends QueryBottom<T1 | T2 | T3, S, P> {
+//   join<T4, S4, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>,
+//     t4: TableColumn<T4, CV, S4, P>,
+//   ): Join4<T1, T2, T3, T4, S & S4, P>
+//
+//   leftJoin<T4, S4, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>,
+//     t4: TableColumn<T4, CV, S4, P>,
+//   ): Join4<T1, T2, T3, T4, S & NullableLeftJoin<S4>, P>
+// }
+//
+// export interface Join4<T1, T2, T3, T4, S, P>
+//   extends QueryBottom<T1 | T2 | T3 | T4, S, P> {
+//   join<T5, S5, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>
+//       | TableColumn<T4, CV, any, any>,
+//     t5: TableColumn<T5, CV, S5, P>,
+//   ): Join5<T1, T2, T3, T4, T5, S & S5, P>
+//
+//   leftJoin<T5, S5, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>
+//       | TableColumn<T4, CV, any, any>,
+//     t5: TableColumn<T5, CV, S5, P>,
+//   ): Join5<T1, T2, T3, T4, T5, S & NullableLeftJoin<S5>, P>
+// }
+//
+// export interface Join5<T1, T2, T3, T4, T5, S, P>
+//   extends QueryBottom<T1 | T2 | T3 | T4 | T5, S, P> {
+//   join<T6, S6, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>
+//       | TableColumn<T4, CV, any, any>
+//       | TableColumn<T5, CV, any, any>,
+//     t6: TableColumn<T6, CV, S6, P>,
+//   ): Join6<T1, T2, T3, T4, T5, T6, S & S6, P>
+//
+//   leftJoin<T6, S6, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>
+//       | TableColumn<T4, CV, any, any>
+//       | TableColumn<T5, CV, any, any>,
+//     t6: TableColumn<T6, CV, S6, P>,
+//   ): Join6<T1, T2, T3, T4, T5, T6, S & NullableLeftJoin<S6>, P>
+// }
+//
+// export interface Join6<T1, T2, T3, T4, T5, T6, S, P>
+//   extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6, S, P> {
+//   join<T7, S7, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>
+//       | TableColumn<T4, CV, any, any>
+//       | TableColumn<T5, CV, any, any>
+//       | TableColumn<T6, CV, any, any>,
+//     t7: TableColumn<T7, CV, S7, P>,
+//   ): Join7<T1, T2, T3, T4, T5, T6, T7, S & S7, P>
+//
+//   leftJoin<T7, S7, CV>(
+//     t:
+//       | TableColumn<T1, CV, any, any>
+//       | TableColumn<T2, CV, any, any>
+//       | TableColumn<T3, CV, any, any>
+//       | TableColumn<T4, CV, any, any>
+//       | TableColumn<T5, CV, any, any>
+//       | TableColumn<T6, CV, any, any>,
+//     t7: TableColumn<T7, CV, S7, P>,
+//   ): Join7<T1, T2, T3, T4, T5, T6, T7, S & NullableLeftJoin<S7>, P>
+// }
+//
+// export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>
+//   extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6 | T7, S, P> {}
 
 /**
  * Chaining API root.
  */
 export interface QueryRoot {
-  <T, S, P>(table: Table<T, S, P>): Query<T, S, P>
+  <T, P>(table: Table<T, P>): Query<T, P>
   anyParam: AnyParam
 }

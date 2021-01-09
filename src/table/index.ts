@@ -2,7 +2,7 @@ export { Column, ColumnImplementation, column } from './columns'
 export { TableImplementation, getTableImplementation, table } from './table'
 export {
   Table,
-  TableColumnRef,
+  TableColumn,
   TableProjectionMethods,
   TableType,
   TableTypeWithDefaults,
