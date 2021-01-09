@@ -54,6 +54,7 @@ describe('select', () => {
           .json('foo')
           .jsonAgg('blerg'),
       )
+
       //.subSelect(query(items).whereEq(items.itemUserId, users.userId))
       .fetch(client)
 

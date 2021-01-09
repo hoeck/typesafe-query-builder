@@ -7,7 +7,7 @@ import {
 } from '../errors'
 import {
   Table,
-  TableColumnRef,
+  TableColumn,
   TableImplementation,
   getTableImplementation,
 } from '../table'
@@ -93,8 +93,8 @@ sqlImplementation.stringArray = createSqlParam
 
 export const sql: SqlFragmentBuilder = sqlImplementation
 
-type AnyTable = Table<any, any, any>
-type AnyTableColumnRef = TableColumnRef<any, any, any, any>
+type AnyTable = Table<any, any>
+type AnyTableColumn = TableColumn<any, any, any>
 
 // call each columns validation function for the given data and assign the
 // validated value
@@ -212,7 +212,7 @@ class QueryImplementation {
     )
   }
 
-  join(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
+  join(ref1: AnyTableColumn, ref2: AnyTableColumn) {
     const table1 = getTableImplementation(ref1)
     const table2 = getTableImplementation(ref2)
 
@@ -230,7 +230,7 @@ class QueryImplementation {
     )
   }
 
-  leftJoin(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
+  leftJoin(ref1: AnyTableColumn, ref2: AnyTableColumn) {
     const table1 = getTableImplementation(ref1)
     const table2 = getTableImplementation(ref2)
 
@@ -248,7 +248,7 @@ class QueryImplementation {
     )
   }
 
-  whereEq(column: AnyTableColumnRef, paramKey: string) {
+  whereEq(column: AnyTableColumn, paramKey: string) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
@@ -259,7 +259,7 @@ class QueryImplementation {
     ])
   }
 
-  whereIn(column: AnyTableColumnRef, paramKey: string) {
+  whereIn(column: AnyTableColumn, paramKey: string) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
@@ -316,7 +316,7 @@ class QueryImplementation {
   }
 
   orderBy(
-    column: AnyTableColumnRef,
+    column: AnyTableColumn,
     direction: 'asc' | 'desc',
     nulls: 'nullsFirst' | 'nullsLast',
   ) {

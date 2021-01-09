@@ -9,7 +9,7 @@ import {
   getColumnImplementation,
 } from './columns'
 
-import { Table } from './types'
+import { Table, TableName } from './types'
 
 // access the tables internals for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
@@ -105,8 +105,8 @@ export class TableImplementation {
     return res
   }
 
-  // serving the actual Table<T,S>
-  getTableProxy(): Table<any, any, any> {
+  // serving the actual Table
+  getTableProxy(): Table<any, any> {
     return new Proxy(this, {
       get: (_target, prop, _receiver) => {
         // TableProjectionMethods
@@ -611,10 +611,10 @@ export class TableImplementation {
 /**
  * Define a relation consisting of typed columns.
  */
-export function table<T, P = {}>(
-  tableName: string,
+export function table<N extends string, T, P = {}>(
+  tableName: N,
   columns: { [K in keyof T]: Column<T[K]> }, // TODO: investigate alternative columns syntaxes, e.g. just a list of columns
-): Table<T, {}, P> {
+): Table<T & TableName<N>, P> {
   // remove type info from columns to access their private attributes
   const columnImplementations: { [key: string]: ColumnImplementation } = {}
 
