@@ -307,7 +307,9 @@ export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 //   P .. parameters of this query
 //   L .. union of all left-joined tables
 //   S .. shape of the selected data
-export interface QueryBottom<T, P, L = never, S = {}> extends Statement<S, P> {
+//   C .. correlated table (for subqueries)
+export interface QueryBottom<T, P, L = never, S = {}, C = never>
+  extends Statement<S, P> {
   // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq
   // * use a separate `whereEqOrNull` or `whereNull`
@@ -330,13 +332,13 @@ export interface QueryBottom<T, P, L = never, S = {}> extends Statement<S, P> {
   whereEq<CP, K extends string>(
     col: TableColumn<T, any, CP>,
     paramKey: K,
-  ): QueryBottom<T, P & { [KK in K]: CP | AnyParam }, L, S>
+  ): QueryBottom<T, P & { [KK in K]: CP | AnyParam }, L, S, C>
 
-  // // overload for subqueries
-  // whereEq<CP, CC extends TableColumn<T, any, CP>>(
-  //   col: TableColumn<T, any, CP>,
-  //   otherCol: CC,
-  // ): CorrelatedQueryBottom<T, S, P, U, CCT, CCP>
+  // overload for subqueries
+  whereEq<CT, CP, CC extends TableColumn<CT, any, CP>>(
+    col: TableColumn<T, any, CP>,
+    otherCol: CC,
+  ): QueryBottom<T, P, L, S, CT>
 
   // /**
   //  * Append a WHERE col IN (value1, value2, ...) condition.
@@ -431,9 +433,34 @@ export interface QueryBottom<T, P, L = never, S = {}> extends Statement<S, P> {
 
   // SELECT
 
-  select<T1 extends T, P1, S1, C extends T>(
-    t1: Selection<T1, P1, S1, C>,
+  // // foo<X>(
+  // //   s1: X,
+  // // ): X extends Selection<infer Y, infer Z, any, any>
+  // //   ? Y extends T
+  // //     ? Y
+  // //     : never
+  // //   : never
+  //
+  // foox<X extends Selection<string, number, boolean, symbol>>(s1: X): X
+
+  select<T1 extends T, P1, S1>(
+    s1: Selection<T1, P1, S1, T>,
   ): QueryBottom<T, P & P1, L, S & (T1 extends L ? Nullable<S1> : S1)>
+
+  select<T1 extends T, T2 extends T, P1, P2, S1, S2>(
+    t1: Selection<T1, P1, S1, any>,
+    t2: Selection<T2, P2, S2, any>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2,
+    L,
+    // check duplicate cols (at least within the selection of this one call)
+    keyof S1 & keyof S2 extends never
+      ? S &
+          (T1 extends L ? Nullable<S1> : S1) &
+          (T2 extends L ? Nullable<S2> : S2)
+      : never
+  >
 
   // ): QueryBottom<T, T1 extends LeftJoineds ? S & Nullable<S1> : S & S1, P & P1>
 
@@ -546,9 +573,11 @@ export interface QueryBottom<T, P, L = never, S = {}> extends Statement<S, P> {
  * P .. Parameters
  *
  */
-export interface CorrelatedQueryBottom<T, S, P> {
+export interface CorrelatedQueryBottom<T, P, L, S> {
   table(): void
+
   json(): void
+
   jsonAgg(): void
 }
 
