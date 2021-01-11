@@ -88,24 +88,30 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
-  // .select detecting duplicate columns
+  // TODO: .select detecting duplicate columns
 
-  expectType<never[]>(
-    await query(Franchises)
-      .leftJoin(Franchises.manufacturerId, Manufacturers.id)
-      // works only for single-select calls though
-      // mmh, should I enforce only to only have a single select call?
-      .select(Franchises.include('id', 'name'), Manufacturers.include('id'))
-      .fetch(client),
-  )
+  // expectType<never[]>(
+  //   await query(Franchises)
+  //     .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+  //     // works only for single-select calls though
+  //     // mmh, should I enforce only to only have a single select call?
+  //     .select(Franchises.include('id', 'name'), Manufacturers.include('id'))
+  //     .fetch(client),
+  // )
 
   // select with a query (subselect)
 
-  // TODO:
-  // const x = await query(Systems).select(
-  //   query(Manufacturers)
-  //     .whereEq(Manufacturers.id, Systems.id)
-  //     .select(Manufacturers.include('name'))
-  //     .table(),
-  // )
+  const res = query(Manufacturers)
+    .whereEq(Manufacturers.id, Systems.id)
+    .select(Manufacturers.include('name'))
+
+  expectType<{ name: string }[]>(
+    await query(Systems)
+      .select(
+        query(Manufacturers)
+          .whereEq(Manufacturers.id, Systems.id)
+          .select(Manufacturers.include('name')),
+      )
+      .fetch(client),
+  )
 })()

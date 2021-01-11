@@ -31,14 +31,16 @@ export type Table<T, P> = {
 } &
   TableProjectionMethods<T, P>
 
+declare class DatabaseTableDefaultColumns<T> {
+  protected typesafeQueryBuilderDefaultColumns: T
+}
 /**
  * An actual sql table.
  *
- * Contains default columns keys union to generate insert types.
+ * Contains the union of all default column names in order to generate insert types.
+ * Does not need any parameters.
  */
-export type DatabaseTable<T, D> = Table<T, {}> & {
-  __typesafeQueryBuilderDefaultColumns: D
-}
+export type DatabaseTable<T, D> = Table<T, {}> & DatabaseTableDefaultColumns<D>
 
 /**
  * The row type of a table (sans the table name)
@@ -87,10 +89,10 @@ export type TableTypeWithDefaults = any
  * Contains all information required to join the table or use one of its
  * columns in a condition.
  */
-export class TableColumn<T, P, C> {
-  protected t: T = {} as T
-  protected p: P = {} as P
-  protected c: C = {} as C
+export declare class TableColumn<T, P, C> {
+  protected t: T
+  protected p: P
+  protected c: C
 }
 
 /**
@@ -99,23 +101,20 @@ export class TableColumn<T, P, C> {
  * S .. selected columns
  * C .. correlated table
  */
-export class Selection<T, P, S, C> {
-  protected t: T = {} as T
-  protected p: P = {} as P
-  protected s: S = {} as S
-  protected C: C = {} as C
+export declare class Selection<T, P, S> {
+  protected t: T
+  protected p: P
+  protected s: S
 
   /**
    * Project this selection into an array of json objects
    */
   jsonAgg<K extends string, O extends keyof T>(
-    this: Selection<T, P, S, C>,
+    this: Selection<T, P, S>,
     key: K,
     orderBy?: O,
     direction?: 'ASC' | 'DESC',
-  ): Selection<T, P, S, C> {
-    return {} as any
-  }
+  ): Selection<T, P, S>
 }
 
 // TODO:
@@ -135,14 +134,14 @@ export interface TableProjectionMethods<T, P> {
   include<K extends keyof T>(
     this: Table<T, P>,
     ...keys: K[]
-  ): Selection<T, P, Pick<T, K>, never>
+  ): Selection<T, P, Pick<T, K>>
 
   /**
    * Choose all columns to appear in the result.
    *
    * TableName nominal type is removed as we don't need it in the result type any more.
    */
-  all(this: Table<T, P>): Selection<T, P, RemoveTableName<T>, never>
+  all(this: Table<T, P>): Selection<T, P, RemoveTableName<T>>
 
   // /**
   //  * Choose columns to omit from the result
