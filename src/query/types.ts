@@ -294,6 +294,21 @@ type AnyParam = typeof anyParam
  */
 export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 
+// see https://stackoverflow.com/questions/53953814/typescript-check-if-a-type-is-a-union
+type IsUnion<T, U extends T = T> = (T extends any
+? U extends T
+  ? false
+  : true
+: never) extends false
+  ? false
+  : true
+
+type OnlyOneKey<T> = keyof T extends never
+  ? never
+  : IsUnion<keyof T> extends true
+  ? never
+  : T
+
 // TODO: instead of repeating where* definitions for each join-class, define
 // them once and inherit it in joins because joins and wheres are not mixed
 // anyway so after the first where() there will only be other wheres,
@@ -335,10 +350,10 @@ export interface QueryBottom<T, P, L = never, S = {}, C = never>
   ): QueryBottom<T, P & { [KK in K]: CP | AnyParam }, L, S, C>
 
   // overload for subqueries
-  whereEq<CT, CP, CC extends TableColumn<CT, any, CP>>(
+  whereEq<CT, CP>(
     col: TableColumn<T, any, CP>,
-    otherCol: CC,
-  ): QueryBottom<T, P, L, S, CT>
+    otherCol: TableColumn<CT, any, CP>,
+  ): QueryBottom<T, P, L, S, CT> // CT turning this into a correlated subquery
 
   // /**
   //  * Append a WHERE col IN (value1, value2, ...) condition.
@@ -443,23 +458,32 @@ export interface QueryBottom<T, P, L = never, S = {}, C = never>
   //
   // foox<X extends Selection<string, number, boolean, symbol>>(s1: X): X
 
-  select<T1 extends T, P1, S1>(
-    s1: Selection<T1, P1, S1, T>,
-  ): QueryBottom<T, P & P1, L, S & (T1 extends L ? Nullable<S1> : S1)>
+  select<T1 extends T, P1, S1, C1 extends T>(
+    // Either a selection on a joined table or a (correlated) subquery.
+    // The latter is checked that it only has a single selected column via the
+    // OnlyOneKey helper.
+    s1: Selection<T1, P1, S1> | QueryBottom<any, P1, any, OnlyOneKey<S1>, C1>,
+  ): QueryBottom<T, P & P1, L, S & (T1 extends L ? Nullable<S1> : S1), C>
 
-  select<T1 extends T, T2 extends T, P1, P2, S1, S2>(
-    t1: Selection<T1, P1, S1, any>,
-    t2: Selection<T2, P2, S2, any>,
+  select<
+    T1 extends T,
+    T2 extends T,
+    P1,
+    P2,
+    S1,
+    S2,
+    C1 extends T,
+    C2 extends T
+  >(
+    t1: Selection<T1, P1, S1> | QueryBottom<any, P1, any, OnlyOneKey<S1>, C1>,
+    t2: Selection<T2, P2, S2> | QueryBottom<any, P2, any, OnlyOneKey<S2>, C2>,
   ): QueryBottom<
     T,
     P & P1 & P2,
     L,
-    // check duplicate cols (at least within the selection of this one call)
-    keyof S1 & keyof S2 extends never
-      ? S &
-          (T1 extends L ? Nullable<S1> : S1) &
-          (T2 extends L ? Nullable<S2> : S2)
-      : never
+    // TODO: check duplicate cols
+    S & (T1 extends L ? Nullable<S1> : S1) & (T2 extends L ? Nullable<S2> : S2),
+    C
   >
 
   // ): QueryBottom<T, T1 extends LeftJoineds ? S & Nullable<S1> : S & S1, P & P1>
@@ -751,6 +775,6 @@ export interface Join2<T1, T2, P, L> extends QueryBottom<T1 | T2, P, L> {
  * Chaining API root.
  */
 export interface QueryRoot {
-  <T, P>(table: Table<T, P>): Query<T, P>
+  <T, P, never>(table: Table<T, P>): Query<T, P>
   anyParam: AnyParam
 }
