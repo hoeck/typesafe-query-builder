@@ -43,8 +43,15 @@ export function column(
 
 type EnumObject = { [key: string]: string | number }
 
+export class DefaultValue {
+  protected _typesafeQueryBuilderDefaultValue_ =
+    '_typesafeQueryBuilderDefaultValue_'
+}
+
 /**
  * A column of a table
+ *
+ * T .. column type
  */
 export class Column<T> {
   // column value type represented by its validation function
@@ -99,8 +106,7 @@ export class Column<T> {
   /**
    * Mark this column as being the sole or part of the tables primary key.
    *
-   * Knowing that a column is a primary key is required to generate correct
-   * group-by clauses for json_agg (selectAsJsonAgg) projections.
+   * Has no meaning right now and is just to document the schema
    */
   primary(): Column<T> {
     this.isPrimaryKey = true
@@ -114,7 +120,7 @@ export class Column<T> {
    * Columns with defaults can be ommitted in insert queries.
    * `nullable` values always have null as the default.
    */
-  default(): Column<T & { __typesafeQueryBuilderHasDefault?: true }> {
+  default(): Column<T | DefaultValue> {
     // cast to any bc we need to change this columns type
     const anyThis: any = this
     const columnValue = this.columnValue
@@ -138,7 +144,7 @@ export class Column<T> {
    *
    * That means it can hold `null` and also uses null as its default.
    */
-  null(): Column<T | null> {
+  null(): Column<T | null | DefaultValue> {
     // cast to any bc we need to change this columns type
     const anyThis: any = this
 

@@ -6,10 +6,11 @@ import { BuildContext } from '../query/buildContext'
 import {
   Column,
   ColumnImplementation,
+  DefaultValue,
   getColumnImplementation,
 } from './columns'
 
-import { Table, TableName } from './types'
+import { DatabaseTable, Table, TableName } from './types'
 
 // access the tables internals for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
@@ -610,11 +611,18 @@ export class TableImplementation {
 
 /**
  * Define a relation consisting of typed columns.
+ *
+ * TODO: investigate alternative columns syntaxes, e.g. just a list of columns
  */
-export function table<N extends string, T, P = {}>(
+export function table<N extends string, T>(
   tableName: N,
-  columns: { [K in keyof T]: Column<T[K]> }, // TODO: investigate alternative columns syntaxes, e.g. just a list of columns
-): Table<T & TableName<N>, P> {
+  columns: { [K in keyof T]: Column<T[K]> },
+): DatabaseTable<
+  { [K in keyof T]: Exclude<T[K], DefaultValue> } & TableName<N>,
+  {
+    [K in keyof T]: DefaultValue extends Extract<T[K], DefaultValue> ? K : never
+  }[keyof T]
+> {
   // remove type info from columns to access their private attributes
   const columnImplementations: { [key: string]: ColumnImplementation } = {}
 

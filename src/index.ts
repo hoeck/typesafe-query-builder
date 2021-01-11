@@ -2,7 +2,8 @@ export { DatabaseClient, ResultType, Statement, query, sql } from './query'
 export {
   Column,
   Table,
-  TableType,
+  TableRow,
+  TableRowInsert,
   TableTypeWithDefaults,
   column,
   table,

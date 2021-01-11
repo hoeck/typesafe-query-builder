@@ -1,11 +1,14 @@
 import { expectAssignable, expectType } from 'tsd'
-import { DatabaseClient, query } from '../../src'
+import { DatabaseClient, query, TableRowInsert } from '../../src'
 import {
   Systems,
   Franchises,
   Manufacturers,
   Games,
 } from '../helpers/classicGames'
+
+import { Selection } from '../../src/table/types'
+import { QueryBottom } from '../../src/query/types'
 
 const client: DatabaseClient = {} as DatabaseClient
 
@@ -34,7 +37,16 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
-  // selecting left-joined columns
+  // .select over joined columns
+
+  expectType<{ name: string }[]>(
+    await query(Franchises)
+      .join(Franchises.manufacturerId, Manufacturers.id)
+      .select(Manufacturers.include('name'))
+      .fetch(client),
+  )
+
+  // .select over left-joined columns
 
   expectType<{ name: string | null }[]>(
     await query(Franchises)
@@ -50,19 +62,50 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
-  // const xx = await query(Franchises)
-  //   .leftJoin(Franchises.manufacturerId, Manufacturers.id)
-  //   .select(Franchises.all())
-  //   .fetch(client)
+  // .select over join and 2 arg overload
 
-  //.select(Systems.include('id'))
-  //.fetch(fakeClient),
+  expectAssignable<
+    { id: number; manufacturerId: number | null; name: string }[]
+  >(
+    await query(Franchises)
+      .join(Franchises.manufacturerId, Manufacturers.id)
+      .select(
+        Franchises.include('id', 'manufacturerId'),
+        Manufacturers.include('name'),
+      )
+      .fetch(client),
+  )
+
+  expectAssignable<
+    { id: number; manufacturerId: number | null; name: string | null }[]
+  >(
+    await query(Franchises)
+      .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+      .select(
+        Franchises.include('id', 'manufacturerId'),
+        Manufacturers.include('name'),
+      )
+      .fetch(client),
+  )
+
+  // .select detecting duplicate columns
+
+  expectType<never[]>(
+    await query(Franchises)
+      .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+      // works only for single-select calls though
+      // mmh, should I enforce only to only have a single select call?
+      .select(Franchises.include('id', 'name'), Manufacturers.include('id'))
+      .fetch(client),
+  )
+
+  // select with a query (subselect)
 
   // TODO:
-  // expectType<{ name: string | null }[]>(
-  //   await query(Franchises)
-  //     .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+  // const x = await query(Systems).select(
+  //   query(Manufacturers)
+  //     .whereEq(Manufacturers.id, Systems.id)
   //     .select(Manufacturers.include('name'))
-  //     .fetch(fakeClient),
+  //     .table(),
   // )
 })()

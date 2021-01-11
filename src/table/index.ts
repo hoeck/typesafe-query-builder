@@ -4,6 +4,7 @@ export {
   Table,
   TableColumn,
   TableProjectionMethods,
-  TableType,
+  TableRow,
   TableTypeWithDefaults,
+  TableRowInsert,
 } from './types'

@@ -18,12 +18,12 @@ export declare class TableName<N> {
   protected _typesafeQueryBuilerTableName_: N
 }
 
+type RemoveTableName<T> = { [K in keyof T]: T[K] }
+
 /**
- * A relation.
+ * A table expression to use in joins and subqueries and for column references.
  *
- * N table name alias to make the table-type nominal
- *   (without this, two tables with the same cols would look the same to Typescript)
- * T available column types
+ * T available column types (a nominal type using `TableName<>`)
  * P parameters (in case this is a subquery)
  */
 export type Table<T, P> = {
@@ -32,9 +32,32 @@ export type Table<T, P> = {
   TableProjectionMethods<T, P>
 
 /**
- * The row type of a table
+ * An actual sql table.
+ *
+ * Contains default columns keys union to generate insert types.
  */
-export type TableType<T> = T extends Table<infer C, any> ? C : never
+export type DatabaseTable<T, D> = Table<T, {}> & {
+  __typesafeQueryBuilderDefaultColumns: D
+}
+
+/**
+ * The row type of a table (sans the table name)
+ */
+export type TableRow<T> = T extends Table<infer C, any>
+  ? RemoveTableName<C>
+  : never
+
+/**
+ * The row type of a table with default columns marked optional.
+ *
+ * In contrast to the TableType, this one has columns with default values as
+ * optional.
+ */
+export type TableRowInsert<X> = X extends DatabaseTable<infer T, infer D>
+  ? D extends string
+    ? Omit<T, D> & Partial<Pick<T, Extract<D, keyof T>>>
+    : never
+  : never
 
 // /**
 //  * Helper type that resolves to a union of all columns that have defaults
@@ -64,10 +87,10 @@ export type TableTypeWithDefaults = any
  * Contains all information required to join the table or use one of its
  * columns in a condition.
  */
-export type TableColumn<T, P, C> = {
-  __t: T
-  __p: P
-  __c: C
+export class TableColumn<T, P, C> {
+  protected t: T = {} as T
+  protected p: P = {} as P
+  protected c: C = {} as C
 }
 
 /**
@@ -76,7 +99,12 @@ export type TableColumn<T, P, C> = {
  * S .. selected columns
  * C .. correlated table
  */
-export interface Selection<T, P, S, C> {
+export class Selection<T, P, S, C> {
+  protected t: T = {} as T
+  protected p: P = {} as P
+  protected s: S = {} as S
+  protected C: C = {} as C
+
   /**
    * Project this selection into an array of json objects
    */
@@ -85,7 +113,9 @@ export interface Selection<T, P, S, C> {
     key: K,
     orderBy?: O,
     direction?: 'ASC' | 'DESC',
-  ): Selection<T, P, S, C>
+  ): Selection<T, P, S, C> {
+    return {} as any
+  }
 }
 
 // TODO:
@@ -99,6 +129,8 @@ export interface Selection<T, P, S, C> {
 export interface TableProjectionMethods<T, P> {
   /**
    * Choose columns to appear in the result.
+   *
+   * Pick also removes the TableName nominal type
    */
   include<K extends keyof T>(
     this: Table<T, P>,
@@ -107,8 +139,10 @@ export interface TableProjectionMethods<T, P> {
 
   /**
    * Choose all columns to appear in the result.
+   *
+   * TableName nominal type is removed as we don't need it in the result type any more.
    */
-  all(this: Table<T, P>): Selection<T, P, T, never>
+  all(this: Table<T, P>): Selection<T, P, RemoveTableName<T>, never>
 
   // /**
   //  * Choose columns to omit from the result
