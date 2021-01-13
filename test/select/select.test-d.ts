@@ -1,10 +1,11 @@
-import { expectAssignable, expectType } from 'tsd'
+import { expectAssignable, expectType, expectError } from 'tsd'
 import { DatabaseClient, query, TableRowInsert } from '../../src'
 import {
   Systems,
   Franchises,
   Manufacturers,
   Games,
+  GamesSystems,
 } from '../helpers/classicGames'
 
 import { Selection } from '../../src/table/types'
@@ -24,6 +25,20 @@ const selectTests = (async () => {
   expectType<{ id: number; name: string }[]>(
     await query(Systems)
       .select(Systems.include('id', 'name'))
+      .fetch(client),
+  )
+
+  expectError(
+    await query(Systems)
+      // selecting from a table not included in the query
+      .select(Manufacturers.include('id', 'name'))
+      .fetch(client),
+  )
+
+  expectError(
+    await query(Systems)
+      // selecting fields not int the table
+      .select(Systems.include('id', 'non-existing-field'))
       .fetch(client),
   )
 
@@ -88,6 +103,30 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
+  expectError(
+    await query(Franchises)
+      .leftJoin(Franchises.manufacturerId, Manufacturers.id)
+      // selecting from non-queried table
+      .select(Games.include('id', 'title'), Manufacturers.include('name'))
+      .fetch(client),
+  )
+
+  expectError(
+    await query(Franchises)
+      // joining from non-queried table
+      .leftJoin(Systems.manufacturerId, Manufacturers.id)
+      .select(Franchises.include('id', 'name'), Manufacturers.include('name'))
+      .fetch(client),
+  )
+
+  expectError(
+    await query(Franchises)
+      // joining non-matching datatype
+      .leftJoin(Franchises.id, Manufacturers.country)
+      .select(Franchises.include('id', 'name'), Manufacturers.include('name'))
+      .fetch(client),
+  )
+
   // TODO: .select detecting duplicate columns
 
   // expectType<never[]>(
@@ -101,16 +140,70 @@ const selectTests = (async () => {
 
   // select with a query (subselect)
 
-  const res = query(Manufacturers)
-    .whereEq(Manufacturers.id, Systems.id)
-    .select(Manufacturers.include('name'))
-
   expectType<{ name: string }[]>(
     await query(Systems)
       .select(
         query(Manufacturers)
           .whereEq(Manufacturers.id, Systems.id)
           .select(Manufacturers.include('name')),
+      )
+      .fetch(client),
+  )
+
+  expectError(
+    await query(Systems).select(
+      query(Manufacturers)
+        .whereEq(Manufacturers.id, Systems.id)
+        // more than 1 col selected
+        .select(Manufacturers.include('name', 'id')),
+    ),
+  )
+
+  expectError(
+    await query(Systems).select(
+      query(Manufacturers)
+        // mismatching column types
+        .whereEq(Manufacturers.id, Systems.name)
+        .select(Manufacturers.include('name')),
+    ),
+  )
+
+  // join and select-2 overload with a query (subselect)
+
+  expectAssignable<{ id: number; manufacturerId: number; name: string }[]>(
+    await query(Systems)
+      .select(
+        Systems.include('id', 'manufacturerId'),
+        query(Manufacturers)
+          .whereEq(Manufacturers.id, Systems.id)
+          .select(Manufacturers.include('name')),
+      )
+      .fetch(client),
+  )
+
+  expectAssignable<{ id: number; manufacturerId: number; name: string }[]>(
+    await query(Systems)
+      .select(
+        query(Manufacturers)
+          .whereEq(Manufacturers.id, Systems.id)
+          .select(Manufacturers.include('name')),
+        Systems.include('id', 'manufacturerId'),
+      )
+      .fetch(client),
+  )
+
+  // nested subquery
+
+  expectAssignable<{ name: string; title: string }[]>(
+    await query(Systems)
+      .select(
+        query(Manufacturers)
+          .whereEq(Manufacturers.id, Systems.id)
+          .select(Manufacturers.include('name')),
+        query(Games)
+          .join(Games.id, GamesSystems.gameId)
+          .whereEq(GamesSystems.systemId, Systems.id)
+          .select(Games.include('title')),
       )
       .fetch(client),
   )
