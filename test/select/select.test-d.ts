@@ -17,15 +17,11 @@ const selectTests = (async () => {
   // `.include`
 
   expectType<{ name: string }[]>(
-    await query(Systems)
-      .select(Systems.include('name'))
-      .fetch(client),
+    await query(Systems).select(Systems.include('name')).fetch(client),
   )
 
   expectType<{ id: number; name: string }[]>(
-    await query(Systems)
-      .select(Systems.include('id', 'name'))
-      .fetch(client),
+    await query(Systems).select(Systems.include('id', 'name')).fetch(client),
   )
 
   expectError(
@@ -46,11 +42,7 @@ const selectTests = (async () => {
 
   expectType<
     { id: number; name: string; year: number; manufacturerId: number }[]
-  >(
-    await query(Systems)
-      .select(Systems.all())
-      .fetch(client),
-  )
+  >(await query(Systems).select(Systems.all()).fetch(client))
 
   // .select over joined columns
 
@@ -204,6 +196,67 @@ const selectTests = (async () => {
           .join(Games.id, GamesSystems.gameId)
           .whereEq(GamesSystems.systemId, Systems.id)
           .select(Games.include('title')),
+      )
+      .fetch(client),
+  )
+
+  // selecting columns into a json object
+
+  expectType<{ system: { id: number; name: string } }[]>(
+    await query(Systems)
+      .select(Systems.include('id', 'name').jsonObject('system'))
+      .fetch(client),
+  )
+
+  // selecting a single column into a json array
+
+  expectType<{ systemNames: string[] }[]>(
+    await query(Systems)
+      .select(Systems.include('name').jsonArray('systemNames'))
+      .fetch(client),
+  )
+
+  expectType<{ systemNames: never[] }[]>(
+    await query(Systems)
+      // its an error if the selection contains more than 1 cols
+      .select(Systems.include('id', 'name').jsonArray('systemNames'))
+      .fetch(client),
+  )
+
+  expectType<{ systemNames: never[] }[]>(
+    await query(Systems)
+      // its an error if the selection contains no column
+      .select(Systems.include().jsonArray('systemNames'))
+      .fetch(client),
+  )
+
+  // selecting columns into a json object array
+
+  expectType<{ systems: { year: number; name: string }[] }[]>(
+    await query(Systems)
+      .select(Systems.include('year', 'name').jsonObjectArray('systems'))
+      .fetch(client),
+  )
+
+  // rename
+
+  expectType<{ systemId: number; name: string }[]>(
+    await query(Systems)
+      .select(
+        Systems.include('id', 'name').rename({
+          id: 'systemId',
+        }),
+      )
+      .fetch(client),
+  )
+
+  expectError(
+    await query(Systems)
+      .select(
+        Systems.include('id', 'name').rename({
+          // column is not selected
+          manufacturerId: 'foo',
+        }),
       )
       .fetch(client),
   )

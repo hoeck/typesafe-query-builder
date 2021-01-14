@@ -48,9 +48,8 @@ describe('select', () => {
         //   .whereEq(items.itemUserId, users.userId)
         //   .select(items.id),
         query(items)
-          .whereEq(items.itemUserId, users.user)
           .limit(1)
-          .table() // this could be removed and the select methods could be added to querybottom directly
+          .correlatedWhereEq()
           .json('foo')
           .jsonAgg('blerg'),
       )
