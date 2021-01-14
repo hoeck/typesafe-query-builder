@@ -1,3 +1,5 @@
+import { AssertHasSingleKey } from '../utils'
+
 // // mapped helper type from SO:
 // // https://stackoverflow.com/questions/44323441/changing-property-name-in-typescript-mapped-type
 // type ValueOf<T> = T[keyof T]
@@ -107,14 +109,51 @@ export declare class Selection<T, P, S> {
   protected s: S
 
   /**
-   * Project this selection into an array of json objects
+   * Project all columns into a JSON object.
+   *
+   * Uses the Postgres `json_build_object` function under the hood.
    */
-  jsonAgg<K extends string, O extends keyof T>(
+  jsonObject<K extends string>(
+    this: Selection<T, P, S>,
+    key: K,
+  ): Selection<T, P, { [Key in K]: S }>
+
+  /**
+   * Project a single selected column into a JSON array
+   *
+   * Needs either a group-by or a subselect.
+   * Uses the Postgres `json_agg` function under the hood.
+   */
+  jsonArray<K extends string, O extends keyof T, S, SS = AssertHasSingleKey<S>>(
     this: Selection<T, P, S>,
     key: K,
     orderBy?: O,
     direction?: 'ASC' | 'DESC',
-  ): Selection<T, P, S>
+  ): Selection<T, P, { [Key in K]: SS[keyof SS][] }>
+
+  /**
+   * Project all columns into a JSON array of JSON objects.
+   *
+   * A combination of `json_agg` and `json_build_object`
+   */
+  jsonObjectArray<K extends string, O extends keyof T>(
+    this: Selection<T, P, S>,
+    key: K,
+    orderBy?: O,
+    direction?: 'ASC' | 'DESC',
+  ): Selection<T, P, { [Key in K]: S[] }>
+
+  /**
+   *
+   */
+  rename<
+    K extends keyof S,
+    N extends string | undefined,
+    M extends { [KK in K]?: N }
+  >(
+    this: Selection<T, P, S>,
+    mapping: M,
+  ): Selection<T, P, { [P in K as M[P] extends string ? M[P] : P]: S[P] }>
 }
 
 // TODO:

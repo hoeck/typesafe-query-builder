@@ -1,5 +1,6 @@
 import { Table, TableColumn, Selection } from '../table/types'
 import { TableImplementation } from '../table'
+import { AssertHasSingleKey } from '../utils'
 
 /**
  * Recording parts of a query to be able to generate sql from
@@ -294,21 +295,6 @@ type AnyParam = typeof anyParam
  */
 export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 
-// see https://stackoverflow.com/questions/53953814/typescript-check-if-a-type-is-a-union
-type IsUnion<T, U extends T = T> = (T extends any
-? U extends T
-  ? false
-  : true
-: never) extends false
-  ? false
-  : true
-
-type OnlyOneKey<T> = keyof T extends never
-  ? never
-  : IsUnion<keyof T> extends true
-  ? never
-  : T
-
 // TODO: instead of repeating where* definitions for each join-class, define
 // them once and inherit it in joins because joins and wheres are not mixed
 // anyway so after the first where() there will only be other wheres,
@@ -462,7 +448,9 @@ export interface QueryBottom<T, P, L = never, S = {}, C = never>
     // Either a selection on a joined table or a (correlated) subquery.
     // The latter is checked that it only has a single selected column via the
     // OnlyOneKey helper.
-    s1: Selection<T1, P1, S1> | QueryBottom<any, P1, any, OnlyOneKey<S1>, C1>,
+    s1:
+      | Selection<T1, P1, S1>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1>,
   ): QueryBottom<T, P & P1, L, S & (T1 extends L ? Nullable<S1> : S1), C>
 
   select<
@@ -475,8 +463,12 @@ export interface QueryBottom<T, P, L = never, S = {}, C = never>
     C1 extends T,
     C2 extends T
   >(
-    t1: Selection<T1, P1, S1> | QueryBottom<any, P1, any, OnlyOneKey<S1>, C1>,
-    t2: Selection<T2, P2, S2> | QueryBottom<any, P2, any, OnlyOneKey<S2>, C2>,
+    t1:
+      | Selection<T1, P1, S1>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1>,
+    t2:
+      | Selection<T2, P2, S2>
+      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2>,
   ): QueryBottom<
     T,
     P & P1 & P2,
