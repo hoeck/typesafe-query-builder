@@ -233,67 +233,26 @@ export type SqlFragment<T, K, C> = any
 export type SqlFragmentParam<X, Y> = any
 export type SqlFragmentBuilder = any
 
-/**
- * A query that can be executed with Params resulting in Selection row data.
- */
-export interface Statement<S, P> {
-  /**
-   * Return this query as a table to use it in subqueries.
-   *
-   * Use it also to alias a table, e.g. to join the same table twice in a
-   * query.
-   */
-  table(): Table<S, P>
-
-  /**
-   * Return the generated sql
-   */
-  sql: keyof P extends never ? () => string : (params: P) => string
-
-  /**
-   * Run an SQL EXPLAIN on this query.
-   */
-  explain: (client: DatabaseClient, params?: P) => Promise<string>
-
-  /**
-   * Run an SQL EXPLAIN ANALYZE on this query.
-   */
-  explainAnalyze: (client: DatabaseClient, params?: P) => Promise<string>
-
-  /**
-   * Execute the query and return all rows.
-   */
-  fetch: keyof P extends never
-    ? (client: DatabaseClient) => Promise<S[]>
-    : (client: DatabaseClient, params: P) => Promise<S[]>
-
-  /**
-   * Execute the query and return the first row or undefined.
-   *
-   * Throw an exception if more than one row was found.
-   */
-  fetchOne: keyof P extends never
-    ? (client: DatabaseClient) => Promise<S | undefined>
-    : (client: DatabaseClient, params: P) => Promise<S | undefined>
-
-  /**
-   * Execute the query and return the first row.
-   *
-   * Throw an exception if no row *or* more than 1 row was found.
-   */
-  fetchExactlyOne: keyof P extends never
-    ? (client: DatabaseClient) => Promise<S>
-    : (client: DatabaseClient, params: P) => Promise<S>
-}
-
 export const anyParam = Symbol('anyParam')
 
 type AnyParam = typeof anyParam
 
 /**
+ * The union of types which can be used in comparisons.
+ *
+ * Postgres docs call them "built-in data types that have a natural ordering".
+ * See https://www.postgresql.org/docs/current/functions-comparison.html
+ *
+ * We have `null` in here bc. the query builder transparently handles `IS NULL` and `=`.
+ */
+export type ComparableTypes = string | number | boolean | Date | null
+
+/**
  * Access the row type of a query for use e.g. in data consuming functions.
  */
-export type ResultType<T> = T extends Statement<infer S, any> ? S : never
+export type ResultType<T> = T extends QueryBottom<any, any, any, infer S, any>
+  ? S
+  : never
 
 // TODO: instead of repeating where* definitions for each join-class, define
 // them once and inherit it in joins because joins and wheres are not mixed
@@ -309,8 +268,13 @@ export type ResultType<T> = T extends Statement<infer S, any> ? S : never
 //   L .. union of all left-joined tables
 //   S .. shape of the selected data
 //   C .. correlated table (for subqueries)
-export interface QueryBottom<T, P, L = never, S = {}, C = never>
-  extends Statement<S, P> {
+export declare class QueryBottom<T, P, L = never, S = {}, C = never> {
+  protected __t: T
+  protected __p: P
+  protected __l: L
+  protected __s: S
+  protected __c: C
+
   // TODO (?):
   // * only generate WHERE for non-null queries and remove the possible null type from whereEq
   // * use a separate `whereEqOrNull` or `whereNull`
@@ -330,30 +294,53 @@ export interface QueryBottom<T, P, L = never, S = {}, C = never>
    * Passing `query.ANY_PARAM` as the parameter will cause the expression to
    * be ommitted from the query (basically evaluating to `true`)
    */
-  whereEq<CP, K extends string>(
+  whereEq<CP extends ComparableTypes, K extends string>(
     col: TableColumn<T, any, CP>,
     paramKey: K,
   ): QueryBottom<T, P & { [KK in K]: CP | AnyParam }, L, S, C>
 
-  // overload for subqueries
+  // overload for correlated subqueries
   whereEq<CT, CP>(
     col: TableColumn<T, any, CP>,
     otherCol: TableColumn<CT, any, CP>,
   ): QueryBottom<T, P, L, S, CT> // CT turning this into a correlated subquery
 
-  // /**
-  //  * Append a WHERE col IN (value1, value2, ...) condition.
-  //  *
-  //  * Passing `query.ANY_PARAM` as the parameter will cause the expression to
-  //  * be ommitted from the query (basically evaluating to `true`)
-  //  */
-  // whereIn<CP, K extends string>(
-  //   col: TableColumn<T, any, CP>,
-  //   paramKey: K,
-  // ): QueryBottom<T, S, P & { [KK in K]: CP[] | AnyParam }, U>
+  // overload for subqueries used as a condition
+  whereEq<P1, S1, CP extends S1[keyof S1] & ComparableTypes>(
+    col: TableColumn<T, any, CP>,
+    subselect: QueryBottom<any, P1, any, AssertHasSingleKey<S1>, any>,
+  ): QueryBottom<T, P & P1, L, S, C>
+
+  // TODO: the overloads look quite complex to me, I might have to provide
+  // separate methods `.whereEqSubCorr`, `.whereEqSub` in case the
+  // overloads cause mayem in bigger codebases.
+
+  /**
+   * Append a WHERE col IN (value1, value2, ...) condition.
+   *
+   * Passing `query.ANY_PARAM` as the parameter will cause the expression to
+   * be ommitted from the query (basically evaluating to `true`)
+   */
+  whereIn<CP extends ComparableTypes, K extends string>(
+    col: TableColumn<T, any, CP>,
+    paramKey: K,
+  ): QueryBottom<T, P & { [KK in K]: CP[] | AnyParam }, L, S, C>
+
+  // overload for subquery conditions
+  whereIn<P1, S1, CP extends S1[keyof S1] & ComparableTypes>(
+    col: TableColumn<T, any, CP>,
+    subselect: QueryBottom<any, P1, any, AssertHasSingleKey<S1>, any>,
+  ): QueryBottom<T, P & P1, L, S, C>
+
+  /**
+   * Append a WHERE EXISTS (SELECT ...) condition
+   */
+  whereExists<P1, C1 extends T>(
+    subselect: QueryBottom<any, P1, any, any, C1>,
+  ): QueryBottom<T, P & P1, L, S, C>
 
   // /**
-  //  * Universal SQL where condition using template literals.
+  //  * Universal SQL where condition using JS template strings.
   //  */
   // whereSql<K1 extends string, C1>(
   //   sqlFragment: SqlFragment<T, K1, C1>,
@@ -581,20 +568,54 @@ export interface QueryBottom<T, P, L = never, S = {}, C = never>
   //  * different arguments).
   //  */
   // use<R>(factory: (query: QueryBottom<T, S, P, U>) => R): R
-}
 
-/**
- * T .. Table
- * S .. Selection
- * P .. Parameters
- *
- */
-export interface CorrelatedQueryBottom<T, P, L, S> {
-  table(): void
+  /**
+   * Return this query as a table to use it in subqueries.
+   *
+   * Use it also to alias a table, e.g. to join the same table twice in a
+   * query.
+   */
+  table(): Table<S, P>
 
-  json(): void
+  /**
+   * Return the generated sql
+   */
+  sql: keyof P extends never ? () => string : (params: P) => string
 
-  jsonAgg(): void
+  /**
+   * Run an SQL EXPLAIN on this query.
+   */
+  explain: (client: DatabaseClient, params?: P) => Promise<string>
+
+  /**
+   * Run an SQL EXPLAIN ANALYZE on this query.
+   */
+  explainAnalyze: (client: DatabaseClient, params?: P) => Promise<string>
+
+  /**
+   * Execute the query and return all rows.
+   */
+  fetch: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S[]>
+    : (client: DatabaseClient, params: P) => Promise<S[]>
+
+  /**
+   * Execute the query and return the first row or undefined.
+   *
+   * Throw an exception if more than one row was found.
+   */
+  fetchOne: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S | undefined>
+    : (client: DatabaseClient, params: P) => Promise<S | undefined>
+
+  /**
+   * Execute the query and return the first row.
+   *
+   * Throw an exception if no row *or* more than 1 row was found.
+   */
+  fetchExactlyOne: keyof P extends never
+    ? (client: DatabaseClient) => Promise<S>
+    : (client: DatabaseClient, params: P) => Promise<S>
 }
 
 /**
