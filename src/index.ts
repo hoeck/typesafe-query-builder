@@ -1,4 +1,4 @@
-export { DatabaseClient, ResultType, Statement, query, sql } from './query'
+export { DatabaseClient, ResultType, query, sql } from './query'
 export {
   Column,
   Table,

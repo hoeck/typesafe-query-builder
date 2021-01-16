@@ -1,15 +1,12 @@
-import { expectAssignable, expectType, expectError } from 'tsd'
-import { DatabaseClient, query, TableRowInsert } from '../../src'
+import { expectAssignable, expectError, expectType } from 'tsd'
+import { DatabaseClient, query } from '../../src'
 import {
-  Systems,
   Franchises,
-  Manufacturers,
   Games,
   GamesSystems,
+  Manufacturers,
+  Systems,
 } from '../helpers/classicGames'
-
-import { Selection } from '../../src/table/types'
-import { QueryBottom } from '../../src/query/types'
 
 const client: DatabaseClient = {} as DatabaseClient
 
@@ -235,6 +232,22 @@ const selectTests = (async () => {
   expectType<{ systems: { year: number; name: string }[] }[]>(
     await query(Systems)
       .select(Systems.include('year', 'name').jsonObjectArray('systems'))
+      .fetch(client),
+  )
+
+  expectAssignable<
+    { name: string; franchises: { id: number; name: string }[] }[]
+  >(
+    await query(Manufacturers)
+      .select(
+        Manufacturers.include('name'),
+        // using a subselect
+        query(Franchises)
+          .select(
+            Franchises.include('id', 'name').jsonObjectArray('franchises'),
+          )
+          .whereEq(Franchises.manufacturerId, Manufacturers.id),
+      )
       .fetch(client),
   )
 
