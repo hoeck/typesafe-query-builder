@@ -256,10 +256,11 @@ export type ResultType<T> = T extends QueryBottom<any, any, any, infer S, any>
 
 type QueryBottomTag = 'QueryBottom'
 
+// helper type for selected column / subqueries
 type JoinedSelection<T, L, M, S> = T extends L
-  ? Nullable<S>
+  ? Nullable<S> // left joined columns may be null
   : M extends QueryBottomTag
-  ? Nullable<S>
+  ? Nullable<S> // subqueries may be null (we'd have to exactly analyze the where conditions to know when they are not null)
   : S
 
 // TODO: instead of repeating where* definitions for each join-class, define
@@ -444,16 +445,7 @@ export declare class QueryBottom<
     s1:
       | Selection<T1, P1, S1>
       | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
-  ): QueryBottom<
-    T,
-    P & P1,
-    L,
-    // subqueries may be null
-    //M extends QueryBottomTag ? Nullable<S1> : S1,
-    JoinedSelection<T1, L, M1, S1>,
-    //T1 extends L ? Nullable<S1> : M1 extends QueryBottomTag ? Nullable<S1> : S1,
-    C
-  >
+  ): QueryBottom<T, P & P1, L, JoinedSelection<T1, L, M1, S1>, C>
 
   select<
     T1 extends T,
@@ -477,13 +469,9 @@ export declare class QueryBottom<
     T,
     P & P1 & P2,
     L,
-    // TODO: check duplicate cols
-    //S & (T1 extends L ? Nullable<S1> : S1) & (T2 extends L ? Nullable<S2> : S2),
     S & JoinedSelection<T1, L, M1, S1> & JoinedSelection<T2, L, M2, S2>,
     C
   >
-
-  // ): QueryBottom<T, T1 extends LeftJoineds ? S & Nullable<S1> : S & S1, P & P1>
 
   // select<T1 extends T, T2 extends T, S1, S2, P1, P2>(
   //   t1: Table<T1, S1, P1>,
