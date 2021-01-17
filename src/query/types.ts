@@ -254,6 +254,14 @@ export type ResultType<T> = T extends QueryBottom<any, any, any, infer S, any>
   ? S
   : never
 
+type QueryBottomTag = 'QueryBottom'
+
+type JoinedSelection<T, L, M, S> = T extends L
+  ? Nullable<S>
+  : M extends QueryBottomTag
+  ? Nullable<S>
+  : S
+
 // TODO: instead of repeating where* definitions for each join-class, define
 // them once and inherit it in joins because joins and wheres are not mixed
 // anyway so after the first where() there will only be other wheres,
@@ -268,7 +276,15 @@ export type ResultType<T> = T extends QueryBottom<any, any, any, infer S, any>
 //   L .. union of all left-joined tables
 //   S .. shape of the selected data
 //   C .. correlated table (for subqueries)
-export declare class QueryBottom<T, P, L = never, S = {}, C = never> {
+//   M .. marker do separate `QueryBottom` and `Selection` parameters in `.select`
+export declare class QueryBottom<
+  T,
+  P,
+  L = never,
+  S = {},
+  C = never,
+  M = QueryBottomTag
+> {
   protected __t: T
   protected __p: P
   protected __l: L
@@ -299,11 +315,11 @@ export declare class QueryBottom<T, P, L = never, S = {}, C = never> {
     paramKey: K,
   ): QueryBottom<T, P & { [KK in K]: CP | AnyParam }, L, S, C>
 
-  // overload for correlated subqueries
+  // overload for correlated subqueries (only valid in select clauses)
   whereEq<CT, CP>(
     col: TableColumn<T, any, CP>,
     otherCol: TableColumn<CT, any, CP>,
-  ): QueryBottom<T, P, L, S, CT> // CT turning this into a correlated subquery
+  ): QueryBottom<T, P, L, S[keyof S] extends any[] ? S : Nullable<S>, CT> // CT turning this into a correlated subquery
 
   // overload for subqueries used as a condition
   whereEq<P1, S1, CP extends S1[keyof S1] & ComparableTypes>(
@@ -421,24 +437,23 @@ export declare class QueryBottom<T, P, L = never, S = {}, C = never> {
 
   // SELECT
 
-  // // foo<X>(
-  // //   s1: X,
-  // // ): X extends Selection<infer Y, infer Z, any, any>
-  // //   ? Y extends T
-  // //     ? Y
-  // //     : never
-  // //   : never
-  //
-  // foox<X extends Selection<string, number, boolean, symbol>>(s1: X): X
-
-  select<T1 extends T, P1, S1, C1 extends T>(
+  select<T1 extends T, P1, S1, C1 extends T, M1>(
     // Either a selection on a joined table or a (correlated) subquery.
     // The latter is checked that it only has a single selected column via the
     // OnlyOneKey helper.
     s1:
       | Selection<T1, P1, S1>
-      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1>,
-  ): QueryBottom<T, P & P1, L, S & (T1 extends L ? Nullable<S1> : S1), C>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
+  ): QueryBottom<
+    T,
+    P & P1,
+    L,
+    // subqueries may be null
+    //M extends QueryBottomTag ? Nullable<S1> : S1,
+    JoinedSelection<T1, L, M1, S1>,
+    //T1 extends L ? Nullable<S1> : M1 extends QueryBottomTag ? Nullable<S1> : S1,
+    C
+  >
 
   select<
     T1 extends T,
@@ -448,20 +463,23 @@ export declare class QueryBottom<T, P, L = never, S = {}, C = never> {
     S1,
     S2,
     C1 extends T,
-    C2 extends T
+    C2 extends T,
+    M1,
+    M2
   >(
     t1:
       | Selection<T1, P1, S1>
-      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1>,
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
     t2:
       | Selection<T2, P2, S2>
-      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2>,
+      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2, M2>,
   ): QueryBottom<
     T,
     P & P1 & P2,
     L,
     // TODO: check duplicate cols
-    S & (T1 extends L ? Nullable<S1> : S1) & (T2 extends L ? Nullable<S2> : S2),
+    //S & (T1 extends L ? Nullable<S1> : S1) & (T2 extends L ? Nullable<S2> : S2),
+    S & JoinedSelection<T1, L, M1, S1> & JoinedSelection<T2, L, M2, S2>,
     C
   >
 

@@ -10,6 +10,10 @@ import {
 
 const client: DatabaseClient = {} as DatabaseClient
 
+type foo = 'a' | 'b'
+
+type bar = never extends foo ? 1 : 2
+
 const selectTests = (async () => {
   // `.include`
 
@@ -129,11 +133,21 @@ const selectTests = (async () => {
 
   // select with a query (subselect)
 
-  expectType<{ name: string }[]>(
+  expectType<{ name: string | null }[]>(
     await query(Systems)
       .select(
         query(Manufacturers)
-          .whereEq(Manufacturers.id, Systems.id)
+          .whereEq(Manufacturers.id, Systems.manufacturerId)
+          .select(Manufacturers.include('name')),
+      )
+      .fetch(client),
+  )
+
+  expectType<{ name: string | null }[]>(
+    await query(Franchises)
+      .select(
+        query(Manufacturers)
+          .whereEq(Manufacturers.id, Franchises.manufacturerId)
           .select(Manufacturers.include('name')),
       )
       .fetch(client),
@@ -159,7 +173,9 @@ const selectTests = (async () => {
 
   // join and select-2 overload with a query (subselect)
 
-  expectAssignable<{ id: number; manufacturerId: number; name: string }[]>(
+  expectAssignable<
+    { id: number; manufacturerId: number; name: string | null }[]
+  >(
     await query(Systems)
       .select(
         Systems.include('id', 'manufacturerId'),
@@ -170,7 +186,9 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
-  expectAssignable<{ id: number; manufacturerId: number; name: string }[]>(
+  expectAssignable<
+    { id: number; manufacturerId: number; name: string | null }[]
+  >(
     await query(Systems)
       .select(
         query(Manufacturers)
@@ -183,7 +201,7 @@ const selectTests = (async () => {
 
   // nested subquery
 
-  expectAssignable<{ name: string; title: string }[]>(
+  expectAssignable<{ name: string | null; title: string | null }[]>(
     await query(Systems)
       .select(
         query(Manufacturers)
@@ -236,7 +254,7 @@ const selectTests = (async () => {
   )
 
   expectAssignable<
-    { name: string; franchises: { id: number; name: string }[] }[]
+    { name: string; franchises: { id: number; name: string }[] | null }[]
   >(
     await query(Manufacturers)
       .select(
