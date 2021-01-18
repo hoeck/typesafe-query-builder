@@ -6,5 +6,7 @@ export {
   TableRow,
   TableTypeWithDefaults,
   TableRowInsert,
+  DatabaseTable,
+  RemoveTableName,
 } from './types'
 export type { TableColumn } from './types'
