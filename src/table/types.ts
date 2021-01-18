@@ -1,4 +1,4 @@
-import { AssertHasSingleKey } from '../utils'
+import { AssertHasSingleKey, SetOptional } from '../utils'
 
 // // mapped helper type from SO:
 // // https://stackoverflow.com/questions/44323441/changing-property-name-in-typescript-mapped-type
@@ -20,7 +20,7 @@ export declare class TableName<N> {
   protected _typesafeQueryBuilerTableName_: N
 }
 
-type RemoveTableName<T> = { [K in keyof T]: T[K] }
+export type RemoveTableName<T> = { [K in keyof T]: T[K] }
 
 /**
  * A table expression to use in joins and subqueries and for column references.
@@ -36,6 +36,7 @@ export type Table<T, P> = {
 declare class DatabaseTableDefaultColumns<T> {
   protected typesafeQueryBuilderDefaultColumns: T
 }
+
 /**
  * An actual sql table.
  *
@@ -59,8 +60,8 @@ export type TableRow<T> = T extends Table<infer C, any>
  */
 export type TableRowInsert<X> = X extends DatabaseTable<infer T, infer D>
   ? D extends string
-    ? Omit<T, D> & Partial<Pick<T, Extract<D, keyof T>>>
-    : never
+    ? SetOptional<T, D>
+    : T
   : never
 
 // /**
@@ -144,7 +145,7 @@ export declare class Selection<T, P, S> {
   ): Selection<T, P, { [Key in K]: S[] }>
 
   /**
-   *
+   * Rename selected columns.
    */
   rename<
     K extends keyof S,

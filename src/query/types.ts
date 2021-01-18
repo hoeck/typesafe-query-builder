@@ -1,6 +1,12 @@
 import { Table, TableColumn, Selection } from '../table/types'
-import { TableImplementation } from '../table'
-import { AssertHasSingleKey } from '../utils'
+import {
+  TableImplementation,
+  DatabaseTable,
+  TableRowInsert,
+  TableRow,
+  RemoveTableName,
+} from '../table'
+import { AssertHasSingleKey, SetOptional } from '../utils'
 
 /**
  * Recording parts of a query to be able to generate sql from
@@ -484,7 +490,6 @@ export declare class QueryBottom<
   //   t3: Table<T3, S3, P3>,
   // ): QueryBottom<T, S & S1 & S2 & S3, P & P1 & P2 & P3>
 
-  // TODO: subselect? or embed into selects?
   // TODO: up to t7 (or whatever the join limit is)
 
   // /**
@@ -790,10 +795,71 @@ export interface Join2<T1, T2, P, L> extends QueryBottom<T1 | T2, P, L> {
 // export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>
 //   extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6 | T7, S, P> {}
 
+type foo = never & { a: 1 }
+
+/**
+ *
+ * TT .. insert database table type
+ * TD .. insert database table default columns
+ * S .. 'returning' select
+ */
+export interface InsertInto<TT, TD, S = never> {
+  // insertWith<W1 extends W>(
+  //   table: Table<W1, never>,
+  //   values: W1,
+  // ): InsertInto<T, W | W1>
+  //
+  // insertInto<T1>(table: Table<T1, never>, values: T1 | T1[]): InsertInto<T, W>
+
+  returning<T1 extends DatabaseTable<TT, TD>, S1>(
+    s: Selection<T1, never, S1>,
+  ): InsertInto<TT, TD, S1>
+}
+
 /**
  * Chaining API root.
  */
 export interface QueryRoot {
-  <T, P, never>(table: Table<T, P>): Query<T, P>
+  <T, P>(table: Table<T, P>): Query<T, P>
+
+  // constants
   anyParam: AnyParam
+
+  // provide two separate versions for one + many inserts to keep TS error
+  // messages readable in case data has the wrong structure
+
+  /**
+   * No-fuzz insert of a single row.
+   *
+   * By default, return the whole inserted row.
+   */
+  insertOne<T, D extends string>(
+    client: DatabaseClient,
+    databaseTable: DatabaseTable<T, D>,
+    data: SetOptional<T, D>,
+    //  ): Promise<{ [K in keyof T]: T[K] }>
+  ): Promise<RemoveTableName<T>>
+  insertOne<T, D extends string, S>(
+    client: DatabaseClient,
+    databaseTable: DatabaseTable<T, D>,
+    data: SetOptional<T, D>,
+    returning: Selection<T, {}, S>,
+  ): Promise<S>
+
+  /**
+   * No-fuzz insert of many rows.
+   *
+   * By default, return the whole inserted rows.
+   */
+  insertMany<T, D extends string>(
+    client: DatabaseClient,
+    databaseTable: DatabaseTable<T, D>,
+    data: SetOptional<T, D>[],
+  ): Promise<RemoveTableName<T>[]>
+  insertMany<T, D extends string, S>(
+    client: DatabaseClient,
+    databaseTable: DatabaseTable<T, D>,
+    data: SetOptional<T, D>[],
+    returning: Selection<T, {}, S>,
+  ): Promise<S[]>
 }
