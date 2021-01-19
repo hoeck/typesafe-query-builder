@@ -795,25 +795,53 @@ export interface Join2<T1, T2, P, L> extends QueryBottom<T1 | T2, P, L> {
 // export interface Join7<T1, T2, T3, T4, T5, T6, T7, S, P>
 //   extends QueryBottom<T1 | T2 | T3 | T4 | T5 | T6 | T7, S, P> {}
 
-type foo = never & { a: 1 }
+export declare class Update<T, P = {}, S = void> {
+  protected __t: T
+  protected __p: P
+  protected __s: S
 
-/**
- *
- * TT .. insert database table type
- * TD .. insert database table default columns
- * S .. 'returning' select
- */
-export interface InsertInto<TT, TD, S = never> {
-  // insertWith<W1 extends W>(
-  //   table: Table<W1, never>,
-  //   values: W1,
-  // ): InsertInto<T, W | W1>
-  //
-  // insertInto<T1>(table: Table<T1, never>, values: T1 | T1[]): InsertInto<T, W>
+  /**
+   * Define the parameter that generates the `SET` clauses for the update
+   */
+  setData<N extends string>(
+    paramKey: N,
+  ): Update<T, P & { [K in N]: Partial<T> }, S>
 
-  returning<T1 extends DatabaseTable<TT, TD>, S1>(
-    s: Selection<T1, never, S1>,
-  ): InsertInto<TT, TD, S1>
+  /**
+   * WHERE <COL> = <PARAM> condition for the update
+   *
+   * Multiple `where`s are `AND`ed together.
+   */
+  whereEq<CP extends ComparableTypes, N extends string>(
+    col: TableColumn<T, any, CP>,
+    paramKey: N,
+  ): Update<T, P & { [K in N]: CP | AnyParam }, S>
+
+  /**
+   * WHERE <COL> IN <PARAM-LIST> condition for updates.
+   *
+   * Multiple `where`s are `AND`ed together.
+   */
+  whereIn<CP extends ComparableTypes, K extends string>(
+    col: TableColumn<T, any, CP>,
+    paramKey: K,
+  ): Update<T, P & { [KK in K]: CP[] | AnyParam }, S>
+
+  /**
+   * Explicitly set the Postgres RETURNING clause.
+   *
+   * By default, return everything.
+   */
+  returning<S1>(selection: Selection<T, {}, S1>): Update<T, P, S1>
+
+  /**
+   * Perform the update.
+   */
+  execute(
+    //): Promise<S extends never ? void : S[]>
+    client: DatabaseClient,
+    params: P,
+  ): Promise<S extends void ? void : S[]>
 }
 
 /**
@@ -825,20 +853,17 @@ export interface QueryRoot {
   // constants
   anyParam: AnyParam
 
-  // provide two separate versions for one + many inserts to keep TS error
-  // messages readable in case data has the wrong structure
-
   /**
    * No-fuzz insert of a single row.
    *
-   * By default, return the whole inserted row.
+   * `insertOne` is separate (not overloaded) from `insertMany` to get more
+   * readable Typescript errors in case `data` is of the wrong type.
    */
   insertOne<T, D extends string>(
     client: DatabaseClient,
     databaseTable: DatabaseTable<T, D>,
     data: SetOptional<T, D>,
-    //  ): Promise<{ [K in keyof T]: T[K] }>
-  ): Promise<RemoveTableName<T>>
+  ): Promise<void>
   insertOne<T, D extends string, S>(
     client: DatabaseClient,
     databaseTable: DatabaseTable<T, D>,
@@ -849,17 +874,49 @@ export interface QueryRoot {
   /**
    * No-fuzz insert of many rows.
    *
-   * By default, return the whole inserted rows.
+   * `insertMany` is separate (not overloaded) from `insertOne` to get more
+   * readable Typescript errors in case `data` is of the wrong type.
    */
   insertMany<T, D extends string>(
     client: DatabaseClient,
     databaseTable: DatabaseTable<T, D>,
     data: SetOptional<T, D>[],
-  ): Promise<RemoveTableName<T>[]>
+  ): Promise<void>
   insertMany<T, D extends string, S>(
     client: DatabaseClient,
     databaseTable: DatabaseTable<T, D>,
     data: SetOptional<T, D>[],
     returning: Selection<T, {}, S>,
   ): Promise<S[]>
+
+  /**
+   * SQL update expression.
+   */
+  update<T>(table: DatabaseTable<T, any>): Update<T>
+
+  /**
+   * Simple SQL update of many rows in one expression.
+   *
+   * Updates many rows at once, using an id column to identify records.
+   * Generates sth like:
+   *
+   *   UPDATE table t
+   *   SET (col_1, col_2) =
+   *     (SELECT col_1, col_2
+   *      FROM
+   *        (VALUES
+   *          (1,0,1),
+   *          (2,1,2)
+   *        ) AS v (id, col_1, col_2)
+   *      WHERE
+   *        t.id = v.id);
+   */
+  updateMany<T, D, N extends keyof T>(
+    client: DatabaseClient,
+    params: {
+      table: DatabaseTable<T, D>
+      column: N
+      data: Pick<T, N> & Partial<Pick<T, Exclude<keyof T, N>>>
+    },
+  ): Promise<void>
 }

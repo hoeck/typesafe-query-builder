@@ -14,11 +14,7 @@ const client: DatabaseClient = {} as DatabaseClient
 
 const insertTests = (async () => {
   // basic single insert
-  expectType<{
-    id: number
-    name: string
-    country: string
-  }>(
+  expectType<void>(
     await query.insertOne(client, Manufacturers, {
       name: 'SNK',
       country: 'Japan',
@@ -71,7 +67,7 @@ const insertTests = (async () => {
   )
 
   // multiple rows insert
-  expectType<{ id: number; name: string; country: string }[]>(
+  expectType<void>(
     await query.insertMany(client, Manufacturers, [
       {
         name: 'SNK',
@@ -94,6 +90,21 @@ const insertTests = (async () => {
       Manufacturers.include('id'),
     ),
   )
+
+  // input: a tree:
+  //
+  // const games = [{title: 'Sonic 2', systemIds: [1,2,3]}, {title: 'Sonic and Knuckles', systemIds: [2]}]
+  //
+  // output:
+  //
+  // WITH
+  //   game_1 AS (INSERT INTO games VALUES ('sonic 2') RETURNING id),
+  //   game_2 AS (INSERT INTO games VALUES ('s & kn') RETURNING id)
+  //   syst_1 AS (INSERT INTO games_systesm VALUES (game_1, 1)) RETURNING game_id,
+  //   syst_2 AS (INSERT INTO games_systesm VALUES (game_1, 2)) RETURNING game_id,
+  //   syst_3 AS (INSERT INTO games_systesm VALUES (game_1, 3)) RETURNING game_id,
+  //   syst_4 AS (INSERT INTO games_systesm VALUES (game_2, 2)) RETURNING game_id
+  // SELECT (select id from game_1 limit 1),(select id from game_2 limit 1)
 
   // ideas:
   //
@@ -132,4 +143,16 @@ const insertTests = (async () => {
   // https://www.postgresql-archive.org/Insert-Documentation-Returning-Clause-and-Order-td6166820.html
   // https://stackoverflow.com/questions/5439293/is-insert-returning-guaranteed-to-return-things-in-the-right-order
   // https://www.postgresql.org/docs/current/sql-insert.html
+  //
+  // BUT:
+  //   you can create one CTE per inserted row *mindblow*:
+  //
+  // WITH
+  //   game_1 AS (INSERT INTO games VALUES ('sonic 2') RETURNING id),
+  //   game_2 AS (INSERT INTO games VALUES ('s & kn') RETURNING id)
+  //   syst_1 AS (INSERT INTO games_systesm VALUES (game_1, 1)) RETURNING game_id,
+  //   syst_2 AS (INSERT INTO games_systesm VALUES (game_1, 2)) RETURNING game_id,
+  //   syst_3 AS (INSERT INTO games_systesm VALUES (game_1, 3)) RETURNING game_id,
+  //   syst_4 AS (INSERT INTO games_systesm VALUES (game_2, 2)) RETURNING game_id
+  // SELECT (select id from game_1 limit 1),(select id from game_2 limit 1)
 })()
