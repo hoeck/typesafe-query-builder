@@ -108,5 +108,46 @@ const updateTests = (async () => {
       .execute(client, { systemIds: [1, 2], data: { name: '-' } }),
   )
 
-  // query.updateMany(client, Systems.id, [{id: 1, name: '-'}]
+  // updateMany
+  expectType<void>(
+    await query.updateMany(client, {
+      table: Systems,
+      idColumn: 'id',
+      data: [
+        { id: 1, name: '-1-' },
+        { id: 3, name: '-3-' },
+      ],
+    }),
+  )
+
+  expectError(
+    query.updateMany(client, {
+      table: Systems,
+      idColumn: 'id',
+      data: [
+        // id col missing
+        { name: '-1-' },
+      ],
+    }),
+  )
+
+  expectError(
+    query.updateMany(client, {
+      table: Systems,
+      idColumn: 'id',
+      data: [
+        // id col wrong type
+        { id: '1', name: '-1-' },
+      ],
+    }),
+  )
+
+  expectError(
+    query.updateMany(client, {
+      table: Systems,
+      // wrong id column
+      idColumn: 'foo',
+      data: [],
+    }),
+  )
 })()
