@@ -9,7 +9,7 @@
   "module": "dist/typesafe-query-builder.esm.js",
   "types": "dist/index.d.ts",
   "tsd": {
-    "directory": "test"
+    "directory": "test-d"
   },
   "files": [
     "dist"
