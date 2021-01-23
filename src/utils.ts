@@ -67,3 +67,18 @@ export type AssertHasSingleKey<T> = keyof T extends never
  */
 export type SetOptional<T, D extends string> = Omit<T, D> &
   Partial<Pick<T, Extract<D, keyof T>>>
+
+/**
+ * Like Partial<T> but with null instead of optional.
+ */
+export type Nullable<T> = { [K in keyof T]: T[K] | null }
+
+/**
+ * The union of types which can be used in comparisons.
+ *
+ * Postgres docs call them "built-in data types that have a natural ordering".
+ * See https://www.postgresql.org/docs/current/functions-comparison.html
+ *
+ * We have `null` in here bc. the query builder transparently handles `IS NULL` and `=`.
+ */
+export type ComparableTypes = string | number | boolean | Date | null
