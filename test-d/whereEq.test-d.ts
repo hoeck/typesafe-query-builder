@@ -1,6 +1,6 @@
 import { expectError, expectType } from 'tsd'
-import { DatabaseClient, query } from '../../src'
-import { Games, Manufacturers, Systems } from '../helpers/classicGames'
+import { DatabaseClient, query } from '../src'
+import { Games, Manufacturers, Systems } from './helpers/classicGames'
 
 const client: DatabaseClient = {} as DatabaseClient
 
