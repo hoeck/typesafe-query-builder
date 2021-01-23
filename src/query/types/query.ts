@@ -210,6 +210,11 @@ export declare class QueryBottom<
 
   // SELECT
 
+  /**
+   * SQL SELECT.
+   *
+   * Choose which and how columns should appear in the result
+   */
   select<T1 extends T, P1, S1, C1 extends T, M1>(
     // Either a selection on a joined table or a (correlated) subquery.
     // The latter is checked that it only has a single selected column via the
@@ -219,6 +224,7 @@ export declare class QueryBottom<
       | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
   ): QueryBottom<T, P & P1, L, JoinedSelection<T1, L, M1, S1>, C>
 
+  // select 2 overload
   select<
     T1 extends T,
     T2 extends T,
@@ -245,18 +251,285 @@ export declare class QueryBottom<
     C
   >
 
-  // select<T1 extends T, T2 extends T, S1, S2, P1, P2>(
-  //   t1: Table<T1, S1, P1>,
-  //   t2: Table<T2, S2, P2>,
-  // ): QueryBottom<T, S & S1 & S2, P & P1 & P2>
-  //
-  // select<T1 extends T, T2 extends T, T3 extends T, S1, S2, S3, P1, P2, P3>(
-  //   t1: Table<T1, S1, P1>,
-  //   t2: Table<T2, S2, P2>,
-  //   t3: Table<T3, S3, P3>,
-  // ): QueryBottom<T, S & S1 & S2 & S3, P & P1 & P2 & P3>
+  // select 3
+  select<
+    T1 extends T,
+    T2 extends T,
+    T3 extends T,
+    P1,
+    P2,
+    P3,
+    S1,
+    S2,
+    S3,
+    C1 extends T,
+    C2 extends T,
+    C3 extends T,
+    M1,
+    M2,
+    M3
+  >(
+    t1:
+      | Selection<T1, P1, S1>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
+    t2:
+      | Selection<T2, P2, S2>
+      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2, M2>,
+    t3:
+      | Selection<T3, P3, S3>
+      | QueryBottom<any, P3, any, AssertHasSingleKey<S3>, C3, M3>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3,
+    L,
+    S &
+      JoinedSelection<T1, L, M1, S1> &
+      JoinedSelection<T2, L, M2, S2> &
+      JoinedSelection<T3, L, M3, S3>,
+    C
+  >
 
-  // TODO: up to t7 (or whatever the join limit is)
+  // select 4
+  select<
+    T1 extends T,
+    T2 extends T,
+    T3 extends T,
+    T4 extends T,
+    P1,
+    P2,
+    P3,
+    P4,
+    S1,
+    S2,
+    S3,
+    S4,
+    C1 extends T,
+    C2 extends T,
+    C3 extends T,
+    C4 extends T,
+    M1,
+    M2,
+    M3,
+    M4
+  >(
+    t1:
+      | Selection<T1, P1, S1>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
+    t2:
+      | Selection<T2, P2, S2>
+      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2, M2>,
+    t3:
+      | Selection<T3, P3, S3>
+      | QueryBottom<any, P3, any, AssertHasSingleKey<S3>, C3, M3>,
+    t4:
+      | Selection<T4, P4, S4>
+      | QueryBottom<any, P4, any, AssertHasSingleKey<S4>, C4, M4>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4,
+    L,
+    S &
+      JoinedSelection<T1, L, M1, S1> &
+      JoinedSelection<T2, L, M2, S2> &
+      JoinedSelection<T3, L, M3, S3> &
+      JoinedSelection<T4, L, M4, S4>,
+    C
+  >
+
+  // select 5
+  select<
+    T1 extends T,
+    T2 extends T,
+    T3 extends T,
+    T4 extends T,
+    T5 extends T,
+    P1,
+    P2,
+    P3,
+    P4,
+    P5,
+    S1,
+    S2,
+    S3,
+    S4,
+    S5,
+    C1 extends T,
+    C2 extends T,
+    C3 extends T,
+    C4 extends T,
+    C5 extends T,
+    M1,
+    M2,
+    M3,
+    M4,
+    M5
+  >(
+    t1:
+      | Selection<T1, P1, S1>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
+    t2:
+      | Selection<T2, P2, S2>
+      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2, M2>,
+    t3:
+      | Selection<T3, P3, S3>
+      | QueryBottom<any, P3, any, AssertHasSingleKey<S3>, C3, M3>,
+    t4:
+      | Selection<T4, P4, S4>
+      | QueryBottom<any, P4, any, AssertHasSingleKey<S4>, C4, M4>,
+    t5:
+      | Selection<T5, P5, S5>
+      | QueryBottom<any, P5, any, AssertHasSingleKey<S5>, C5, M5>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4 & P5,
+    L,
+    S &
+      JoinedSelection<T1, L, M1, S1> &
+      JoinedSelection<T2, L, M2, S2> &
+      JoinedSelection<T3, L, M3, S3> &
+      JoinedSelection<T4, L, M4, S4> &
+      JoinedSelection<T5, L, M5, S5>,
+    C
+  >
+
+  // select 6
+  select<
+    T1 extends T,
+    T2 extends T,
+    T3 extends T,
+    T4 extends T,
+    T5 extends T,
+    T6 extends T,
+    P1,
+    P2,
+    P3,
+    P4,
+    P5,
+    P6,
+    S1,
+    S2,
+    S3,
+    S4,
+    S5,
+    S6,
+    C1 extends T,
+    C2 extends T,
+    C3 extends T,
+    C4 extends T,
+    C5 extends T,
+    C6 extends T,
+    M1,
+    M2,
+    M3,
+    M4,
+    M5,
+    M6
+  >(
+    t1:
+      | Selection<T1, P1, S1>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
+    t2:
+      | Selection<T2, P2, S2>
+      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2, M2>,
+    t3:
+      | Selection<T3, P3, S3>
+      | QueryBottom<any, P3, any, AssertHasSingleKey<S3>, C3, M3>,
+    t4:
+      | Selection<T4, P4, S4>
+      | QueryBottom<any, P4, any, AssertHasSingleKey<S4>, C4, M4>,
+    t5:
+      | Selection<T5, P5, S5>
+      | QueryBottom<any, P5, any, AssertHasSingleKey<S5>, C5, M5>,
+    t6:
+      | Selection<T6, P6, S6>
+      | QueryBottom<any, P6, any, AssertHasSingleKey<S6>, C6, M6>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4 & P5 & P6,
+    L,
+    S &
+      JoinedSelection<T1, L, M1, S1> &
+      JoinedSelection<T2, L, M2, S2> &
+      JoinedSelection<T3, L, M3, S3> &
+      JoinedSelection<T4, L, M4, S4> &
+      JoinedSelection<T5, L, M5, S5> &
+      JoinedSelection<T6, L, M6, S6>,
+    C
+  >
+
+  // select 7
+  select<
+    T1 extends T,
+    T2 extends T,
+    T3 extends T,
+    T4 extends T,
+    T5 extends T,
+    T6 extends T,
+    T7 extends T,
+    P1,
+    P2,
+    P3,
+    P4,
+    P5,
+    P6,
+    P7,
+    S1,
+    S2,
+    S3,
+    S4,
+    S5,
+    S6,
+    S7,
+    C1 extends T,
+    C2 extends T,
+    C3 extends T,
+    C4 extends T,
+    C5 extends T,
+    C6 extends T,
+    C7 extends T,
+    M1,
+    M2,
+    M3,
+    M4,
+    M5,
+    M6,
+    M7
+  >(
+    t1:
+      | Selection<T1, P1, S1>
+      | QueryBottom<any, P1, any, AssertHasSingleKey<S1>, C1, M1>,
+    t2:
+      | Selection<T2, P2, S2>
+      | QueryBottom<any, P2, any, AssertHasSingleKey<S2>, C2, M2>,
+    t3:
+      | Selection<T3, P3, S3>
+      | QueryBottom<any, P3, any, AssertHasSingleKey<S3>, C3, M3>,
+    t4:
+      | Selection<T4, P4, S4>
+      | QueryBottom<any, P4, any, AssertHasSingleKey<S4>, C4, M4>,
+    t5:
+      | Selection<T5, P5, S5>
+      | QueryBottom<any, P5, any, AssertHasSingleKey<S5>, C5, M5>,
+    t6:
+      | Selection<T6, P6, S6>
+      | QueryBottom<any, P6, any, AssertHasSingleKey<S6>, C6, M6>,
+    t7:
+      | Selection<T7, P7, S7>
+      | QueryBottom<any, P7, any, AssertHasSingleKey<S7>, C7, M7>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4 & P5 & P6 & P7,
+    L,
+    S &
+      JoinedSelection<T1, L, M1, S1> &
+      JoinedSelection<T2, L, M2, S2> &
+      JoinedSelection<T3, L, M3, S3> &
+      JoinedSelection<T4, L, M4, S4> &
+      JoinedSelection<T5, L, M5, S5> &
+      JoinedSelection<T6, L, M6, S6> &
+      JoinedSelection<T7, L, M7, S7>,
+    C
+  >
 
   // /**
   //  * Append and ORDER BY clause to the query.
