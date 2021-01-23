@@ -1,16 +1,7 @@
-import { expectAssignable, expectError, expectType } from 'tsd'
-import { DatabaseClient, query, TableRowInsert, TableRow } from '../src'
-import {
-  Franchises,
-  Games,
-  GamesSystems,
-  Manufacturers,
-  Systems,
-} from './helpers/classicGames'
-
-import { Update } from '../src/query/types'
-
-const client: DatabaseClient = {} as DatabaseClient
+import { expectError, expectType } from 'tsd'
+import { query } from '../src'
+import { client } from './helpers'
+import { Manufacturers, Systems } from './helpers/classicGames'
 
 const updateTests = (async () => {
   // basic use
