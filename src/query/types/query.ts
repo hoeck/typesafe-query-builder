@@ -2,6 +2,7 @@ import { Selection, Table, TableColumn } from '../../table/types'
 import { AssertHasSingleKey, Nullable } from '../../utils'
 import { AnyParam, ComparableTypes } from './atoms'
 import { DatabaseClient } from './databaseClient'
+import { SqlFragment } from './sqlFragment'
 
 /**
  * postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
@@ -30,13 +31,17 @@ type JoinedSelection<T, L, M, S> = T extends L
   ? Nullable<S> // subqueries may be null (we'd have to exactly analyze the where conditions to know when they are not null)
   : S
 
-// Type params:
-//   T .. union of all tables present in the query
-//   P .. parameters of this query
-//   L .. union of all left-joined tables
-//   S .. shape of the selected data
-//   C .. correlated table (for subqueries)
-//   M .. marker do separate `QueryBottom` and `Selection` parameters in `.select`
+/**
+ * Building that part of a query which comes after the joins.
+ *
+ * Type params:
+ *   T .. union of all tables present in the query
+ *   P .. parameters of this query
+ *   L .. union of all left-joined tables
+ *   S .. shape of the selected data
+ *   C .. correlated table (for subqueries)
+ *   M .. marker do separate `QueryBottom` and `Selection` parameters in `.select`
+ */
 export declare class QueryBottom<
   T,
   P,
@@ -116,85 +121,92 @@ export declare class QueryBottom<
     subselect: QueryBottom<any, P1, any, any, C1>,
   ): QueryBottom<T, P & P1, L, S, C>
 
-  // /**
-  //  * Universal SQL where condition using JS template strings.
-  //  */
-  // whereSql<K1 extends string, C1>(
-  //   sqlFragment: SqlFragment<T, K1, C1>,
-  // ): QueryBottom<T, S, P & { [KK in K1]: C1 }, U>
-  // whereSql<K1 extends string, K2 extends string, C1, C2>(
-  //   sqlFragment1: SqlFragment<T, K1, C1>,
-  //   sqlFragment2: SqlFragment<T, K2, C2>,
-  // ): QueryBottom<T, S, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }, U>
-  // whereSql<K1 extends string, K2 extends string, K3 extends string, C1, C2, C3>(
-  //   sqlFragment1: SqlFragment<T, K1, C1>,
-  //   sqlFragment2: SqlFragment<T, K2, C2>,
-  //   sqlFragment3: SqlFragment<T, K3, C3>,
-  // ): QueryBottom<
-  //   T,
-  //   S,
-  //   P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 },
-  //   U
-  // >
-  // whereSql<
-  //   K1 extends string,
-  //   K2 extends string,
-  //   K3 extends string,
-  //   K4 extends string,
-  //   C1,
-  //   C2,
-  //   C3,
-  //   C4
-  // >(
-  //   sqlFragment1: SqlFragment<T, K1, C1>,
-  //   sqlFragment2: SqlFragment<T, K2, C2>,
-  //   sqlFragment3: SqlFragment<T, K3, C3>,
-  //   sqlFragment4: SqlFragment<T, K4, C4>,
-  // ): QueryBottom<
-  //   T,
-  //   S,
-  //   P &
-  //     { [KK in K1]: C1 } &
-  //     { [KK in K2]: C2 } &
-  //     { [KK in K3]: C3 } &
-  //     { [KK in K4]: C4 },
-  //   U
-  // >
-  // whereSql<
-  //   K1 extends string,
-  //   K2 extends string,
-  //   K3 extends string,
-  //   K4 extends string,
-  //   K5 extends string,
-  //   C1,
-  //   C2,
-  //   C3,
-  //   C4,
-  //   C5
-  // >(
-  //   sqlFragment1: SqlFragment<T, K1, C1>,
-  //   sqlFragment2: SqlFragment<T, K2, C2>,
-  //   sqlFragment3: SqlFragment<T, K3, C3>,
-  //   sqlFragment4: SqlFragment<T, K4, C4>,
-  //   sqlFragment5: SqlFragment<T, K5, C5>,
-  // ): QueryBottom<
-  //   T,
-  //   S,
-  //   P &
-  //     { [KK in K1]: C1 } &
-  //     { [KK in K2]: C2 } &
-  //     { [KK in K3]: C3 } &
-  //     { [KK in K4]: C4 } &
-  //     { [KK in K5]: C5 },
-  //   U
-  // >
-  //
-  // /**
-  //  * Untyped whereSql in case you need more than 5 SqlFragments.
-  //  */
-  // whereSqlUntyped(
-  //   ...sqlFragments: Array<SqlFragment<any, any, any>>
-  // ): QueryBottom<T, S, P & { [key: string]: any }, U>
+  /**
+   * Universal SQL where condition using JS template strings.
+   */
+  whereSql<K1 extends string, C1>(
+    sqlFragment: SqlFragment<T, K1, C1>,
+  ): QueryBottom<T, P & { [KK in K1]: C1 }, L, S, C>
+
+  whereSql<K1 extends string, K2 extends string, C1, C2>(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+  ): QueryBottom<T, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }, L, S, C>
+
+  whereSql<K1 extends string, K2 extends string, K3 extends string, C1, C2, C3>(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+    sqlFragment3: SqlFragment<T, K3, C3>,
+  ): QueryBottom<
+    T,
+    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 },
+    L,
+    S,
+    C
+  >
+
+  whereSql<
+    K1 extends string,
+    K2 extends string,
+    K3 extends string,
+    K4 extends string,
+    C1,
+    C2,
+    C3,
+    C4
+  >(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+    sqlFragment3: SqlFragment<T, K3, C3>,
+    sqlFragment4: SqlFragment<T, K4, C4>,
+  ): QueryBottom<
+    T,
+    P &
+      { [KK in K1]: C1 } &
+      { [KK in K2]: C2 } &
+      { [KK in K3]: C3 } &
+      { [KK in K4]: C4 },
+    L,
+    S,
+    C
+  >
+
+  whereSql<
+    K1 extends string,
+    K2 extends string,
+    K3 extends string,
+    K4 extends string,
+    K5 extends string,
+    C1,
+    C2,
+    C3,
+    C4,
+    C5
+  >(
+    sqlFragment1: SqlFragment<T, K1, C1>,
+    sqlFragment2: SqlFragment<T, K2, C2>,
+    sqlFragment3: SqlFragment<T, K3, C3>,
+    sqlFragment4: SqlFragment<T, K4, C4>,
+    sqlFragment5: SqlFragment<T, K5, C5>,
+  ): QueryBottom<
+    T,
+    P &
+      { [KK in K1]: C1 } &
+      { [KK in K2]: C2 } &
+      { [KK in K3]: C3 } &
+      { [KK in K4]: C4 } &
+      { [KK in K5]: C5 },
+    L,
+    S,
+    C
+  >
+
+  /**
+   * Untyped whereSql in case you need more than 5 SqlFragments.
+   */
+  whereSqlUntyped(
+    ...sqlFragments: Array<SqlFragment<any, any, any>>
+  ): QueryBottom<T, P & { [key: string]: any }, L, S, C>
 
   // SELECT
 

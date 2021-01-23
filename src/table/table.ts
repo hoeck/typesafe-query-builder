@@ -146,7 +146,7 @@ export class TableImplementation {
       const res: Record<string, ColumnImplementation> = {}
       const cols = this.selected || Object.keys(this.tableColumns)
 
-      cols.forEach(key => {
+      cols.forEach((key) => {
         const colKey = this.renamed?.hasOwnProperty(key)
           ? this.renamed[key]
           : key
@@ -234,7 +234,7 @@ export class TableImplementation {
     if (this.projection === undefined) {
       // default projection (none)
       return selected
-        .map(columnKey => {
+        .map((columnKey) => {
           const column = this.tableColumns[columnKey]
           const columnResultKey = this.getColumnResultKey(columnKey)
 
@@ -326,7 +326,7 @@ export class TableImplementation {
     return (
       'JSON_BUILD_OBJECT(' +
       (this.selected || Object.keys(this.tableColumns))
-        .map(columnKey => {
+        .map((columnKey) => {
           const column = this.tableColumns[columnKey]
           const columnResultKey = this.getColumnResultKey(columnKey)
 
@@ -382,7 +382,7 @@ export class TableImplementation {
         assert.fail(`table has no primary columns: ${this.debugInfo()}`)
       }
 
-      return pks.map(pkSql => `${pkSql} IS NOT NULL`).join(' AND ')
+      return pks.map((pkSql) => `${pkSql} IS NOT NULL`).join(' AND ')
     }
   }
 
@@ -491,7 +491,7 @@ export class TableImplementation {
 
     const keys = this.selected || Object.keys(this.tableColumns)
 
-    return keys.map(k => this.getColumnResultKey(k))
+    return keys.map((k) => this.getColumnResultKey(k))
   }
 
   /// TableProjectionMethods implementation
@@ -516,7 +516,7 @@ export class TableImplementation {
     const res = getTableImplementation(this).copy()
 
     res.selected = (res.selected || Object.keys(res.tableColumns)).filter(
-      k => !keys.includes(k),
+      (k) => !keys.includes(k),
     )
 
     return res.getTableProxy()
@@ -602,7 +602,7 @@ export class TableImplementation {
     const res = getTableImplementation(this).copy()
 
     res.selected = (res.selected || Object.keys(res.tableColumns)).filter(
-      k => !keys.includes(k),
+      (k) => !keys.includes(k),
     )
 
     return res.getTableProxy()
@@ -618,7 +618,10 @@ export function table<N extends string, T>(
   tableName: N,
   columns: { [K in keyof T]: Column<T[K]> },
 ): DatabaseTable<
-  { [K in keyof T]: Exclude<T[K], DefaultValue> } & TableName<N>,
+  // TableName first to make this the first thing in typescript errors that TS
+  // will find and report as a mismatch. Without that, it would report first
+  // that columns are missing to make two different tables compatible.
+  TableName<N> & { [K in keyof T]: Exclude<T[K], DefaultValue> },
   {
     [K in keyof T]: DefaultValue extends Extract<T[K], DefaultValue> ? K : never
   }[keyof T]
@@ -626,7 +629,7 @@ export function table<N extends string, T>(
   // remove type info from columns to access their private attributes
   const columnImplementations: { [key: string]: ColumnImplementation } = {}
 
-  Object.keys(columns).forEach(k => {
+  Object.keys(columns).forEach((k) => {
     columnImplementations[k] = getColumnImplementation((columns as any)[k])
   })
 
