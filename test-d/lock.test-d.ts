@@ -15,5 +15,5 @@ import { Systems } from './helpers/classicGames'
   const q = query(Systems).select(Systems.include('name')).lockParam('l')
 
   expectType<{ name: string }>(resultType(q))
-  expectAssignable<{ l: LockMode }>(parameterType(q))
+  expectType<{ l: LockMode }>(parameterType(q))
 }

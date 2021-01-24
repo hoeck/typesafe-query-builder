@@ -63,5 +63,5 @@ import { parameterType, resultType } from './helpers'
     )
 
   expectType<{ id: number }>(resultType(q))
-  expectAssignable<{ lower: number; upper: number }>(parameterType(q))
+  expectType<{ lower: number; upper: number }>(parameterType(q))
 }

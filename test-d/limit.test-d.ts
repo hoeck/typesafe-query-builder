@@ -18,5 +18,5 @@ import { Systems } from './helpers/classicGames'
     .offsetParam('b')
 
   expectType<{ name: string }>(resultType(q))
-  expectAssignable<{ a: number; b: number }>(parameterType(q))
+  expectType<{ a: number; b: number }>(parameterType(q))
 }

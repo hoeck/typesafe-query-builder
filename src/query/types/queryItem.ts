@@ -1,5 +1,5 @@
 import { TableImplementation } from '../../table'
-import { LockMode } from './query'
+import { LockMode } from './queryBottom'
 import { SqlFragmentImplementation } from './sqlFragment'
 
 /**
