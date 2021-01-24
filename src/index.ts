@@ -1,4 +1,4 @@
-export { DatabaseClient, ResultType, query, sql } from './query'
+export { DatabaseClient, LockMode, ResultType, query, sql } from './query'
 export {
   Column,
   Table,

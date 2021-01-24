@@ -531,99 +531,77 @@ export declare class QueryBottom<
     C
   >
 
-  // /**
-  //  * Append and ORDER BY clause to the query.
-  //  *
-  //  * When no direction is given, use the database default (ASC).
-  //  * nulls directly map to the optional NULLS FIRST or NULLS LAST option
-  //  * (by pg default, null values sort as if larger than any non-null value).
-  //  *
-  //  * Use multiple orderBy calls to sort by more than one column.
-  //  *
-  //  * See https://www.postgresql.org/docs/current/queries-order.html
-  //  */
-  // orderBy(
-  //   // Postgres allows any column in an order by statement,
-  //   // standard sql only allows order by the selected columns
-  //   col: TableColumn<T, any, any, any>,
-  //   direction?: 'asc' | 'desc',
-  //   nulls?: 'nullsFirst' | 'nullsLast',
-  // ): QueryBottom<T, S, P, U>
-  //
-  // /**
-  //  * Append an SQL LIMIT clause to the query.
-  //  */
-  // limit(count: number): QueryBottom<T, S, P, U>
-  //
-  // /**
-  //  * Append an SQL OFFSET clause to the query.
-  //  */
-  // offset(offset: number): QueryBottom<T, S, P, U>
-  //
-  // /**
-  //  * Add a row lock statement to the query (e.g. 'FOR UPDATE')
-  //  */
-  // lock(lockMode: LockMode): QueryBottom<T, S, P, U>
-  //
-  // /**
-  //  * Add a row lock statement depending on a parameter
-  //  *
-  //  * Use this to delay the decision which lock mode (or not locking at all) to
-  //  * use until executing the query.
-  //  */
-  // lockParam<K extends string>(
-  //   paramKey: K,
-  // ): QueryBottom<T, S, P & { [KK in K]: LockMode }, U>
+  /**
+   * Append and ORDER BY clause to the query.
+   *
+   * When no direction is given, use the database default (ASC).
+   * nulls directly map to the optional NULLS FIRST or NULLS LAST option
+   * (by pg default, null values sort as if larger than any non-null value).
+   *
+   * Use multiple orderBy calls to sort by more than one column.
+   *
+   * See https://www.postgresql.org/docs/current/queries-order.html
+   */
+  orderBy<CP extends ComparableTypes>(
+    // Postgres allows any column in an order by statement,
+    // standard sql only allows order by the selected columns
+    col: TableColumn<T, any, CP>,
+    direction?: 'asc' | 'desc',
+    nulls?: 'nullsFirst' | 'nullsLast',
+  ): QueryBottom<T, P, L, S, C>
 
-  /// update
+  /**
+   * Append an SQL LIMIT clause to the query.
+   */
+  limit(count: number): QueryBottom<T, P, L, S, C>
 
-  // /**
-  //  * Update the rows selected by this query.
-  //  *
-  //  * Not supported with joins, limit, offset, orderBy and the like.
-  //  */
-  // update(client: DatabaseClient, params: P, data: Partial<T>): U
-  //
-  // /**
-  //  * Update at most a single row selected by this query.
-  //  *
-  //  * Throws a QueryBuilderResultError when more than 1 row *was updated*.
-  //  * Use this in a transaction that rollbacks on exceptions to revert the update.
-  //  *
-  //  * Not supported with joins, limit, offset, orderBy and the like.
-  //  *
-  //  * Returns a list of updated rows bc. its simpler to type just as `.update`.
-  //  */
-  // updateOne(client: DatabaseClient, params: P, data: Partial<T>): U
-  //
-  // /**
-  //  * Update a single row selected by this query.
-  //  *
-  //  * Throws a QueryBuilderResultError when no row or more than 1 row *was updated*.
-  //  * Use this in a transaction that rollbacks on exceptions to revert the update.
-  //  *
-  //  * Not supported with joins, limit, offset, orderBy and the like.
-  //  *
-  //  * Returns a list of updated rows bc. its simpler to type just as `.update`.
-  //  */
-  // updateExactlyOne(client: DatabaseClient, params: P, data: Partial<T>): U
-  //
-  // /**
-  //  * Call a factory function with this query.
-  //  *
-  //  * The factory should return a function that fetches from this statement.
-  //  *
-  //  * This way you will cache the query object and sql string and save some
-  //  * overhead when executing the same query repeatedly (with or without
-  //  * different arguments).
-  //  */
-  // use<R>(factory: (query: QueryBottom<T, S, P, U>) => R): R
+  /**
+   * Append an SQL LIMIT clause to the query.
+   */
+  limitParam<K extends string>(
+    countParam: K,
+  ): QueryBottom<T, P & { [KK in K]: number }, L, S, C>
+
+  /**
+   * Append an SQL OFFSET clause to the query.
+   */
+  offset(offset: number): QueryBottom<T, P, L, S, C>
+
+  /**
+   * Append an SQL OFFSET clause to the query.
+   */
+  offsetParam<K extends string>(
+    offsetParam: K,
+  ): QueryBottom<T, P & { [KK in K]: number }, L, S, C>
+
+  /**
+   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
+   */
+  lock(lockMode: LockMode): QueryBottom<T, P, L, S, C>
+
+  /**
+   * Add a row lock statement depending on a parameter
+   *
+   * Use this to delay the decision which lock mode (or not locking at all) to
+   * use until executing the query.
+   */
+  lockParam<K extends string>(
+    paramKey: K,
+  ): QueryBottom<T, P & { [KK in K]: LockMode }, L, S, C>
+
+  /**
+   * Call a factory function with this query.
+   *
+   * The factory should return a function that fetches from this statement.
+   *
+   * This way you will cache the query object and sql string and save some
+   * overhead when executing the same query repeatedly (with or without
+   * different arguments).
+   */
+  use<R>(factory: (query: QueryBottom<T, P, L, S, C>) => R): R
 
   /**
    * Return this query as a table to use it in subqueries.
-   *
-   * Use it also to alias a table, e.g. to join the same table twice in a
-   * query.
    */
   table(): Table<S, P>
 
