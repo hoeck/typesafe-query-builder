@@ -3,7 +3,7 @@ import { SetOptional } from '../../utils'
 import { AnyParam } from './atoms'
 import { DatabaseClient } from './databaseClient'
 import { Delete } from './delete'
-import { Query } from './query'
+import { Query } from './joins'
 import { Update } from './update'
 
 /**
