@@ -15,9 +15,9 @@
     "dist"
   ],
   "scripts": {
-    "prepare": "tsdx build",
-    "start": "tsdx watch",
-    "build": "tsdx build --tsconfig tsconfig.build.json",
+    "prepare": "tsdx build  --tsconfig tsconfig.build.json --target node",
+    "start": "tsdx watch --target node",
+    "build": "tsdx build --tsconfig tsconfig.build.json --target node",
     "test": "tsdx test",
     "test:watch": "tsdx test --watchAll",
     "test:types": "tsd",
