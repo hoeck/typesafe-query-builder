@@ -12,13 +12,13 @@ import {
   getTableImplementation,
 } from '../table'
 import {
+  BuildContext,
   buildSqlQuery,
   buildColumns,
   buildInsert,
   buildUpdate,
   buildResultConverter,
-} from './build'
-import { BuildContext } from './buildContext'
+} from '../build'
 import {
   QueryRoot,
   DatabaseClient,
@@ -83,7 +83,7 @@ function createSqlParam(key: any): SqlFragmentParam<any, any> {
   }
 }
 
-sqlImplementation.param = createSqlParam
+sqlImplementation.param = createSqlParam // TODO: param of table type
 sqlImplementation.number = createSqlParam
 sqlImplementation.string = createSqlParam
 sqlImplementation.boolean = createSqlParam
@@ -103,7 +103,7 @@ function validateRowData(
   keys: string[],
   data: any,
 ) {
-  keys.forEach(k => {
+  keys.forEach((k) => {
     const value = data[k]
     const column = table.tableColumns[k]
 
@@ -139,7 +139,7 @@ class QueryImplementation {
     // raise an error if selectAsJsonAgg is used more than once in a query
     if (
       this.tables.length > 1 &&
-      this.tables.filter(t => t.isJsonAggProjection()).length > 1
+      this.tables.filter((t) => t.isJsonAggProjection()).length > 1
     ) {
       throw new QueryBuilderUsageError(
         '`selectAsJsonAgg` must only be used once in each query (use subqueries in case you want to have multiple `selectAsJsonAgg` aggregations)',
@@ -147,8 +147,8 @@ class QueryImplementation {
     }
   }
 
-  // raise an error if selected columns of different conlfict with each other
-  // (e.g. multiple id cols)
+  // raise an error if selected columns of different tables conflict with each
+  // other (e.g. multiple id cols)
   private checkDuplicateSelectedColumns() {
     if (this.tables.length < 2) {
       return
@@ -156,8 +156,8 @@ class QueryImplementation {
 
     let columnMultiset: Map<string, Set<TableImplementation>> = new Map()
 
-    this.tables.forEach(t => {
-      t.getResultingColumnNames().forEach(c => {
+    this.tables.forEach((t) => {
+      t.getResultingColumnNames().forEach((c) => {
         const entry = columnMultiset.get(c)
 
         if (entry) {
@@ -169,7 +169,7 @@ class QueryImplementation {
     })
 
     const containsDuplicate = Array.from(columnMultiset.values()).some(
-      s => s.size > 1,
+      (s) => s.size > 1,
     )
 
     if (!containsDuplicate) {
@@ -187,7 +187,7 @@ class QueryImplementation {
 
       const reportKeyList: string[] = []
 
-      tableSet.forEach(t => {
+      tableSet.forEach((t) => {
         reportKeyList.push(t.tableName)
       })
 
@@ -275,7 +275,7 @@ class QueryImplementation {
       ...this.query,
       {
         queryType: 'whereSql',
-        fragments: params.map(f => ({
+        fragments: params.map((f) => ({
           column: f.column ? getTableImplementation(f.column) : undefined,
           columnFirst: f.columnFirst,
           literals: f.literals,
@@ -285,12 +285,12 @@ class QueryImplementation {
     ])
   }
 
-  select(tables: AnyTable[]) {
+  select(...tables: AnyTable[]) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
         queryType: 'select',
-        tables,
+        tables: tables.map((t) => getTableImplementation(t)),
       },
     ])
   }
@@ -397,7 +397,7 @@ class QueryImplementation {
     const paramArray = params ? ctx.getParameters(params) : []
 
     return (await client.query(sql, paramArray)).rows
-      .map(r => r['QUERY PLAN'])
+      .map((r) => r['QUERY PLAN'])
       .join('\n')
   }
 
@@ -407,7 +407,7 @@ class QueryImplementation {
     const paramArray = params ? ctx.getParameters(params) : []
 
     return (await client.query(sql, paramArray)).rows
-      .map(r => r['QUERY PLAN'])
+      .map((r) => r['QUERY PLAN'])
       .join('\n')
   }
 
@@ -419,7 +419,7 @@ class QueryImplementation {
 
     const result = (await client.query(sql, paramArray)).rows
 
-    result.forEach(row => resultConverter(row))
+    result.forEach((row) => resultConverter(row))
 
     return result
   }
@@ -488,7 +488,7 @@ class QueryImplementation {
 
         const keys = Object.keys(row)
 
-        keys.forEach(k => {
+        keys.forEach((k) => {
           currentKey = k
 
           const value = row[k]

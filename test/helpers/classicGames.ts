@@ -2,44 +2,30 @@ import { table, column as col } from '../../src'
 
 // improved test data increase reasoning about it
 
-export const Manufacturers = table('manufacturers', {
-  id: col('id')
-    .integer()
-    .primary()
-    .default(),
+export const Manufacturers = table('classicgames.manufacturers', {
+  id: col('id').integer().primary().default(),
   name: col('name').string(),
   country: col('country').string(),
 })
 
-export const Systems = table('systems', {
-  id: col('id')
-    .integer()
-    .primary()
-    .default(),
+export const Systems = table('classicgames.systems', {
+  id: col('id').integer().primary().default(),
   name: col('name').string(),
   year: col('year').integer(),
   manufacturerId: col('manufacturer_id').integer(),
 })
 
-export const Franchises = table('franchises', {
-  id: col('id')
-    .integer()
-    .primary()
-    .default(),
+export const Franchises = table('classicgames.franchises', {
+  id: col('id').integer().primary().default(),
   name: col('name').string(),
-  manufacturerId: col('manufacturer_id')
-    .integer()
-    .null(),
+  manufacturerId: col('manufacturer_id').integer().null(),
 })
 
-export const Games = table('games', {
-  id: col('id')
-    .integer()
-    .primary()
-    .default(),
+export const Games = table('classicgames.games', {
+  id: col('id').integer().primary().default(),
   title: col('name').string(),
   urls: col('urls')
-    .json(v => {
+    .json((v) => {
       if (typeof v !== 'object' || v === null) {
         throw new Error('invalid value')
       }
@@ -61,18 +47,12 @@ export const Games = table('games', {
       return anyV as { wiki?: string; ign?: string; misc?: string }
     })
     .null(),
-  franchiseId: col('franchise_id')
-    .integer()
-    .null(),
+  franchiseId: col('franchise_id').integer().null(),
 })
 
-export const GamesSystems = table('games_systems', {
+export const GamesSystems = table('classicgames.games_systems', {
   gameId: col('game_id').integer(),
   systemId: col('system_id').integer(),
-  releaseDate: col('release_date')
-    .date()
-    .null(),
-  played: col('played')
-    .boolean()
-    .default(),
+  releaseDate: col('release_date').date().null(),
+  played: col('played').boolean().default(),
 })

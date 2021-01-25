@@ -83,5 +83,5 @@ export interface CanaryColumnItem {
 
 export interface SelectItem {
   queryType: 'select'
-  tables: any
+  tables: TableImplementation[]
 }

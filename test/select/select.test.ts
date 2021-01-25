@@ -1,12 +1,19 @@
 import { query } from '../../src'
-import { client, eventTypes, users, items, classicGames } from '../helpers'
+import { client, expectValues, Systems, Manufacturers } from '../helpers'
 
 describe('select', () => {
-  // test('empty select', async () => {
-  //   const result = await query(eventTypes.select()).fetch(client)
-  //
-  //   expect(result).toEqual([{}, {}, {}, {}])
-  // })
+  test('basic select', async () => {
+    const result = await query(Manufacturers)
+      .select(Manufacturers.include('name'))
+      .fetch(client)
+
+    expectValues(result, [
+      { name: 'Sega' },
+      { name: 'Nintendo' },
+      { name: 'Atari' },
+    ])
+  })
+
   // test('empty select and joins', async () => {
   //   // this is why not selecting anything is useful: to filter certain
   //   // records on an attribute that is not included in the result at all
@@ -29,12 +36,12 @@ describe('select', () => {
   //   expect(result).toContainEqual({ userJson: {} })
   // })
   //
-  test.only('including columns', async () => {
-    // const result = await query(classicGames.Systems)
-    //   .select(classicGames.Systems.include('id', 'name'))
-    //   .fetch(client)
-    // -> 'SELECT u.'
-  })
+  // test('including columns', async () => {
+  //   // const result = await query(classicGames.Systems)
+  //   //   .select(classicGames.Systems.include('id', 'name'))
+  //   //   .fetch(client)
+  //   // -> 'SELECT u.'
+  // })
   /*
   test.only('subselect', async () => {
     // const result = await query

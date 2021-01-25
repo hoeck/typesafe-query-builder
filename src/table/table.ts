@@ -1,7 +1,11 @@
 import assert from 'assert'
 
 import { QueryBuilderUsageError } from '../errors'
-import { BuildContext } from '../query/buildContext'
+import {
+  BuildContext,
+  sqlColumnIdentifier,
+  sqlEscapeIdentifier,
+} from '../build'
 
 import {
   Column,
@@ -39,7 +43,7 @@ export class TableImplementation {
   // all columns available in this table to use in selection, projection, where, etc.
   tableColumns: { [key: string]: ColumnImplementation }
 
-  // currently selected columns, undefined == all
+  // currently selected columns, always starts empty
   selected?: string[]
 
   // rename projection, maps original to renamed
@@ -48,11 +52,17 @@ export class TableImplementation {
   // single-column projections
   projection?:
     | {
-        type: 'jsonBuildObject'
+        type: 'jsonObject'
         name: string
       }
     | {
-        type: 'jsonAgg'
+        type: 'jsonArray'
+        name: string
+        orderBy?: string
+        direction?: 'ASC' | 'DESC'
+      }
+    | {
+        type: 'jsonObjectArray'
         name: string
         orderBy?: string
         direction?: 'ASC' | 'DESC'
@@ -63,6 +73,7 @@ export class TableImplementation {
   // where/order-by expresssions)
   referencedColumn?: string
 
+  // need this to decide whether to create null or {col1: null, col2: null}
   private jsonAggCanaryColumnName = '__typesafe_query_builder_canary_column'
 
   constructor(
@@ -112,14 +123,14 @@ export class TableImplementation {
       get: (_target, prop, _receiver) => {
         // TableProjectionMethods
         if (
-          prop === 'select' ||
-          prop === 'selectAs' ||
-          prop === 'selectAsJson' ||
-          prop === 'selectAsJsonAgg' ||
-          prop === 'selectWithout' ||
           prop === 'column' ||
           prop === 'include' ||
-          prop === 'exclude'
+          prop === 'exclude' ||
+          prop === 'all' ||
+          prop === 'rename' ||
+          prop === 'jsonObject' ||
+          prop === 'jsonArray' ||
+          prop === 'jsonObjectArray'
         ) {
           return this[prop]
         }
@@ -139,14 +150,24 @@ export class TableImplementation {
     }) as any
   }
 
+  private getSelectedKeys() {
+    if (!this.selected) {
+      throw new QueryBuilderUsageError(
+        `no keys are selected in ${this.tableName}`,
+      )
+    }
+
+    return this.selected
+  }
+
   // return the columns that are selected / renamed/ json-projected by this
   // table as Column objects to be used in new tables that cover a subselect
   getColumns() {
     if (this.projection === undefined) {
+      const selected = this.getSelectedKeys()
       const res: Record<string, ColumnImplementation> = {}
-      const cols = this.selected || Object.keys(this.tableColumns)
 
-      cols.forEach((key) => {
+      selected.forEach((key) => {
         const colKey = this.renamed?.hasOwnProperty(key)
           ? this.renamed[key]
           : key
@@ -156,48 +177,54 @@ export class TableImplementation {
       })
 
       return res
-    } else if (this.projection.type === 'jsonBuildObject') {
-      // a single column that validates & fromJson-izes correctly
-      const fromJsonConverter = this.getFromJsonRowConverter()
+    } else if (this.projection.type === 'jsonObject') {
+      throw new Error('todo')
 
-      return {
-        [this.projection.name]: new Column<unknown>({
-          name: this.projection.name,
-          columnValue: () => {
-            throw new QueryBuilderUsageError(
-              'cannot use subselected tables in inserts / updates',
-            )
-          },
-          fromJson: (v: any) => {
-            // use the converter in the cols fromJson so that we are free to
-            // combine the from json in any way
-            fromJsonConverter(v)
+      // // a single column that validates & fromJson-izes correctly
+      // const fromJsonConverter = this.getFromJsonRowConverter()
+      //
+      // return {
+      //   [this.projection.name]: new Column<unknown>({
+      //     name: this.projection.name,
+      //     columnValue: () => {
+      //       throw new QueryBuilderUsageError(
+      //         'cannot use subselected tables in inserts / updates',
+      //       )
+      //     },
+      //     fromJson: (v: any) => {
+      //       // use the converter in the cols fromJson so that we are free to
+      //       // combine the from json in any way
+      //       fromJsonConverter(v)
+      //
+      //       return v
+      //     },
+      //   }),
+      // }
+    } else if (this.projection.type === 'jsonArray') {
+      throw new Error('todo')
+    } else if (this.projection.type === 'jsonObjectArray') {
+      throw new Error('todo')
 
-            return v
-          },
-        }),
-      }
-    } else if (this.projection.type === 'jsonAgg') {
-      // a single column that validates & fromJson-izes the resulting json-agg array correctly
-      const fromJsonConverter = this.getFromJsonRowConverter()
-
-      return {
-        [this.projection.name]: new Column<unknown>({
-          name: this.projection.name,
-          columnValue: () => {
-            throw new QueryBuilderUsageError(
-              'cannot use subselected tables in inserts / updates',
-            )
-          },
-          fromJson: (v: any) => {
-            for (let i = 0; i < v.length; i++) {
-              fromJsonConverter(v[i])
-            }
-
-            return v
-          },
-        }),
-      }
+      // // a single column that validates & fromJson-izes the resulting json-agg array correctly
+      // const fromJsonConverter = this.getFromJsonRowConverter()
+      //
+      // return {
+      //   [this.projection.name]: new Column<unknown>({
+      //     name: this.projection.name,
+      //     columnValue: () => {
+      //       throw new QueryBuilderUsageError(
+      //         'cannot use subselected tables in inserts / updates',
+      //       )
+      //     },
+      //     fromJson: (v: any) => {
+      //       for (let i = 0; i < v.length; i++) {
+      //         fromJsonConverter(v[i])
+      //       }
+      //
+      //       return v
+      //     },
+      //   }),
+      // }
     } else {
       assert.fail(
         `invalid projection in table ${this.tableName} - ${this.projection}`,
@@ -228,8 +255,7 @@ export class TableImplementation {
   // keys in order to detect empty left joins and build json objects
   // accordingly.
   getSelectSql(alias: string | undefined, isLeftJoin: boolean) {
-    const selected = this.selected || Object.keys(this.tableColumns)
-    const aliasPrefix = alias ? alias + '.' : ''
+    const selected = this.getSelectedKeys()
 
     if (this.projection === undefined) {
       // default projection (none)
@@ -238,7 +264,16 @@ export class TableImplementation {
           const column = this.tableColumns[columnKey]
           const columnResultKey = this.getColumnResultKey(columnKey)
 
-          return `${aliasPrefix}"${column.name}" AS "${columnResultKey}"`
+          if (column.name === columnResultKey) {
+            // no 'AS' needed
+            return sqlColumnIdentifier(column.name, alias)
+          }
+
+          return (
+            sqlColumnIdentifier(column.name, alias) +
+            ' AS ' +
+            sqlEscapeIdentifier(columnResultKey)
+          )
         })
         .join(',')
     }
@@ -251,36 +286,41 @@ export class TableImplementation {
     // values e.g.: `{id: null, userName: null}` instead of just `null`
     const jsonIsNotNull = this.getLeftJoinIsNullCanaryColumnSql(alias)
 
-    if (this.projection.type === 'jsonBuildObject') {
-      // this is just an optimization to only generate the CASE expresssion when its needed
-      if (isLeftJoin) {
-        return `(CASE WHEN ${jsonIsNotNull} THEN ${jsonBuildObject} ELSE null END) AS "${this.projection.name}"`
-      } else {
-        return `${jsonBuildObject} AS "${this.projection.name}"`
-      }
-    } else if (this.projection.type === 'jsonAgg') {
-      // json_agg supports order by
-      const jsonAggOrderBy = this.projection.orderBy
-        ? ` ORDER BY ${aliasPrefix}"${
-            this.tableColumns[this.projection.orderBy].name
-          }" ${this.projection.direction || ''}`
-        : ''
+    if (this.projection.type === 'jsonObject') {
+      // // this is just an optimization to only generate the CASE expresssion when its needed
+      // if (isLeftJoin) {
+      //   return `(CASE WHEN ${jsonIsNotNull} THEN ${jsonBuildObject} ELSE null END) AS "${this.projection.name}"`
+      // } else {
+      //   return `${jsonBuildObject} AS "${this.projection.name}"`
+      // }
+      throw new Error('todo')
+    } else if (this.projection.type === 'jsonArray') {
+      throw new Error('todo')
+    } else if (this.projection.type === 'jsonObjectArray') {
+      throw new Error('todo')
 
-      // For left joins with missing values, make postgres return an
-      // empty json array [] instead of [null]
-      // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
-      // To check that the result will be empty, use the tables primary key which never should be null unless left-joined.
-
-      return (
-        'COALESCE(JSON_AGG(' +
-        jsonBuildObject +
-        jsonAggOrderBy +
-        ') FILTER (WHERE ' +
-        jsonIsNotNull +
-        `), '[]') AS "` +
-        this.projection.name +
-        '"'
-      )
+      // // json_agg supports order by
+      // const jsonAggOrderBy = this.projection.orderBy
+      //   ? ` ORDER BY ${aliasPrefix}"${
+      //       this.tableColumns[this.projection.orderBy].name
+      //     }" ${this.projection.direction || ''}`
+      //   : ''
+      //
+      // // For left joins with missing values, make postgres return an
+      // // empty json array [] instead of [null]
+      // // see https://stackoverflow.com/questions/24155190/postgresql-left-join-json-agg-ignore-remove-null
+      // // To check that the result will be empty, use the tables primary key which never should be null unless left-joined.
+      //
+      // return (
+      //   'COALESCE(JSON_AGG(' +
+      //   jsonBuildObject +
+      //   jsonAggOrderBy +
+      //   ') FILTER (WHERE ' +
+      //   jsonIsNotNull +
+      //   `), '[]') AS "` +
+      //   this.projection.name +
+      //   '"'
+      // )
     } else {
       assert.fail(
         `invalid projection in table ${this.tableName} - ${this.projection}`,
@@ -296,7 +336,7 @@ export class TableImplementation {
 
       if (this.isJsonAggProjection() || this.isJsonProjection()) {
         // In case that we are a table projection, we need to add a canary
-        // column that serves us to check whether a left joined culumn was all
+        // column that serves us to check whether a left joined column was all
         // nulls so its not included in the json agg array at all.
         // (Cant use `<table> IS NULL` because that would also filter out
         // legitimate `{foo: null}` values from the json agg array.
@@ -314,7 +354,7 @@ export class TableImplementation {
       }
     } else {
       // plain table select, use the primary keys to detect nulls
-      tableSql = `"${this.tableName}"`
+      tableSql = `${this.tableName}`
     }
 
     return `${tableSql} ${alias}`
@@ -322,10 +362,11 @@ export class TableImplementation {
 
   getJsonBuildObjectExpression(alias: string | undefined) {
     const aliasPrefix = alias ? alias + '.' : ''
+    const selected = this.getSelectedKeys()
 
     return (
       'JSON_BUILD_OBJECT(' +
-      (this.selected || Object.keys(this.tableColumns))
+      selected
         .map((columnKey) => {
           const column = this.tableColumns[columnKey]
           const columnResultKey = this.getColumnResultKey(columnKey)
@@ -389,11 +430,11 @@ export class TableImplementation {
   // using the json_agg (via selectAsJsonAgg) function implies a
   // "group by <primary-key-columns>"
   isJsonAggProjection() {
-    return !!(this.projection && this.projection.type === 'jsonAgg')
+    return !!(this.projection && this.projection.type === 'jsonObjectArray')
   }
 
   isJsonProjection() {
-    return !!(this.projection && this.projection.type === 'jsonBuildObject')
+    return !!(this.projection && this.projection.type === 'jsonObject')
   }
 
   // Return a function that converts a flat row of column values according to
@@ -447,39 +488,40 @@ export class TableImplementation {
     // save on memory allocations)
     const rowConverter = this.getFromJsonRowConverter()
 
-    if (this.projection === undefined) {
-      return rowConverter
-    } else if (this.projection.type === 'jsonBuildObject') {
-      // plain json projection: all selected columns are grouped below `key`
-      const key = this.projection.name
-
-      return (row: any) => {
-        if (row[key] === null) {
-          // null caused by a left join and missing data
-          return
-        }
-
-        rowConverter(row[key])
-      }
-    } else if (this.projection.type === 'jsonAgg') {
-      // json agg -> key is an array of the joined rows
-      const key = this.projection.name
-
-      return (row: any) => {
-        // row[key] is never null because with json-agg we use coalesce
-        // and json-agg where filter to create an empty array instead and
-        // remove all null values
-        const jsonAggValue: any[] = row[key]
-
-        for (let i = 0; i < jsonAggValue.length; i++) {
-          rowConverter(jsonAggValue[i])
-        }
-      }
-    } else {
-      assert.fail(
-        `invalid projection in table ${this.tableName} - ${this.projection}`,
-      )
-    }
+    return () => {}
+    // if (this.projection === undefined) {
+    //   return rowConverter
+    // } else if (this.projection.type === 'jsonBuildObject') {
+    //   // plain json projection: all selected columns are grouped below `key`
+    //   const key = this.projection.name
+    //
+    //   return (row: any) => {
+    //     if (row[key] === null) {
+    //       // null caused by a left join and missing data
+    //       return
+    //     }
+    //
+    //     rowConverter(row[key])
+    //   }
+    // } else if (this.projection.type === 'jsonAgg') {
+    //   // json agg -> key is an array of the joined rows
+    //   const key = this.projection.name
+    //
+    //   return (row: any) => {
+    //     // row[key] is never null because with json-agg we use coalesce
+    //     // and json-agg where filter to create an empty array instead and
+    //     // remove all null values
+    //     const jsonAggValue: any[] = row[key]
+    //
+    //     for (let i = 0; i < jsonAggValue.length; i++) {
+    //       rowConverter(jsonAggValue[i])
+    //     }
+    //   }
+    // } else {
+    //   assert.fail(
+    //     `invalid projection in table ${this.tableName} - ${this.projection}`,
+    //   )
+    // }
   }
 
   // return the names of all columns as they appear in the query result
@@ -496,13 +538,18 @@ export class TableImplementation {
 
   /// TableProjectionMethods implementation
 
-  // choose columns to appear in the result.
-  select(...keys: string[]) {
+  // column accessor, in case a column name clashes with a table method
+  column(name: string) {
+    return this.createTableColumn(name)
+  }
+
+  // choose columns to appear in the result
+  include(...keys: string[]) {
     const res = getTableImplementation(this).copy()
 
     if (res.selected) {
       throw new QueryBuilderUsageError(
-        `only a single select call is allowed for a Table (tableName: ${this.tableName}`,
+        `only a single include / all call is allowed for a Table (tableName: ${this.tableName}`,
       )
     }
 
@@ -511,8 +558,23 @@ export class TableImplementation {
     return res.getTableProxy()
   }
 
-  // choose columns to *hide* from the result.
-  selectWithout(...keys: string[]) {
+  // choose all columns to appear in the result
+  all() {
+    const res = getTableImplementation(this).copy()
+
+    if (res.selected) {
+      throw new QueryBuilderUsageError(
+        `only a single include / all call is allowed for a Table (tableName: ${this.tableName}`,
+      )
+    }
+
+    res.selected = Object.keys(this.tableColumns)
+
+    return res.getTableProxy()
+  }
+
+  // choose columns to *hide* from the result
+  exclude(...keys: string[]) {
     const res = getTableImplementation(this).copy()
 
     res.selected = (res.selected || Object.keys(res.tableColumns)).filter(
@@ -523,7 +585,7 @@ export class TableImplementation {
   }
 
   // rename some columns in the result
-  selectAs(mapping: Record<string, string>) {
+  rename(mapping: Record<string, string>) {
     const res = getTableImplementation(this).copy()
 
     if (res.renamed) {
@@ -537,18 +599,35 @@ export class TableImplementation {
     return res.getTableProxy()
   }
 
-  // project all columns into a json object
-  selectAsJson(key: string) {
+  // project selected columns into a json object
+  jsonObject(key: string) {
     const res = getTableImplementation(this).copy()
 
     if (res.projection) {
       throw new QueryBuilderUsageError(
-        `only a single selectAsJson or selectAsJsonAgg call is allowed for a  Table (tableName: ${this.tableName}`,
+        `only a single json* call is allowed for a Table (tableName: ${this.tableName}`,
       )
     }
 
     res.projection = {
-      type: 'jsonBuildObject',
+      type: 'jsonObject',
+      name: key,
+    }
+
+    return res.getTableProxy()
+  }
+
+  jsonArray(key: string) {
+    const res = getTableImplementation(this).copy()
+
+    if (res.projection) {
+      throw new QueryBuilderUsageError(
+        `only a single json* call is allowed for a  Table (tableName: ${this.tableName}`,
+      )
+    }
+
+    res.projection = {
+      type: 'jsonArray',
       name: key,
     }
 
@@ -556,54 +635,21 @@ export class TableImplementation {
   }
 
   // json_agg projection of a whole table.
-  selectAsJsonAgg(key: any, orderBy?: any, direction?: 'ASC' | 'DESC'): any {
+  jsonObjectArray(key: any, orderBy?: any, direction?: 'ASC' | 'DESC'): any {
     const res = getTableImplementation(this).copy()
 
     if (res.projection) {
       throw new QueryBuilderUsageError(
-        `only a single selectAsJson or selectAsJsonAgg call is allowed for a  Table (tableName: ${this.tableName}`,
+        `only a single json* call is allowed for a  Table (tableName: ${this.tableName}`,
       )
     }
 
     res.projection = {
-      type: 'jsonAgg',
+      type: 'jsonObjectArray',
       name: key,
       orderBy,
       direction,
     }
-
-    return res.getTableProxy()
-  }
-
-  // column accessor, in case a column name clashes with a table method
-  column(name: string) {
-    return this.createTableColumn(name)
-  }
-
-  // select methods
-
-  // choose columns to appear in the result.
-  include(...keys: string[]) {
-    const res = getTableImplementation(this).copy()
-
-    if (res.selected) {
-      throw new QueryBuilderUsageError(
-        `only a single include call is allowed for a Table (tableName: ${this.tableName}`,
-      )
-    }
-
-    res.selected = keys
-
-    return res.getTableProxy()
-  }
-
-  // choose columns to *hide* from the result.
-  exclude(...keys: string[]) {
-    const res = getTableImplementation(this).copy()
-
-    res.selected = (res.selected || Object.keys(res.tableColumns)).filter(
-      (k) => !keys.includes(k),
-    )
 
     return res.getTableProxy()
   }

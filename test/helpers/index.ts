@@ -1,5 +1,4 @@
 import { Client } from 'pg'
-import * as classicGames from './classicGames'
 
 // enable "deep" console.log
 require('util').inspect.defaultOptions.depth = null
@@ -22,4 +21,18 @@ afterAll(async () => {
 })
 
 export * from './testSchema'
-export { classicGames }
+export * from './classicGames'
+
+function sortByJsonComparator(a: any, b: any) {
+  const ja = JSON.stringify(a)
+  const jb = JSON.stringify(b)
+
+  return ja === jb ? 0 : ja < jb ? 1 : -1
+}
+
+export function expectValues<T>(values: T[], expected: T[]) {
+  const valueSorted = [...values].sort(sortByJsonComparator)
+  const expectedSorted = [...expected].sort(sortByJsonComparator)
+
+  expect(valueSorted).toEqual(expectedSorted)
+}
