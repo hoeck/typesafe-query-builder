@@ -908,13 +908,16 @@ The exact error depends on your validation/runtype implementation.
 * [ts-typed-sql](https://github.com/phiresky/ts-typed-sql)
   - Unmaintained, 2018
 * [mammoth](https://github.com/Ff00ff/mammoth)
-  - basically same as this project minus the json_agg
+  - covers every SQL feature (WITH, subqueries, JSON functions etc.).
 * [vulcyn](https://github.com/travigd/vulcyn)
   - like a really basic version of mammoth or this project
   - seems unmaintained
 * [pgtyped](https://github.com/adelsz/pgtyped)
-  - different (but awesome) approach: parse sql queries in your code and
+  - different (but awesome) approach: parse SQL queries in your code and
     generate types for them
-- [postguard](https://github.com/andywer/postguard)
+* [postguard](https://github.com/andywer/postguard)
   - derive the types from a generated schema
   - parse queries in the code from sql template tags and validate them
+* [typed-query-buildeer](https://github.com/ClickerMonkey/typed-query-builder)
+  - db-agnostic (atm. MS-SQL only) and its own in memory DB for testing
+  - covers every SQL feature incl. functions, WITH, ...
