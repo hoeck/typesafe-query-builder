@@ -40,7 +40,7 @@ type JoinedSelection<T, L, M, S> = T extends L
  *   L .. union of all left-joined tables
  *   S .. shape of the selected data
  *   C .. correlated table (for subqueries)
- *   M .. marker do separate `QueryBottom` and `Selection` parameters in `.select`
+ *   M .. marker to separate `QueryBottom` and `Selection` parameters in `.select`
  */
 export declare class QueryBottom<
   T,
