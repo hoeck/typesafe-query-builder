@@ -22,7 +22,7 @@ CREATE TABLE json_any_table (
 
 --
 -- Classic Console Games Inventory:
--- Manufacturers 1-* Systems 1-* Games *-1 Franchises
+-- Manufacturers 1-* Systems *-* Games *-1 Franchises
 --
 
 CREATE SCHEMA classicgames;
@@ -127,6 +127,49 @@ VALUES
   (5, 2, '1994-08-18', true), -- genesis
   -- laser blast
   (6, 7, '1981-03-01', true); -- 2600
+
+
+--
+-- Desktop computer component dependencies
+-- Intended for testing WITH RECURSIVE queries
+--
+
+CREATE TABLE pc_components (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE pc_components_fits (
+  component_id INT NOT NULL,
+  fits_on_component_id INT NOT NULL,
+  FOREIGN KEY (component_id) REFERENCES pc_components(id),
+  FOREIGN KEY (fits_on_component_id) REFERENCES pc_components(id)
+);
+
+INSERT INTO pc_components
+  (id, name)
+VALUES
+  (1, 'CPU'),
+  (2, 'Mainboard'),
+  (3, 'RAM'),
+  (4, 'Power Supply'),
+  (5, 'Case'),
+  (6, 'SSD'),
+  (7, 'Fan'),
+  (8, 'Graphics Card');
+
+INSERT INTO pc_components_fits
+  (component_id, fits_on_component_id)
+VALUES
+  (1, 2), -- cpu on mainboard
+  (2, 5), -- mainboard on case
+  (3, 2), -- ram on mainboard
+  (4, 5), -- power supply on case
+  (6, 5), -- disk on case
+  (7, 5), -- fans on case
+  (7, 1), --         cpu
+  (7, 8), --         graphics card
+  (8, 2); -- graphics card on mainboard
 
 --
 -- An abstract schema of users, items, events:

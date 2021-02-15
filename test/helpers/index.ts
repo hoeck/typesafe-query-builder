@@ -22,6 +22,7 @@ afterAll(async () => {
 
 export * from './testSchema'
 export * from './classicGames'
+export * from './pcComponents'
 
 function sortByJsonComparator(a: any, b: any) {
   const ja = JSON.stringify(a)

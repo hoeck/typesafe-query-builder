@@ -5,6 +5,7 @@ import { DatabaseClient } from './databaseClient'
 import { Delete } from './delete'
 import { Query } from './joins'
 import { Update } from './update'
+import { QueryBottom } from './queryBottom'
 
 /**
  * Chaining API root.
@@ -14,6 +15,81 @@ export interface QueryRoot {
 
   // constants
   anyParam: AnyParam
+
+  /**
+   * Common table expression (`WITH`).
+   *
+   * Returns a table that, when used in a query, buts this tables query
+   * expression in a `WITH` clause.
+   *
+   * The following SQL:
+   *
+   *     WITH foo AS (
+   *       SELECT id, name FROM foo_table)
+   *     )
+   *     SELECT * FROM foo WHERE id = 1
+   *
+   * is generated using this typesafe query:
+   *
+   *     const foo = query.with(() =>
+   *       query('foo').select(foo.include('id', 'name')),
+   *     )
+   *
+   *     console.log(
+   *       query(foo)
+   *         .whereEq(foo.id, 'id')
+   *         .sql()
+   *     )
+   */
+  with<S, P>(f: () => QueryBottom<any, P, any, S, any>): Table<S, P>
+
+  /**
+   * Recursive common table expression (`WITH RECURSIVE`).
+   */
+  withRecursive<S, P>(f: () => QueryBottom<any, P, any, S, any>): Table<S, P>
+
+  /**
+   * SQL union of a set of queries
+   */
+  union<S, P0, P1>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+  ): QueryBottom<any, P0 & P1, any, S>
+  union<S, P0, P1, P2>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2, any, S>
+  union<S, P0, P1, P2, P3>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3, any, S>
+  union<S, P0, P1, P2, P3, P4>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+    q4: QueryBottom<any, P4, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3 & P4, any, S>
+  union<S, P0, P1, P2, P3, P4, P5>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+    q4: QueryBottom<any, P4, any, S>,
+    q5: QueryBottom<any, P5, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3 & P4 & P5, any, S>
+  union<S, P0, P1, P2, P3, P4, P5, P6>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+    q4: QueryBottom<any, P4, any, S>,
+    q5: QueryBottom<any, P5, any, S>,
+    q6: QueryBottom<any, P6, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3 & P4 & P5 & P6, any, S>
 
   /**
    * No-fuzz insert of a single row.
