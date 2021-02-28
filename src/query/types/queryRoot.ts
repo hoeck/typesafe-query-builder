@@ -49,7 +49,7 @@ export interface QueryRoot {
   withRecursive<S, P>(f: () => QueryBottom<any, P, any, S, any>): Table<S, P>
 
   /**
-   * SQL union of a set of queries
+   * SQL UNION of a set of queries
    */
   union<S, P0, P1>(
     q0: QueryBottom<any, P0, any, S>,
@@ -82,6 +82,49 @@ export interface QueryRoot {
     q5: QueryBottom<any, P5, any, S>,
   ): QueryBottom<any, P0 & P1 & P2 & P3 & P4 & P5, any, S>
   union<S, P0, P1, P2, P3, P4, P5, P6>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+    q4: QueryBottom<any, P4, any, S>,
+    q5: QueryBottom<any, P5, any, S>,
+    q6: QueryBottom<any, P6, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3 & P4 & P5 & P6, any, S>
+
+  /**
+   * SQL UNION ALL of a set of queries
+   */
+  unionAll<S, P0, P1>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+  ): QueryBottom<any, P0 & P1, any, S>
+  unionAll<S, P0, P1, P2>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2, any, S>
+  unionAll<S, P0, P1, P2, P3>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3, any, S>
+  unionAll<S, P0, P1, P2, P3, P4>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+    q4: QueryBottom<any, P4, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3 & P4, any, S>
+  unionAll<S, P0, P1, P2, P3, P4, P5>(
+    q0: QueryBottom<any, P0, any, S>,
+    q1: QueryBottom<any, P1, any, S>,
+    q2: QueryBottom<any, P2, any, S>,
+    q3: QueryBottom<any, P3, any, S>,
+    q4: QueryBottom<any, P4, any, S>,
+    q5: QueryBottom<any, P5, any, S>,
+  ): QueryBottom<any, P0 & P1 & P2 & P3 & P4 & P5, any, S>
+  unionAll<S, P0, P1, P2, P3, P4, P5, P6>(
     q0: QueryBottom<any, P0, any, S>,
     q1: QueryBottom<any, P1, any, S>,
     q2: QueryBottom<any, P2, any, S>,
