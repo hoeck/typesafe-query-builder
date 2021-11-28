@@ -59,13 +59,6 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
-  expectType<{ id: number | null; name: string | null }[]>(
-    await query(Franchises)
-      .leftJoin(Franchises.manufacturerId, Manufacturers.id)
-      .select(Manufacturers.include('id', 'name'))
-      .fetch(client),
-  )
-
   // .select over join and 2 arg overload
 
   expectAssignable<

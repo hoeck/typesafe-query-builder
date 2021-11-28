@@ -19,6 +19,20 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
+  expectType<{ system: { system_id: number; system_name: string } }[]>(
+    await query(Systems)
+      .select(
+        Systems.include('id', 'name')
+          // renaming columns of a json object
+          .rename({
+            id: 'system_id',
+            name: 'system_name',
+          })
+          .jsonObject('system'),
+      )
+      .fetch(client),
+  )
+
   // selecting a single column into a json array
 
   expectType<{ systemNames: string[] }[]>(
@@ -29,7 +43,7 @@ const selectTests = (async () => {
 
   expectType<{ systemNames: never[] }[]>(
     await query(Systems)
-      // its an error if the selection contains more than 1 cols
+      // its an error if the selection contains more than 1 col
       .select(Systems.include('id', 'name').jsonArray('systemNames'))
       .fetch(client),
   )
@@ -49,6 +63,17 @@ const selectTests = (async () => {
       .fetch(client),
   )
 
+  expectType<{ systems: { systems_year: number; name: string }[] }[]>(
+    await query(Systems)
+      .select(
+        Systems.include('year', 'name')
+          .rename({ year: 'systems_year' })
+          .jsonObjectArray('systems'),
+      )
+      .fetch(client),
+  )
+
+  // json object array as a subselect
   expectAssignable<
     { name: string; franchises: { id: number; name: string }[] | null }[]
   >(

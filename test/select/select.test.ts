@@ -2,7 +2,7 @@ import { query } from '../../src'
 import { client, expectValues, Systems, Manufacturers } from '../helpers'
 
 describe('select', () => {
-  test('basic select', async () => {
+  test.only('include', async () => {
     const result = await query(Manufacturers)
       .select(Manufacturers.include('name'))
       .fetch(client)
@@ -11,6 +11,30 @@ describe('select', () => {
       { name: 'Sega' },
       { name: 'Nintendo' },
       { name: 'Atari' },
+    ])
+  })
+
+  test('all', async () => {
+    const result = await query(Manufacturers)
+      .select(Manufacturers.all())
+      .fetch(client)
+
+    expectValues(result, [
+      { id: 1, name: 'Sega', country: 'Japan' },
+      { id: 2, name: 'Nintendo', country: 'Japan' },
+      { id: 3, name: 'Atari', country: 'USA' },
+    ])
+  })
+
+  test('exclude', async () => {
+    const result = await query(Manufacturers)
+      .select(Manufacturers.exclude())
+      .fetch(client)
+
+    expectValues(result, [
+      { id: 1, name: 'Sega', country: 'Japan' },
+      { id: 2, name: 'Nintendo', country: 'Japan' },
+      { id: 3, name: 'Atari', country: 'USA' },
     ])
   })
 

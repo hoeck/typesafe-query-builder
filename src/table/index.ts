@@ -1,5 +1,10 @@
 export { Column, ColumnImplementation, column } from './columns'
-export { TableImplementation, getTableImplementation, table } from './table'
+export {
+  SelectionImplementation,
+  TableImplementation,
+  getTableImplementation,
+  table,
+} from './table'
 export {
   Table,
   TableProjectionMethods,

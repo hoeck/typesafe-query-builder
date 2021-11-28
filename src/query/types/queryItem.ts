@@ -1,4 +1,4 @@
-import { TableImplementation } from '../../table'
+import { SelectionImplementation, TableImplementation } from '../../table'
 import { LockMode } from './queryBottom'
 import { SqlFragmentImplementation } from './sqlFragment'
 
@@ -83,5 +83,5 @@ export interface CanaryColumnItem {
 
 export interface SelectItem {
   queryType: 'select'
-  tables: TableImplementation[]
+  selections: SelectionImplementation[]
 }

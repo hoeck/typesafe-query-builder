@@ -13,6 +13,18 @@ export class QueryBuilderError extends Error {}
 export class QueryBuilderUsageError extends QueryBuilderError {}
 
 /**
+ * Assert condition and throw a usage error otherwise.
+ */
+export function assertUsage(
+  condition: boolean,
+  msg: string,
+): asserts condition {
+  if (!condition) {
+    throw new QueryBuilderUsageError(msg)
+  }
+}
+
+/**
  * Thrown upon validation fails when using column validation.
  *
  * Either directly by the builtin colum types or as a wrapper around checking

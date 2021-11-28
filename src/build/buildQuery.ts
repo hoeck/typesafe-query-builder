@@ -20,15 +20,15 @@ export function buildColumns(
       case 'from': {
         const { table } = item
 
-        Object.assign(columns, table.getColumns())
+        // Object.assign(columns, table.getColumns())
 
         break
       }
       case 'join': {
         const { column2: table2 } = item
 
-        // TODO: PASS INFO WETHER ITS A LEFT  JOIN (NULLABLE)
-        Object.assign(columns, table2.getColumns())
+        // // TODO: PASS INFO WETHER ITS A LEFT  JOIN (NULLABLE)
+        // Object.assign(columns, table2.getColumns())
 
         break
       }
@@ -136,12 +136,12 @@ export function buildSqlQuery(
         const alias1 = sql.getAlias(table1.tableName)
         const alias2 = sql.getAlias(table2.tableName)
 
-        sql.addJoin(
-          item.joinType,
-          table2.getTableSql(alias2, ctx, params),
-          table1.getReferencedColumnSql(alias1),
-          table2.getReferencedColumnSql(alias2),
-        )
+        // sql.addJoin(
+        //   item.joinType,
+        //   table2.getTableSql(alias2, ctx, params),
+        //   table1.getReferencedColumnSql(alias1),
+        //   table2.getReferencedColumnSql(alias2),
+        // )
 
         break
       }
@@ -150,15 +150,15 @@ export function buildSqlQuery(
         const alias = sql.getAlias(table.tableName)
         const paramValue = params?.[item.paramKey]
 
-        // the any param basically provides the missing neutral value that causes any
-        // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
-        if (paramValue !== anyParam) {
-          sql.addWhereEq(
-            table.getReferencedColumnSql(alias),
-            item.paramKey,
-            !!table.getReferencedColumn().isNullable,
-          )
-        }
+        // // the any param basically provides the missing neutral value that causes any
+        // // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
+        // if (paramValue !== anyParam) {
+        //   sql.addWhereEq(
+        //     table.getReferencedColumnSql(alias),
+        //     item.paramKey,
+        //     !!table.getReferencedColumn().isNullable,
+        //   )
+        // }
 
         break
       }
@@ -167,39 +167,39 @@ export function buildSqlQuery(
         const alias = sql.getAlias(table.tableName)
         const paramValue = params?.[item.paramKey]
 
-        if (paramValue !== anyParam) {
-          sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
-        }
+        // if (paramValue !== anyParam) {
+        //   sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
+        // }
 
         break
       }
       case 'whereSql': {
-        // aliases for each table referenced in the fragment
-        const columnsSql = item.fragments.map((f) => {
-          if (!f.column) {
-            return
-          }
+        // // aliases for each table referenced in the fragment
+        // const columnsSql = item.fragments.map((f) => {
+        //   if (!f.column) {
+        //     return
+        //   }
+        //
+        //   const table = f.column
+        //   const alias = sql.getAlias(table.tableName)
+        //
+        //   return table.getReferencedColumnSql(alias)
+        // })
 
-          const table = f.column
-          const alias = sql.getAlias(table.tableName)
-
-          return table.getReferencedColumnSql(alias)
-        })
-
-        sql.addWhereSql(item.fragments, columnsSql)
+        // sql.addWhereSql(item.fragments, columnsSql)
 
         break
       }
       case 'orderBy': {
-        const table = item.column
-        const alias = sql.getAlias(table.tableName)
-
-        sql.addOrderBy(
-          table.getReferencedColumnSql(alias),
-          item.direction,
-          item.nulls,
-        )
-
+        // const table = item.column
+        // const alias = sql.getAlias(table.tableName)
+        //
+        // sql.addOrderBy(
+        //   table.getReferencedColumnSql(alias),
+        //   item.direction,
+        //   item.nulls,
+        // )
+        //
         break
       }
       case 'limit':
@@ -212,32 +212,32 @@ export function buildSqlQuery(
         sql.setLock(item.lockMode)
         break
       case 'lockParam':
-        {
-          if (params) {
-            const lockMode = params[item.paramKey]
-
-            sql.setLock(lockMode)
-            break
-          } else {
-            throw new QueryBuilderUsageError(
-              'lockParam: parameter to determine lock mode is missing or empty',
-            )
-          }
-        }
+        // {
+        //   if (params) {
+        //     const lockMode = params[item.paramKey]
+        //
+        //     sql.setLock(lockMode)
+        //     break
+        //   } else {
+        //     throw new QueryBuilderUsageError(
+        //       'lockParam: parameter to determine lock mode is missing or empty',
+        //     )
+        //   }
+        // }
         break
       case 'canaryColumn':
         sql.addSelect(`true AS ${item.columnName}`)
         break
       case 'select':
-        {
-          const { tables } = item
-
-          tables.forEach((t) => {
-            const alias = sql.getAlias(t.tableName)
-
-            sql.addSelect(t.getSelectSql(alias, false))
-          })
-        }
+        // {
+        //   const { selections } = item
+        //
+        //   selections.forEach((t) => {
+        //     const alias = sql.getAlias(t.tableName)
+        //
+        //     sql.addSelect(t.getSelectSql(alias, false))
+        //   })
+        // }
         break
       default:
         assertNever(item)

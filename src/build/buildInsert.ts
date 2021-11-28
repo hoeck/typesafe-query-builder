@@ -45,19 +45,21 @@ export function buildInsert(
     insertParams.push(rowParams.join(','))
   })
 
-  const insertStatement =
-    'INSERT INTO "' +
-    table.tableName +
-    '" (' +
-    columns
-      .map((k) => {
-        return '"' + table.tableColumns[k].name + '"'
-      })
-      .join(',') +
-    ') VALUES (' +
-    insertParams.join('),(') +
-    ') RETURNING ' +
-    table.getSelectSql(undefined, false)
+  // const insertStatement =
+  //   'INSERT INTO "' +
+  //   table.tableName +
+  //   '" (' +
+  //   columns
+  //     .map((k) => {
+  //       return '"' + table.tableColumns[k].name + '"'
+  //     })
+  //     .join(',') +
+  //   ') VALUES (' +
+  //   insertParams.join('),(') +
+  //   ') RETURNING ' +
+  //   table.getSelectSql(undefined, false)
+
+  const insertStatement = ''
 
   return [insertStatement, insertValues]
 }

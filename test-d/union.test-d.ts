@@ -15,7 +15,10 @@ const unionTests = (async () => {
       .whereEq(Systems.name, 'name'),
   )
 
-  expectType<{}>(parameterType(q))
+  expectType<{
+    id: number | typeof query.anyParam
+    name: string | typeof query.anyParam
+  }>(parameterType(q))
   expectType<{ id: number; name: string }>(resultType(q))
 
   expectError(
@@ -40,7 +43,10 @@ const unionAllTests = (async () => {
       .whereEq(Systems.name, 'name'),
   )
 
-  expectType<{}>(parameterType(q))
+  expectType<{
+    id: number | typeof query.anyParam
+    name: string | typeof query.anyParam
+  }>(parameterType(q))
   expectType<{ id: number; name: string }>(resultType(q))
 
   expectError(
