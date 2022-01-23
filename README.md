@@ -904,11 +904,12 @@ The exact error depends on your validation/runtype implementation.
   - Write sql using template strings and typed schema objects for type inferrence.
 * [tsql](https://github.com/AnyhowStep/tsql)
 * [massivejs](https://massivejs.org)
+  - pg only
 * [Prisma 2](https://www.prisma.io)
 * [ts-typed-sql](https://github.com/phiresky/ts-typed-sql)
   - Unmaintained, 2018
 * [mammoth](https://github.com/Ff00ff/mammoth)
-  - covers every SQL feature (WITH, subqueries, JSON functions etc.).
+  - covers every SQL feature (WITH, subqueries, JSON functions etc.)
 * [vulcyn](https://github.com/travigd/vulcyn)
   - like a really basic version of mammoth or this project
   - seems unmaintained
@@ -918,6 +919,11 @@ The exact error depends on your validation/runtype implementation.
 * [postguard](https://github.com/andywer/postguard)
   - derive the types from a generated schema
   - parse queries in the code from sql template tags and validate them
-* [typed-query-buildeer](https://github.com/ClickerMonkey/typed-query-builder)
+* [typed-query-builder](https://github.com/ClickerMonkey/typed-query-builder)
   - db-agnostic (atm. MS-SQL only) and its own in memory DB for testing
   - covers every SQL feature incl. functions, WITH, ...
+* [kysely](https://github.com/koskimas/kysely)
+  - tries to be universal query builder
+  - makes heavy use of typescript template literals (making it look similar to knex)
+  - schema made up of plain typescript interfaces
+  - db agnostic
