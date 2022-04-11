@@ -34,6 +34,7 @@ const selectTests = (async () => {
   )
 
   // selecting a single column into a json array
+  // TODO: only allowed for subselects ... mhh
 
   expectType<{ systemNames: string[] }[]>(
     await query(Systems)

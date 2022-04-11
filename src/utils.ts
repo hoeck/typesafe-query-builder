@@ -1,3 +1,5 @@
+import * as nodeAssert from 'assert'
+
 /**
  * Pick defined keys from an object returning a new object.
  */
@@ -38,6 +40,20 @@ export function omit<T extends object, U extends keyof T>(
   }
 
   return res
+}
+
+export function assert(condition: boolean, msg?: string): asserts condition {
+  if (!condition) {
+    nodeAssert.fail(msg || 'assertion failed')
+  }
+}
+
+export function assertFail(msg?: string): never {
+  nodeAssert.fail(msg || 'assertion failed')
+}
+
+export function assertNever(x: never): never {
+  nodeAssert.fail('Unexpected value. Should have been never.')
 }
 
 /**

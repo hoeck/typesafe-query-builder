@@ -30,8 +30,7 @@ export type RemoveTableName<T> = { [K in keyof T]: T[K] }
  */
 export type Table<T, P> = {
   [K in keyof T]: TableColumn<T, P, T[K]>
-} &
-  TableProjectionMethods<T, P>
+} & TableProjectionMethods<T, P>
 
 declare class DatabaseTableDefaultColumns<T> {
   protected typesafeQueryBuilderDefaultColumns: T
@@ -153,7 +152,7 @@ export declare class Selection<T, P, S> {
   rename<
     K extends keyof S,
     N extends string | undefined,
-    M extends { [KK in K]?: N }
+    M extends { [KK in K]?: N },
   >(
     this: Selection<T, P, S>,
     mapping: M,
@@ -186,12 +185,11 @@ export interface TableProjectionMethods<T, P> {
     // Pick also removes the TableName nominal type
     Pick<T, K>
   >
+
   /**
    * Choose all columns to appear in the result.
    */
-  all(
-    this: Table<T, P>,
-  ): Selection<
+  all(this: Table<T, P>): Selection<
     T,
     P,
     // TableName nominal type is removed as we don't need it in the result type any more.
@@ -218,4 +216,13 @@ export interface TableProjectionMethods<T, P> {
     this: Table<T, P>,
     columnName: K,
   ): TableColumn<T, P, T[K]>
+
+  /**
+   * Return the same table but with another name.
+   *
+   * Use this to create a second reference to a table to perform self-joins
+   * or subselects from the same table.
+   */
+  // TODO: implementation & type test
+  // alias<T extends string>(name: T): ???
 }

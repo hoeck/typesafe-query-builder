@@ -25,6 +25,17 @@ export function assertUsage(
 }
 
 /**
+ * Raised when the API is misused
+ *
+ * In contrast to QueryBuilderUsageError, this error should have been caught
+ * by the type system.
+ *
+ * If you encounter this error, there might be some bug in the types or you
+ * have escaped the typesystem e.b. through an accidential `any` somewhere.
+ */
+export class QueryBuilderAssertionError extends QueryBuilderError {}
+
+/**
  * Thrown upon validation fails when using column validation.
  *
  * Either directly by the builtin colum types or as a wrapper around checking

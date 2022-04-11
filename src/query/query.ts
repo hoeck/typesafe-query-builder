@@ -31,6 +31,65 @@ import {
   anyParam,
 } from './types'
 
+/*
+
+building queries
+
+
+features:
+
+- from / join
+  - plain table from/join: FROM tablename alias / JOIN tablename alias ON alias.x = othertablealias.y
+  - subquery: same as join but instead of `tablename alias` its `(subquery-sql) alias`
+    - col name (AS xxx) comes via selection of the subquery
+    - $n params mapping
+      -> postpone creation of the subquery until the parent is built
+      context, params => sqlstring, fromJson, param-mapping
+         - bc. we need the params and context (param-index) to build the sql?
+         - but we are building the query top-down ...? no bc we start with from and then selection
+
+    - also alias generation:
+      the simple per `SELECT` alias that is used now does not work on
+      correlated subqueries on the same table:
+
+      select f.id,
+             (select count(f.feature) from foo f where f.related_id = f.id)
+      from foo f
+
+      here we need to distinguish the outer foo and the inner subquery foo:
+
+      select f1.id,
+             (select count(f2.feature) from foo f2 where f1.related_id = f2.id)
+      from foo f1
+
+      solution: table.alias('alias') that returns a new Table with a new TableName<> using typescript string literal templates
+
+- where conditions
+  - simple / complex:
+    - simple conditions (working with $n parameters), e.g. eq, not null, sql``
+    - complex conditions: whereIn - need to work directly on the sql string
+  - col / subquery:
+    - col-reference: table.col
+    - subquery: query + optional correlated table
+
+- limit
+- order
+
+- list of selection | query
+  - selection:
+    - contains alias for each col (either defined in table or via explicit rename)
+    - contains function expression, e.g. json_array, json_build_object
+    - each defines a mapping functions (e.g. to apply runtypes to json cols or convert dates)
+  - subquery
+    - its selection defines alias (must be 1 col result)
+    - needs to be able to find alias for correlated column
+    - provides a mapping fn for its 1 col
+
+-> how should the internal api look like?
+
+
+*/
+
 const sqlImplementation = (
   literals: TemplateStringsArray,
   param1?: any,
@@ -106,11 +165,7 @@ function validateRowData(
 ) {
   keys.forEach((k) => {
     const value = data[k]
-    const column = table.tableColumns[k]
-
-    if (!column) {
-      assert.fail('column is missing from table implementation ' + k)
-    }
+    const column = table.getColumn(k)
 
     // throws on invalid data
     data[k] = column.columnValue(value)
@@ -363,7 +418,7 @@ class QueryImplementation {
     )
 
     // to be able to generate postgres positional arguments and map them to
-    // the `params: P` object we need delay building the sql until we know all
+    // the `params: P` object we have to delay building the sql until we know all
     // parameters
     tableImplementation.tableQuery = (
       ctx: BuildContext,
@@ -385,8 +440,6 @@ class QueryImplementation {
 
   buildSql(ctx?: BuildContext, params?: any): string {
     // TODO: cache queries - take special param values into account (locking & ANY_PARAM)
-    console.log('this.query', this.query)
-
     return buildSqlQuery(this.query, ctx || new BuildContext(), params)
   }
 
@@ -419,7 +472,6 @@ class QueryImplementation {
     const sql = this.buildSql(ctx, params)
     const paramArray = params ? ctx.getParameters(params) : []
     const resultConverter = buildResultConverter(this.query)
-
     const result = (await client.query(sql, paramArray)).rows
 
     result.forEach((row) => resultConverter(row))
@@ -495,11 +547,7 @@ class QueryImplementation {
           currentKey = k
 
           const value = row[k]
-          const column = table.tableColumns[k]
-
-          if (!column) {
-            assert.fail('column is missing from table implementation ' + k)
-          }
+          const column = table.getColumn(k)
 
           // throws on invalid data
           row[k] = column.columnValue(value)

@@ -90,7 +90,8 @@ export class Column<T> {
     this.isNullable = params.isNullable
   }
 
-  // private but part of ColumnImplementation
+  // ColumnImplementation methods
+
   private copy(params: { name: string }) {
     return new Column({
       name: params.name,
@@ -99,6 +100,22 @@ export class Column<T> {
       isPrimaryKey: this.isPrimaryKey,
       isNullable: this.isNullable,
     })
+  }
+
+  private getColumnSql(tableAlias: string): string {
+    return `${tableAlias}.${this.name}`
+  }
+
+  private getColumnSelectSql(tableAlias: string, columnAlias: string): string {
+    const colSql = this.getColumnSql(tableAlias)
+
+    if (columnAlias.includes('"')) {
+      throw new QueryBuilderUsageError(
+        `column alias ${columnAlias} in table ${tableAlias} must not contain quotes`,
+      )
+    }
+
+    return `${colSql} AS "${columnAlias}"`
   }
 
   /// column sql attributes
@@ -360,14 +377,14 @@ export class Column<T> {
     A extends string,
     B extends string,
     C extends string,
-    D extends string
+    D extends string,
   >(a: A, b: B, c: C, d: D): Column<A | B | C | D>
   stringUnion<
     A extends string,
     B extends string,
     C extends string,
     D extends string,
-    E extends string
+    E extends string,
   >(a: A, b: B, c: C, d: D, e: E): Column<A | B | C | D | E>
   stringUnion<
     A extends string,
@@ -375,7 +392,7 @@ export class Column<T> {
     C extends string,
     D extends string,
     E extends string,
-    F extends string
+    F extends string,
   >(a: A, b: B, c: C, d: D, e: E, f: F): Column<A | B | C | D | E | F>
   stringUnion<
     A extends string,
@@ -384,7 +401,7 @@ export class Column<T> {
     D extends string,
     E extends string,
     F extends string,
-    G extends string
+    G extends string,
   >(a: A, b: B, c: C, d: D, e: E, f: F, g: G): Column<A | B | C | D | E | F | G>
   stringUnion(...elements: any[]): Column<any> {
     this.checkThatColumnValueIsIdentity()
@@ -457,9 +474,9 @@ export class Column<T> {
 }
 
 /**
- * Internal interface that maps exactly on a Column
+ * Internal interface that maps exactly to a Column
  *
- * Basically just turns the private fields onto public fields and throws away
+ * Basically just turns the private fields into public fields and throws away
  * the generic type information. When generating sql queries, we don't need
  * that.
  */
@@ -469,7 +486,9 @@ export interface ColumnImplementation {
   isNullable?: true
   isPrimaryKey?: true
   name: string
-  copy: (params: { name: string }) => ColumnImplementation
+  copy(params: { name: string }): ColumnImplementation
+  getColumnSql(tableAlias: string): string
+  getColumnSelectSql(tableAlias: string, columnAlias: string): string
 }
 
 /**

@@ -1,5 +1,4 @@
 import * as assert from 'assert'
-
 import { QueryBuilderUsageError } from '../errors'
 import { TableImplementation, column, ColumnImplementation } from '../table'
 import {
@@ -10,27 +9,7 @@ import {
   anyParam,
 } from '../query/types'
 import { BuildContext } from './buildContext'
-
-function assertNever(x: never): never {
-  assert.fail('Unexpected value. Should have been never.')
-}
-
-class AliasGenerator {
-  private pool = 'abcdefghjklmnopqrstuvwxyz'
-  private counter = 0
-  private aliasMap: { [tableName: string]: string } = {} // tableName -> alias
-
-  getAlias(tableName: string) {
-    if (!this.aliasMap[tableName]) {
-      this.aliasMap[tableName] = this.pool[this.counter]
-        ? this.pool[this.counter]
-        : `_${this.counter}`
-      this.counter += 1
-    }
-
-    return this.aliasMap[tableName]
-  }
-}
+import { assertNever } from '../utils'
 
 /**
  * Building an sql query string
@@ -51,14 +30,8 @@ export class SqlQuery {
   private offset?: number
   private lock?: LockMode
 
-  private aliasGenerator = new AliasGenerator()
-
   constructor(private ctx: BuildContext) {
     this.ctx = ctx
-  }
-
-  getAlias(tableName: string) {
-    return this.aliasGenerator.getAlias(tableName)
   }
 
   addFrom(tableSql: string) {
@@ -248,7 +221,7 @@ export class SqlQuery {
 
   private buildSelect() {
     // selecting no columns will result in empts-string selects which must be filtered
-    return 'SELECT ' + this.select.filter((s) => !!s).join(',')
+    return 'SELECT\n' + this.select.filter((s) => !!s).join(',')
   }
 
   private buildFrom() {
@@ -256,7 +229,7 @@ export class SqlQuery {
       assert.fail('from must not be empty')
     }
 
-    return 'FROM ' + this.from.join(',')
+    return 'FROM\n' + this.from.join(',')
   }
 
   private buildJoin() {
@@ -264,9 +237,9 @@ export class SqlQuery {
       .map((j) => {
         const joinType = j.joinType === 'join' ? 'JOIN' : 'LEFT JOIN'
 
-        return `${joinType} ${j.tableSql2} ON ${j.columnSql1} = ${j.columnSql2}`
+        return `${joinType}\n${j.tableSql2} ON ${j.columnSql1} = ${j.columnSql2}`
       })
-      .join(' ')
+      .join('\n')
   }
 
   private buildWhere() {
@@ -274,7 +247,7 @@ export class SqlQuery {
       return ''
     }
 
-    return 'WHERE ' + this.where.join(' AND ')
+    return 'WHERE\n' + this.where.join('\nAND\n')
   }
 
   private buildGroupBy() {
@@ -282,7 +255,7 @@ export class SqlQuery {
       return ''
     }
 
-    return 'GROUP BY ' + this.groupBy.join(',')
+    return 'GROUP BY\n' + this.groupBy.join(',\n')
   }
 
   private buildOrderBy() {
@@ -290,7 +263,7 @@ export class SqlQuery {
       return ''
     }
 
-    return 'ORDER BY ' + this.orderBy.join(',')
+    return 'ORDER BY\n' + this.orderBy.join(',\n')
   }
 
   private buildLimit() {
@@ -298,7 +271,7 @@ export class SqlQuery {
       return ''
     }
 
-    return `LIMIT ${this.limit}`
+    return `LIMIT\n${this.limit}`
   }
 
   private buildOffset() {
@@ -306,7 +279,7 @@ export class SqlQuery {
       return ''
     }
 
-    return `OFFSET ${this.offset}`
+    return `OFFSET\n${this.offset}`
   }
 
   private buildLock() {

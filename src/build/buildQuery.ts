@@ -4,10 +4,7 @@ import { anyParam, QueryItem } from '../query/types'
 import { ColumnImplementation } from '../table'
 import { BuildContext } from './buildContext'
 import { SqlQuery } from './statement'
-
-function assertNever(x: never): never {
-  assert.fail('Unexpected value. Should have been never.')
-}
+import { assertNever } from '../utils'
 
 // return the columns to select when building subselects
 export function buildColumns(
@@ -125,30 +122,41 @@ export function buildSqlQuery(
       case 'from':
         {
           const { table } = item
-          const alias = sql.getAlias(table.tableName)
 
-          sql.addFrom(table.getTableSql(alias, ctx, params))
+          ctx.addTable(table.getTableIdentifier())
+
+          sql.addFrom(table.getTableSql(ctx, params))
         }
         break
+
       case 'join': {
         const { column1: table1, column2: table2, joinType } = item
 
-        const alias1 = sql.getAlias(table1.tableName)
-        const alias2 = sql.getAlias(table2.tableName)
+        ctx.addTable(table2.getTableIdentifier())
 
-        // sql.addJoin(
-        //   item.joinType,
-        //   table2.getTableSql(alias2, ctx, params),
-        //   table1.getReferencedColumnSql(alias1),
-        //   table2.getReferencedColumnSql(alias2),
-        // )
+        const alias1 = ctx.getAlias(table1.getTableIdentifier())
+        const alias2 = ctx.getAlias(table2.getTableIdentifier())
+
+        sql.addJoin(
+          item.joinType, // join
+          table2.getTableSql(ctx, params), // other table on
+          table1.getReferencedColumn().getColumnSql(alias1), // base table col
+          table2.getReferencedColumn().getColumnSql(alias2), // == other table col
+        )
 
         break
       }
+
+      case 'select':
+        item.selections.forEach((s) => {
+          sql.addSelect(s.getSelectSql(ctx))
+        })
+        break
+
       case 'whereEq': {
-        const table = item.column
-        const alias = sql.getAlias(table.tableName)
-        const paramValue = params?.[item.paramKey]
+        // const table = item.column
+        // const alias = sql.getAlias(table.tableName)
+        // const paramValue = params?.[item.paramKey]
 
         // // the any param basically provides the missing neutral value that causes any
         // // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
@@ -163,9 +171,9 @@ export function buildSqlQuery(
         break
       }
       case 'whereIn': {
-        const table = item.column
-        const alias = sql.getAlias(table.tableName)
-        const paramValue = params?.[item.paramKey]
+        // const table = item.column
+        // const alias = sql.getAlias(table.tableName)
+        // const paramValue = params?.[item.paramKey]
 
         // if (paramValue !== anyParam) {
         //   sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
@@ -228,17 +236,7 @@ export function buildSqlQuery(
       case 'canaryColumn':
         sql.addSelect(`true AS ${item.columnName}`)
         break
-      case 'select':
-        // {
-        //   const { selections } = item
-        //
-        //   selections.forEach((t) => {
-        //     const alias = sql.getAlias(t.tableName)
-        //
-        //     sql.addSelect(t.getSelectSql(alias, false))
-        //   })
-        // }
-        break
+
       default:
         assertNever(item)
     }
