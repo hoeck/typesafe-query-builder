@@ -932,3 +932,5 @@ The exact error depends on your validation/runtype implementation.
   - makes heavy use of typescript template literals (making it look similar to knex)
   - schema made up of plain typescript interfaces
   - db agnostic
+* [crudely-typed](https://github.com/danvk/crudely-typed)
+  - relies on interfaces generated from the schema with [pg-to-ts](https://github.com/danvk/pg-to-ts)
