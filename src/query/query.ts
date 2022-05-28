@@ -304,13 +304,30 @@ class QueryImplementation {
     )
   }
 
-  whereEq(column: AnyTableColumn, paramKey: string) {
+  whereEq(
+    column: AnyTableColumn,
+    param: string | QueryImplementation | AnyTableColumn,
+  ) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
         queryType: 'whereEq',
         column: getTableImplementation(column),
-        paramKey,
+        parameter:
+          typeof param === 'string'
+            ? {
+                type: 'parameterKey',
+                name: param,
+              }
+            : 'buildSql' in param
+            ? {
+                type: 'query',
+                query: param,
+              }
+            : {
+                type: 'tableColumn',
+                table: getTableImplementation(param),
+              },
       },
     ])
   }
@@ -436,6 +453,11 @@ class QueryImplementation {
     }
 
     return tableImplementation.getTableProxy() as any
+  }
+
+  // select sql for subqueries
+  getSelectSql(ctx: BuildContext, params: any): string {
+    return '(' + this.buildSql(ctx, params) + ')'
   }
 
   buildSql(ctx?: BuildContext, params?: any): string {

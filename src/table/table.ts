@@ -5,6 +5,7 @@ import {
   BuildContext,
   sqlColumnIdentifier,
   sqlEscapeIdentifier,
+  QueryParams,
 } from '../build'
 
 import {
@@ -343,14 +344,14 @@ export class TableImplementation {
   // help reading query debug outputs
   [util.inspect.custom](depth: number, options: unknown) {
     if (this.referencedColumn) {
-      return `TableImplementation "${this.tableName}" with referenced column: "${this.referencedColumn}"`
+      return `#<TableImplementation "${this.tableName}" with referenced column: "${this.referencedColumn}">`
     }
 
     const alias = this.tableAlias ? ` (alias: ${this.tableAlias})` : ''
 
-    return `TableImplementation "${this.tableName}"${alias} (${
+    return `#<TableImplementation "${this.tableName}"${alias} (${
       Object.keys(this.tableColumns).length
-    } cols)`
+    } cols)>`
   }
 
   toString() {
@@ -437,7 +438,7 @@ export class TableImplementation {
     return column
   }
 
-  getTableSql(ctx: BuildContext, params?: any) {
+  getTableSql(ctx: BuildContext, params: QueryParams) {
     const alias = ctx.getAlias(this.getTableIdentifier())
 
     if (this.tableQuery) {
@@ -465,6 +466,13 @@ export class TableImplementation {
     }
 
     return refCol
+  }
+
+  // shortcut so we can pass a table directly as a 'tableColumn' param type
+  getReferencedColumnSql(ctx: BuildContext) {
+    const alias = ctx.getAlias(this.getTableIdentifier())
+
+    return this.getReferencedColumn().getColumnSql(alias)
   }
 
   // Return a function that converts a flat row of column values according to

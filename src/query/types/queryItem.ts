@@ -2,6 +2,8 @@ import { SelectionImplementation, TableImplementation } from '../../table'
 import { LockMode } from './queryBottom'
 import { SqlFragmentImplementation } from './sqlFragment'
 
+type CannotImportBuildContextBcCircularImports = any
+
 /**
  * Recording parts of a query to be able to generate sql from
  */
@@ -34,7 +36,33 @@ export interface JoinItem {
 export interface WhereEqItem {
   queryType: 'whereEq'
   column: TableImplementation
-  paramKey: string
+
+  // -> some interface that has all methods for generating the sql
+  parameter: ParameterKeyExpression | TableColumnExpression | QueryExpression
+}
+
+interface ParameterKeyExpression {
+  type: 'parameterKey'
+  name: string
+}
+
+interface TableColumnExpression {
+  type: 'tableColumn'
+  table: {
+    getReferencedColumnSql(
+      ctx: CannotImportBuildContextBcCircularImports,
+    ): string
+  }
+}
+
+interface QueryExpression {
+  type: 'query'
+  query: {
+    buildSql(
+      ctx: CannotImportBuildContextBcCircularImports,
+      params: any,
+    ): string
+  }
 }
 
 export interface WhereInItem {

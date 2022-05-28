@@ -23,7 +23,7 @@ export const Franchises = table('classicgames.franchises', {
 
 export const Games = table('classicgames.games', {
   id: col('id').integer().primary().default(),
-  title: col('name').string(),
+  title: col('title').string(),
   urls: col('urls')
     .json((v) => {
       if (typeof v !== 'object' || v === null) {

@@ -56,7 +56,7 @@ export class TableMap {
  * to be an object so it works across subqueries and is mergable.
  */
 export class BuildContext {
-  private offset = 0
+  private offset = 0 // why is this offset here?
   private mutableParameterMapping: string[] = []
 
   // keeps a mapping of tables -> aliases

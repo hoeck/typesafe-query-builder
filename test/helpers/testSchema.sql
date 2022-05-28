@@ -90,9 +90,9 @@ CREATE TABLE classicgames.games (
 INSERT INTO classicgames.games
   (id, title, franchise_id, urls)
 VALUES
-  (1, 'Sonic the Hedgehog', 2, NULL),
+  (1, 'Sonic the Hedgehog', 2, '{"wiki": "https://de.wikipedia.org/wiki/Sonic_the_Hedgehog_(1991)", "misc": "https://www.sega.com/games/sonic-hedgehog"}'),
   (2, 'Super Mario Land', 3, NULL),
-  (3, 'Super Mario Bros', 3, '{"wiki": "https://de.wikipedia.org/wiki/Sonic_the_Hedgehog_(1991)", "misc": "https://www.sega.com/games/sonic-hedgehog"}'),
+  (3, 'Super Mario Bros', 3, NULL),
   (4, 'Ultima IV', 1, '{"wiki": "https://en.wikipedia.org/wiki/Ultima_IV:_Quest_of_the_Avatar"}'),
   (5, 'Virtua Racing', NULL, '{"wiki":"https://en.wikipedia.org/wiki/Virtua_Racing","ign":"https://www.ign.com/games/virtua-racing"}'),
   (6, 'Laser Blast', NULL, '{"wiki": "https://en.wikipedia.org/wiki/Laser_Blast"}');

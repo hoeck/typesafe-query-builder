@@ -97,26 +97,12 @@ export class SqlQuery {
     this.offset = offset
   }
 
-  addWhereEq(columnSql: string, paramKey: string, nullable: boolean) {
-    const c = columnSql
+  addWhereIsNull(columnSql: string) {
+    this.where.push(`${columnSql} IS NULL`)
+  }
 
-    if (nullable) {
-      const p1 = this.ctx.getNextParameter(paramKey)
-      const p2 = this.ctx.getNextParameter(paramKey)
-
-      // Null and equals check using a single javascript value.
-      // Using a single parameter for null and equals check results in an
-      // 'could not determine data type of parameter $N'-error.
-      // Still with two parameters a type cast is required for the null-check
-      // param so use text as that cast works for most types.
-      this.where.push(
-        `CASE WHEN ${p1}::text IS NULL THEN ${c} IS NULL ELSE ${c} = ${p2} END`,
-      )
-    } else {
-      const p = this.ctx.getNextParameter(paramKey)
-
-      this.where.push(`${c} = ${p}`)
-    }
+  addWhereEqSql(leftSql: string, rightSql: string) {
+    this.where.push(`${leftSql} = ${rightSql}`)
   }
 
   addWhereIn(columnSql: string, paramKey: string) {
@@ -221,7 +207,7 @@ export class SqlQuery {
 
   private buildSelect() {
     // selecting no columns will result in empts-string selects which must be filtered
-    return 'SELECT\n' + this.select.filter((s) => !!s).join(',')
+    return 'SELECT\n' + this.select.filter((s) => !!s).join(',\n')
   }
 
   private buildFrom() {

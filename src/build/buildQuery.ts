@@ -5,6 +5,7 @@ import { ColumnImplementation } from '../table'
 import { BuildContext } from './buildContext'
 import { SqlQuery } from './statement'
 import { assertNever } from '../utils'
+import { QueryParams } from './types'
 
 // return the columns to select when building subselects
 export function buildColumns(
@@ -109,11 +110,7 @@ export function buildResultConverter(query: QueryItem[]) {
 export function buildSqlQuery(
   query: QueryItem[],
   ctx: BuildContext,
-
-  // required as it may contain a param to determine locking OR the ANY_PARAM
-  // placeholder that disables a whereEq or whereIn expression
-  // TODO: merge params with the BuildContext
-  params?: any,
+  params: QueryParams,
 ): string {
   const sql = new SqlQuery(ctx)
 
@@ -154,22 +151,49 @@ export function buildSqlQuery(
         break
 
       case 'whereEq': {
-        // const table = item.column
-        // const alias = sql.getAlias(table.tableName)
-        // const paramValue = params?.[item.paramKey]
+        const { column, parameter } = item
 
-        // // the any param basically provides the missing neutral value that causes any
-        // // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
-        // if (paramValue !== anyParam) {
-        //   sql.addWhereEq(
-        //     table.getReferencedColumnSql(alias),
-        //     item.paramKey,
-        //     !!table.getReferencedColumn().isNullable,
-        //   )
-        // }
+        switch (parameter.type) {
+          case 'parameterKey':
+            {
+              const paramValue = params[parameter.name]
+
+              if (paramValue === anyParam) {
+                // the any param basically provides the missing neutral value that causes any
+                // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
+              } else if (paramValue === null) {
+                sql.addWhereIsNull(column.getReferencedColumnSql(ctx))
+              } else {
+                sql.addWhereEqSql(
+                  column.getReferencedColumnSql(ctx),
+                  ctx.getNextParameter(parameter.name),
+                )
+              }
+            }
+            break
+
+          case 'tableColumn':
+            sql.addWhereEqSql(
+              column.getReferencedColumnSql(ctx),
+              parameter.table.getReferencedColumnSql(ctx),
+            )
+
+            break
+
+          case 'query':
+            sql.addWhereEqSql(
+              column.getReferencedColumnSql(ctx),
+              parameter.query.buildSql(query, params),
+            )
+            break
+
+          default:
+            assertNever(parameter)
+        }
 
         break
       }
+
       case 'whereIn': {
         // const table = item.column
         // const alias = sql.getAlias(table.tableName)

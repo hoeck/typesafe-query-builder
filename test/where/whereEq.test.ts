@@ -1,8 +1,40 @@
 import { query } from '../../src'
-import { client, users, items } from '../helpers'
+import { client, Systems, Games } from '../helpers'
 
-describe.skip('whereEq', () => {
-  test('placeholder', () => {})
+describe('whereEq', () => {
+  test('number', async () => {
+    const q = query(Systems)
+      .select(Systems.include('name'))
+      .whereEq(Systems.id, 'id')
+
+    expect(await q.fetch(client, { id: 1 })).toEqual([
+      { name: 'Master System' },
+    ])
+
+    expect(await q.fetch(client, { id: 2 })).toEqual([{ name: 'Genesis' }])
+  })
+
+  test('string', async () => {
+    const q = query(Systems)
+      .select(Systems.include('id', 'name'))
+      .whereEq(Systems.name, 'name')
+
+    expect(await q.fetch(client, { name: 'Genesis' })).toEqual([
+      { name: 'Genesis', id: 2 },
+    ])
+  })
+
+  test('is null', async () => {
+    const q = query(Games)
+      .select(Games.include('title'))
+      .whereEq(Games.franchiseId, 'franchiseId')
+
+    expect(await q.fetch(client, { franchiseId: null })).toEqual([
+      { title: 'Virtua Racing' },
+      { title: 'Laser Blast' },
+    ])
+  })
+
   // test('equals', async () => {
   //   const result = await query(users.select('userName'))
   //     .whereEq(users.userId, 'id')
