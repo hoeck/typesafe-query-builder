@@ -1,20 +1,14 @@
 import * as util from 'util'
-import { assert, assertNever, assertFail } from '../utils'
+import { BuildContext } from '../build'
+import { QueryParams } from '../common'
 import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
-import {
-  BuildContext,
-  sqlColumnIdentifier,
-  sqlEscapeIdentifier,
-  QueryParams,
-} from '../build'
-
+import { assert, assertFail, assertNever } from '../utils'
 import {
   Column,
   ColumnImplementation,
   DefaultValue,
   getColumnImplementation,
 } from './columns'
-
 import { DatabaseTable, Table, TableName } from './types'
 
 // access the tables internals for building queries
@@ -126,7 +120,7 @@ export class SelectionImplementation {
     )
   }
 
-  getSelectSql(ctx: BuildContext): string {
+  getSelectSql(ctx: BuildContext, params: QueryParams): string {
     const tableAlias = ctx.getAlias(this.table.getTableIdentifier())
 
     // subselects ???

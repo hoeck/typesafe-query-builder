@@ -24,14 +24,42 @@ export * from './testSchema'
 export * from './classicGames'
 export * from './pcComponents'
 
+// return the object with keys sorted
+function sortKeys(o: any): any {
+  if (
+    !o ||
+    Array.isArray(o) ||
+    typeof o !== 'object' ||
+    !Object.keys(o).length
+  ) {
+    return o
+  }
+
+  return Object.fromEntries(
+    Object.keys(o)
+      .sort()
+      .map((k) => {
+        const v = o[k]
+
+        return [k, sortKeys(v)]
+      }),
+  )
+}
+
 function sortByJsonComparator(a: any, b: any) {
-  const ja = JSON.stringify(a)
-  const jb = JSON.stringify(b)
+  const ja = JSON.stringify(sortKeys(a))
+  const jb = JSON.stringify(sortKeys(b))
 
   return ja === jb ? 0 : ja < jb ? 1 : -1
 }
 
-export function expectValues<T>(values: T[], expected: T[]) {
+/**
+ * Compare values against expected ignoring order.
+ *
+ * Sort order is only ignored in the top level array so we can compare db
+ * query results which do not use order by.
+ */
+export function expectValuesUnsorted<T>(values: T[], expected: T[]) {
   const valueSorted = [...values].sort(sortByJsonComparator)
   const expectedSorted = [...expected].sort(sortByJsonComparator)
 

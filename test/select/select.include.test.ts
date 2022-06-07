@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, expectValues, Manufacturers } from '../helpers'
+import { client, expectValuesUnsorted, Manufacturers } from '../helpers'
 
 // basic selection without joins, projections, subqueries
 describe('select.include', () => {
@@ -8,7 +8,7 @@ describe('select.include', () => {
       .select(Manufacturers.include('name'))
       .fetch(client)
 
-    expectValues(result, [
+    expectValuesUnsorted(result, [
       { name: 'Sega' },
       { name: 'Nintendo' },
       { name: 'Atari' },

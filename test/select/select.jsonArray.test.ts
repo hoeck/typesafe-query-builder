@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, expectValues, Manufacturers } from '../helpers'
+import { client, expectValuesUnsorted, Manufacturers } from '../helpers'
 
 describe('select.jsonArray', () => {
   test('plain array', async () => {
@@ -7,7 +7,7 @@ describe('select.jsonArray', () => {
       .select(Manufacturers.include('id').jsonArray('ids'))
       .fetch(client)
 
-    expectValues(result, [{ ids: [1, 2, 3] }])
+    expectValuesUnsorted(result, [{ ids: [1, 2, 3] }])
   })
 
   test('ordered default', async () => {
@@ -15,7 +15,9 @@ describe('select.jsonArray', () => {
       .select(Manufacturers.include('name').jsonArray('names', 'name'))
       .fetch(client)
 
-    expectValues(resultDefault, [{ names: ['Atari', 'Nintendo', 'Sega'] }])
+    expectValuesUnsorted(resultDefault, [
+      { names: ['Atari', 'Nintendo', 'Sega'] },
+    ])
   })
 
   test('ordered ASC', async () => {
@@ -23,7 +25,7 @@ describe('select.jsonArray', () => {
       .select(Manufacturers.include('name').jsonArray('names', 'name', 'ASC'))
       .fetch(client)
 
-    expectValues(resultAsc, [{ names: ['Atari', 'Nintendo', 'Sega'] }])
+    expectValuesUnsorted(resultAsc, [{ names: ['Atari', 'Nintendo', 'Sega'] }])
   })
 
   test('ordered DESC', async () => {
@@ -31,7 +33,7 @@ describe('select.jsonArray', () => {
       .select(Manufacturers.include('name').jsonArray('names', 'name', 'DESC'))
       .fetch(client)
 
-    expectValues(resultDesc, [{ names: ['Sega', 'Nintendo', 'Atari'] }])
+    expectValuesUnsorted(resultDesc, [{ names: ['Sega', 'Nintendo', 'Atari'] }])
   })
 
   describe('errors', () => {

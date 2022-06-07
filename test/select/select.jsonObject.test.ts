@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, expectValues, Manufacturers } from '../helpers'
+import { client, expectValuesUnsorted, Manufacturers } from '../helpers'
 
 describe('select.jsonObject', () => {
   test('all', async () => {
@@ -7,7 +7,7 @@ describe('select.jsonObject', () => {
       .select(Manufacturers.all().jsonObject('company'))
       .fetch(client)
 
-    expectValues(result, [
+    expectValuesUnsorted(result, [
       { company: { id: 1, name: 'Sega', country: 'Japan' } },
       { company: { id: 2, name: 'Nintendo', country: 'Japan' } },
       { company: { id: 3, name: 'Atari', country: 'USA' } },
@@ -21,7 +21,7 @@ describe('select.jsonObject', () => {
       )
       .fetch(client)
 
-    expectValues(result, [
+    expectValuesUnsorted(result, [
       { x: { '#': 1, name: 'Sega' } },
       { x: { '#': 2, name: 'Nintendo' } },
       { x: { '#': 3, name: 'Atari' } },

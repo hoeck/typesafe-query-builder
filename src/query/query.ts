@@ -1,34 +1,30 @@
 import assert from 'assert'
-
 import {
-  QueryBuilderResultError,
-  QueryBuilderUsageError,
-  QueryBuilderValidationError,
-} from '../errors'
+  buildColumns,
+  BuildContext,
+  buildInsert,
+  buildResultConverter,
+  buildSqlQuery,
+  buildUpdate,
+} from '../build'
+import { QueryParams } from '../common'
+import { QueryBuilderResultError, QueryBuilderValidationError } from '../errors'
 import {
+  getTableImplementation,
   SelectionImplementation,
   Table,
   TableColumn,
   TableImplementation,
-  getTableImplementation,
 } from '../table'
 import {
-  BuildContext,
-  buildSqlQuery,
-  buildColumns,
-  buildInsert,
-  buildUpdate,
-  buildResultConverter,
-} from '../build'
-import {
-  QueryRoot,
+  anyParam,
   DatabaseClient,
-  QueryItem,
   LockMode,
+  QueryItem,
+  QueryRoot,
   SqlFragment,
   SqlFragmentBuilder,
   SqlFragmentParam,
-  anyParam,
 } from './types'
 
 /*
@@ -456,7 +452,7 @@ class QueryImplementation {
   }
 
   // select sql for subqueries
-  getSelectSql(ctx: BuildContext, params: any): string {
+  getSelectSql(ctx: BuildContext, params: QueryParams): string {
     return '(' + this.buildSql(ctx, params) + ')'
   }
 

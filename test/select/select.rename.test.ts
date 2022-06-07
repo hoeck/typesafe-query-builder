@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, expectValues, Manufacturers } from '../helpers'
+import { client, expectValuesUnsorted, Manufacturers } from '../helpers'
 
 describe('select.rename', () => {
   test('rename', async () => {
@@ -11,7 +11,7 @@ describe('select.rename', () => {
       )
       .fetch(client)
 
-    expectValues(result, [
+    expectValuesUnsorted(result, [
       { id: 1, MANUFACTURER: 'Sega' },
       { id: 2, MANUFACTURER: 'Nintendo' },
       { id: 3, MANUFACTURER: 'Atari' },

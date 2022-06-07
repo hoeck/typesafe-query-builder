@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, expectValues, Manufacturers } from '../helpers'
+import { client, expectValuesUnsorted, Manufacturers } from '../helpers'
 
 // basic selection without joins, projections, subqueries
 describe('select.all', () => {
@@ -8,7 +8,7 @@ describe('select.all', () => {
       .select(Manufacturers.all())
       .fetch(client)
 
-    expectValues(result, [
+    expectValuesUnsorted(result, [
       { id: 1, name: 'Sega', country: 'Japan' },
       { id: 2, name: 'Nintendo', country: 'Japan' },
       { id: 3, name: 'Atari', country: 'USA' },

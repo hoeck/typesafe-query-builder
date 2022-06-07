@@ -1,11 +1,9 @@
-import * as assert from 'assert'
-import { QueryBuilderUsageError } from '../errors'
+import { QueryParams } from '../common'
 import { anyParam, QueryItem } from '../query/types'
 import { ColumnImplementation } from '../table'
+import { assertNever } from '../utils'
 import { BuildContext } from './buildContext'
 import { SqlQuery } from './statement'
-import { assertNever } from '../utils'
-import { QueryParams } from './types'
 
 // return the columns to select when building subselects
 export function buildColumns(
@@ -146,7 +144,7 @@ export function buildSqlQuery(
 
       case 'select':
         item.selections.forEach((s) => {
-          sql.addSelect(s.getSelectSql(ctx))
+          sql.addSelect(s.getSelectSql(ctx, params))
         })
         break
 
