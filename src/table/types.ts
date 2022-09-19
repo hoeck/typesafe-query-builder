@@ -130,6 +130,16 @@ export declare class Selection<T, P, S> {
   jsonArray<K extends string, O extends keyof T, S, SS = AssertHasSingleKey<S>>(
     this: Selection<T, P, S>,
     key: K,
+    // TODO: orderBy -> {orderBy: O, direction: dir} OR as an extra method
+    //       .orderBy(name, dir) bc. the current way of passing the column as
+    //       a positional parameter hard to read!
+    // TODO: to all subselects (jsonObject etc), add an option to assert on nulls
+    //       The fancy way would be to make the typesystem aware of foreign
+    //       keys but that sounds like a complexity nightmare to me.
+    //       Adding an .assertNotNull() seems to be easier to implement &
+    //       understand & use.
+    //       In the same way, a .nullToEmptyArray() could be built to get a
+    //       nicer behaviour for json array aggregates.
     orderBy?: O,
     direction?: 'ASC' | 'DESC',
   ): Selection<T, P, { [Key in K]: SS[keyof SS][] }>
