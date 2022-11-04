@@ -7,6 +7,8 @@ import {
   Manufacturers,
 } from '../helpers'
 
+// subselect aka "single left joined columns":
+//   `SELECT x, (SELECT y FROM bar WHERE foo.x = bar.x) AS y FROM foo`
 describe('subselect', () => {
   test('single basic subselect', async () => {
     const q = query(Franchises).select(

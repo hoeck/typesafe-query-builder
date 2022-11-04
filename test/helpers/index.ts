@@ -65,3 +65,10 @@ export function expectValuesUnsorted<T>(values: T[], expected: T[]) {
 
   expect(valueSorted).toEqual(expectedSorted)
 }
+
+/**
+ * Like expect(values).toRquak(expected) but typesafe.
+ */
+export function expectValues<T>(values: T[], expected: T[]) {
+  expect(values).toEqual(expected)
+}

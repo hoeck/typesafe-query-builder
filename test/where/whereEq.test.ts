@@ -24,17 +24,6 @@ describe('whereEq', () => {
     ])
   })
 
-  test('is null', async () => {
-    const q = query(Games)
-      .select(Games.include('title'))
-      .whereEq(Games.franchiseId, 'franchiseId')
-
-    expect(await q.fetch(client, { franchiseId: null })).toEqual([
-      { title: 'Virtua Racing' },
-      { title: 'Laser Blast' },
-    ])
-  })
-
   test('anyParam', async () => {
     const q = query(Manufacturers)
       .select(Manufacturers.include('name'))

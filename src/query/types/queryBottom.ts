@@ -48,7 +48,7 @@ export declare class QueryBottom<
   L = never,
   S = {},
   C = never,
-  M = QueryBottomTag
+  M = QueryBottomTag,
 > {
   protected __t: T
   protected __p: P
@@ -75,27 +75,44 @@ export declare class QueryBottom<
    *
    * Passing `query.ANY_PARAM` as the parameter will cause the expression to
    * be ommitted from the query (basically evaluating to `true`)
+   *
+   * Mimicking SQL, it's possible to compare against nullable columns, but not
+   * using `null` itself, for that you'll have to use the dedicated
+   * `whereIsNull` method.
    */
-  whereEq<CP extends ComparableTypes, K extends string>(
+  whereEq<CP extends ComparableTypes | null, K extends string>(
     col: TableColumn<T, any, CP>,
     paramKey: K,
-  ): QueryBottom<T, P & { [KK in K]: CP | AnyParam }, L, S, C>
+  ): QueryBottom<T, P & { [KK in K]: Exclude<CP, null> | AnyParam }, L, S, C>
 
-  // overload for correlated subqueries (only valid in select clauses)
+  // overload for correlated subselects (only valid in select clauses)
   whereEq<CT, CP>(
     col: TableColumn<T, any, CP>,
     otherCol: TableColumn<CT, any, CP>,
-  ): QueryBottom<T, P, L, S[keyof S] extends any[] ? S : Nullable<S>, CT> // CT turning this into a correlated subquery
+  ): QueryBottom<
+    T,
+    P,
+    L,
+    // TODO: is this needed? is transparent null handling still active?
+    S[keyof S] extends any[] ? S : Nullable<S>,
+    CT
+  > // CT turning this into a correlated subquery
 
   // overload for subqueries used as a condition
-  whereEq<P1, S1, CP extends S1[keyof S1] & ComparableTypes>(
+  whereEq<
+    P1,
+    S1,
+    // only allow certain comparable columns (those for which pg implements equals)
+    // `| null` because they may be nullable (but null cannot be compared against)
+    CP extends (S1[keyof S1] & ComparableTypes) | null,
+  >(
     col: TableColumn<T, any, CP>,
     subselect: QueryBottom<any, P1, any, AssertHasSingleKey<S1>, any>,
   ): QueryBottom<T, P & P1, L, S, C>
 
   // TODO: the overloads look quite complex to me, I might have to provide
   // separate methods `.whereEqSubCorr`, `.whereEqSub` in case the
-  // overloads cause mayem in bigger codebases.
+  // overloads cause mayhem in bigger codebases.
 
   /**
    * Append a WHERE col IN (value1, value2, ...) condition.
@@ -103,13 +120,13 @@ export declare class QueryBottom<
    * Passing `query.ANY_PARAM` as the parameter will cause the expression to
    * be ommitted from the query (basically evaluating to `true`)
    */
-  whereIn<CP extends ComparableTypes, K extends string>(
+  whereIn<CP extends ComparableTypes | null, K extends string>(
     col: TableColumn<T, any, CP>,
     paramKey: K,
-  ): QueryBottom<T, P & { [KK in K]: CP[] | AnyParam }, L, S, C>
+  ): QueryBottom<T, P & { [KK in K]: Exclude<CP, null>[] | AnyParam }, L, S, C>
 
-  // overload for subquery conditions
-  whereIn<P1, S1, CP extends S1[keyof S1] & ComparableTypes>(
+  // overload for subquery conditions: `WHERE col IN (SELECT ...)`
+  whereIn<P1, S1, CP extends (S1[keyof S1] & ComparableTypes) | null>(
     col: TableColumn<T, any, CP>,
     subselect: QueryBottom<any, P1, any, AssertHasSingleKey<S1>, any>,
   ): QueryBottom<T, P & P1, L, S, C>
@@ -153,7 +170,7 @@ export declare class QueryBottom<
     C1,
     C2,
     C3,
-    C4
+    C4,
   >(
     sqlFragment1: SqlFragment<T, K1, C1>,
     sqlFragment2: SqlFragment<T, K2, C2>,
@@ -161,11 +178,9 @@ export declare class QueryBottom<
     sqlFragment4: SqlFragment<T, K4, C4>,
   ): QueryBottom<
     T,
-    P &
-      { [KK in K1]: C1 } &
-      { [KK in K2]: C2 } &
-      { [KK in K3]: C3 } &
-      { [KK in K4]: C4 },
+    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K3]: C3 } & {
+      [KK in K4]: C4
+    },
     L,
     S,
     C
@@ -181,7 +196,7 @@ export declare class QueryBottom<
     C2,
     C3,
     C4,
-    C5
+    C5,
   >(
     sqlFragment1: SqlFragment<T, K1, C1>,
     sqlFragment2: SqlFragment<T, K2, C2>,
@@ -190,12 +205,9 @@ export declare class QueryBottom<
     sqlFragment5: SqlFragment<T, K5, C5>,
   ): QueryBottom<
     T,
-    P &
-      { [KK in K1]: C1 } &
-      { [KK in K2]: C2 } &
-      { [KK in K3]: C3 } &
-      { [KK in K4]: C4 } &
-      { [KK in K5]: C5 },
+    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K3]: C3 } & {
+      [KK in K4]: C4
+    } & { [KK in K5]: C5 },
     L,
     S,
     C
@@ -235,7 +247,7 @@ export declare class QueryBottom<
     C1 extends T,
     C2 extends T,
     M1,
-    M2
+    M2,
   >(
     t1:
       | Selection<T1, P1, S1>
@@ -267,7 +279,7 @@ export declare class QueryBottom<
     C3 extends T,
     M1,
     M2,
-    M3
+    M3,
   >(
     t1:
       | Selection<T1, P1, S1>
@@ -310,7 +322,7 @@ export declare class QueryBottom<
     M1,
     M2,
     M3,
-    M4
+    M4,
   >(
     t1:
       | Selection<T1, P1, S1>
@@ -362,7 +374,7 @@ export declare class QueryBottom<
     M2,
     M3,
     M4,
-    M5
+    M5,
   >(
     t1:
       | Selection<T1, P1, S1>
@@ -423,7 +435,7 @@ export declare class QueryBottom<
     M3,
     M4,
     M5,
-    M6
+    M6,
   >(
     t1:
       | Selection<T1, P1, S1>
@@ -493,7 +505,7 @@ export declare class QueryBottom<
     M4,
     M5,
     M6,
-    M7
+    M7,
   >(
     t1:
       | Selection<T1, P1, S1>
@@ -542,7 +554,7 @@ export declare class QueryBottom<
    *
    * See https://www.postgresql.org/docs/current/queries-order.html
    */
-  orderBy<CP extends ComparableTypes>(
+  orderBy<CP extends ComparableTypes | null>(
     // Postgres allows any column in an order by statement,
     // standard sql only allows order by the selected columns
     col: TableColumn<T, any, CP>,
@@ -606,9 +618,16 @@ export declare class QueryBottom<
   table(): Table<S, P>
 
   /**
-   * Return the generated sql
+   * Return the generated sql string.
    */
   sql: keyof P extends never ? () => string : (params: P) => string
+
+  /**
+   * Log the generated sql string to the console.
+   */
+  sqlLog: keyof P extends never
+    ? () => string
+    : (params: P) => QueryBottom<T, P, L, S, C>
 
   /**
    * Run an SQL EXPLAIN on this query.

@@ -24,7 +24,7 @@ describe('subselect.jsonArray', () => {
     ])
   })
 
-  test('with ordering', async () => {
+  test('ordering', async () => {
     const q = query(Manufacturers).select(
       Manufacturers.include('name'),
       query(Systems)
@@ -42,7 +42,7 @@ describe('subselect.jsonArray', () => {
     ])
   })
 
-  test('with where', async () => {
+  test('additional where', async () => {
     const q = query(Manufacturers).select(
       Manufacturers.include('name'),
       query(Systems)
@@ -50,7 +50,6 @@ describe('subselect.jsonArray', () => {
         .whereEq(Systems.manufacturerId, Manufacturers.id)
         .whereEq(Systems.name, 'systemName'),
     )
-
     expectValuesUnsorted(await q.fetch(client, { systemName: 'Genesis' }), [
       {
         name: 'Sega',

@@ -181,7 +181,7 @@ export function buildSqlQuery(
           case 'query':
             sql.addWhereEqSql(
               column.getReferencedColumnSql(ctx),
-              parameter.query.buildSql(query, params),
+              '(\n' + parameter.query.buildSql(ctx, params) + '\n)',
             )
             break
 
@@ -193,13 +193,35 @@ export function buildSqlQuery(
       }
 
       case 'whereIn': {
-        // const table = item.column
-        // const alias = sql.getAlias(table.tableName)
-        // const paramValue = params?.[item.paramKey]
+        const { column, parameter } = item
 
-        // if (paramValue !== anyParam) {
-        //   sql.addWhereIn(table.getReferencedColumnSql(alias), item.paramKey)
-        // }
+        switch (parameter.type) {
+          case 'parameterKey':
+            {
+              const paramValue = params[parameter.name]
+
+              if (paramValue === anyParam) {
+                // the any param basically provides the missing neutral value that causes any
+                // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
+              } else {
+                sql.addWhereEqAny(
+                  column.getReferencedColumnSql(ctx),
+                  ctx.getNextParameter(parameter.name),
+                )
+              }
+            }
+            break
+
+          case 'query':
+            sql.addWhereIn(
+              column.getReferencedColumnSql(ctx),
+              '(\n' + parameter.query.buildSql(ctx, params) + '\n)',
+            )
+            break
+
+          default:
+            assertNever(parameter)
+        }
 
         break
       }

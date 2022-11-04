@@ -899,6 +899,8 @@ The exact error depends on your validation/runtype implementation.
   - arrays
   - validatable strings
 - optionally check table schema definitions against the database schema
+- check query parameters to whereEq, whereIn against the columns type (its
+  runtype) at runtime
 
 ## Local Development
 

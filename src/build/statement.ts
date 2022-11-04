@@ -105,15 +105,21 @@ export class SqlQuery {
     this.where.push(`${leftSql} = ${rightSql}`)
   }
 
-  addWhereIn(columnSql: string, paramKey: string) {
+  addWhereEqAny(columnSql: string, parameterSql: string) {
     const c = columnSql
-    const p = this.ctx.getNextParameter(paramKey)
+    const p = parameterSql
 
     // Use an array comparison function (instead of IN) so we can pass
     // parameters as a simple json array in a simple arg without having to
     // know how long the arguments are.
+    // Looking at the query plan it seems like `... IN x` is compiled down
+    // to `= ANY(x)`.
     // see https://www.postgresql.org/docs/current/functions-comparisons.html
     this.where.push(`${c} = ANY(${p})`)
+  }
+
+  addWhereIn(leftSql: string, rightSql: string) {
+    this.where.push(`${leftSql} IN (${rightSql})`)
   }
 
   // given the template-string-fragments and some strings, interpolate them

@@ -171,6 +171,10 @@ function validateRowData(
 // global counter to create unique table names in `Query.table()` calls
 let uniqueTableNameCounter = 0
 
+function isQueryImplementation(x: unknown): x is QueryImplementation {
+  return typeof x === 'object' && x !== null && 'buildSql' in x
+}
+
 class QueryImplementation {
   constructor(
     private tables: TableImplementation[],
@@ -315,7 +319,7 @@ class QueryImplementation {
                 type: 'parameterKey',
                 name: param,
               }
-            : 'buildSql' in param
+            : isQueryImplementation(param)
             ? {
                 type: 'query',
                 query: param,
@@ -328,13 +332,22 @@ class QueryImplementation {
     ])
   }
 
-  whereIn(column: AnyTableColumn, paramKey: string) {
+  whereIn(column: AnyTableColumn, param: string | QueryImplementation) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
         queryType: 'whereIn',
         column: getTableImplementation(column),
-        paramKey,
+        parameter:
+          typeof param === 'string'
+            ? {
+                type: 'parameterKey',
+                name: param,
+              }
+            : {
+                type: 'query',
+                query: param,
+              },
       },
     ])
   }
@@ -463,6 +476,12 @@ class QueryImplementation {
 
   sql(params?: any): string {
     return this.buildSql(undefined, params)
+  }
+
+  sqlLog(params?: any) {
+    console.log(this.buildSql(undefined, params))
+
+    return this
   }
 
   async explain(client: DatabaseClient, params?: any): Promise<string> {

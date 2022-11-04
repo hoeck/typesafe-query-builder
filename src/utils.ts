@@ -97,4 +97,4 @@ export type Nullable<T> = { [K in keyof T]: T[K] | null }
  *
  * We have `null` in here bc. the query builder transparently handles `IS NULL` and `=`.
  */
-export type ComparableTypes = string | number | boolean | Date | null
+export type ComparableTypes = string | number | boolean | Date

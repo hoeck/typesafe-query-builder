@@ -4,6 +4,36 @@ import { SqlFragmentImplementation } from './sqlFragment'
 
 type CannotImportBuildContextBcCircularImports = any
 
+// the parameter "name" in:
+//  `.whereEq(Table.column, 'name')`
+interface ParameterKeyExpression {
+  type: 'parameterKey'
+  name: string
+}
+
+// the correlated outer table in a subselect query:
+//   `.whereEq(InnerTable.column, OuterTable.column)
+interface TableColumnExpression {
+  type: 'tableColumn'
+  table: {
+    getReferencedColumnSql(
+      ctx: CannotImportBuildContextBcCircularImports,
+    ): string
+  }
+}
+
+// a subselect query:
+//   `.whereEq(Table.column, query(...))`
+interface QueryExpression {
+  type: 'query'
+  query: {
+    buildSql(
+      ctx: CannotImportBuildContextBcCircularImports,
+      params: any,
+    ): string
+  }
+}
+
 /**
  * Recording parts of a query to be able to generate sql from
  */
@@ -36,39 +66,13 @@ export interface JoinItem {
 export interface WhereEqItem {
   queryType: 'whereEq'
   column: TableImplementation
-
-  // -> some interface that has all methods for generating the sql
   parameter: ParameterKeyExpression | TableColumnExpression | QueryExpression
-}
-
-interface ParameterKeyExpression {
-  type: 'parameterKey'
-  name: string
-}
-
-interface TableColumnExpression {
-  type: 'tableColumn'
-  table: {
-    getReferencedColumnSql(
-      ctx: CannotImportBuildContextBcCircularImports,
-    ): string
-  }
-}
-
-interface QueryExpression {
-  type: 'query'
-  query: {
-    buildSql(
-      ctx: CannotImportBuildContextBcCircularImports,
-      params: any,
-    ): string
-  }
 }
 
 export interface WhereInItem {
   queryType: 'whereIn'
   column: TableImplementation
-  paramKey: string
+  parameter: ParameterKeyExpression | QueryExpression
 }
 
 export interface WhereSqlItem {
