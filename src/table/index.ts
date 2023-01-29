@@ -14,4 +14,4 @@ export {
   DatabaseTable,
   RemoveTableName,
 } from './types'
-export type { TableColumn } from './types'
+export type { TableColumn, TableColumnType } from './types'

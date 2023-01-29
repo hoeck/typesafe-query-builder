@@ -1,20 +1,56 @@
-import { DatabaseTable, Selection, Table } from '../../table/types'
+import {
+  DatabaseTable,
+  Selection,
+  Table,
+  TableColumn,
+  TableColumnType,
+  TableColumnTable,
+} from '../../table/types'
 import { SetOptional } from '../../utils'
 import { AnyParam } from './atoms'
 import { DatabaseClient } from './databaseClient'
 import { Delete } from './delete'
 import { Query } from './joins'
 import { Update } from './update'
-import { QueryBottom } from './queryBottom'
+import {
+  QueryBottom,
+  WhereParameterTypeOfColumn,
+  WhereParameterType,
+} from './queryBottom'
 
 /**
  * Chaining API root.
  */
 export interface QueryRoot {
+  // query constructor
   <T, P>(table: Table<T, P>): Query<T, P>
 
-  // constants
+  /**
+   * Use this to ignore a parameter in a query.
+   */
   anyParam: AnyParam
+
+  /**
+   * Where condition parameter with a type of the given column.
+   */
+  paramOf<C extends TableColumn<any, any, any>>(
+    tableColumn: C,
+  ): WhereParameterTypeOfColumn<TableColumnTable<C>, TableColumnType<C>>
+
+  /**
+   * Where condition number parameter type.
+   */
+  paramNumber(): WhereParameterType<number>
+
+  /**
+   * Where condition string parameter type.
+   */
+  paramString(): WhereParameterType<string>
+
+  /**
+   * Where condition boolean parameter type.
+   */
+  paramBoolean(): WhereParameterType<boolean>
 
   /**
    * Common table expression (`WITH`).

@@ -2,7 +2,6 @@ import { Selection, Table, TableColumn } from '../../table/types'
 import { AssertHasSingleKey, Nullable } from '../../utils'
 import { AnyParam, ComparableTypes } from './atoms'
 import { DatabaseClient } from './databaseClient'
-import { SqlFragment } from './sqlFragment'
 
 /**
  * postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
@@ -30,6 +29,44 @@ type JoinedSelection<T, L, M, S> = T extends L
   : M extends QueryBottomTag
   ? Nullable<S> // subqueries may be null (we'd have to exactly analyze the where conditions to know when they are not null)
   : S
+
+/**
+ * Parameter type for `.where` parameters.
+ */
+export interface WhereParameterType<T> {
+  // this attribute exists only to hold the value type
+  paramValue: T
+}
+
+/**
+ * Parameter type for `.where` parameters.
+ *
+ * Use this for a parameter that has the same type as the given column via
+ * `query.paramOf`.
+ *
+ * Subtype of WhereParameterType
+ */
+export interface WhereParameterTypeOfColumn<T, C> {
+  // reference the table to enfore that only queried tables can be asked
+  // for the type
+  paramTable: T
+
+  // this attribute exists only to hold the value type
+  paramValue: C
+}
+
+/**
+ * Turn a `.where` parameter mapping into a query `P` parameter mapping.
+ */
+export type WhereParameters<M> = {
+  // the mapping values are either of type
+  //   TableColumn - only used in the sql string, where parameter
+  //   WhereParameter - used in the sql string and as query parameter
+  // so we filter out the table columns and keep the type of the `WhereParameter`
+  [K in keyof M as M[K] extends WhereParameterType<any>
+    ? K
+    : never]: M[K] extends WhereParameterType<infer V> ? V : never
+}
 
 /**
  * Building that part of a query which comes after the joins.
@@ -139,86 +176,27 @@ export declare class QueryBottom<
   ): QueryBottom<T, P & P1, L, S, C>
 
   /**
-   * Universal SQL where condition using JS template strings.
+   * Universal SQL where condition.
+   *
+   * Declare columns & parameters in mappings and use them in the sql string.
+   *
+   * Additional sql strings are joined with spaces. Use them to increase
+   * readabilty in long and complex conditions.
+   *
+   * TODO: add support for lists & subqueries
    */
-  whereSql<K1 extends string, C1>(
-    sqlFragment: SqlFragment<T, K1, C1>,
-  ): QueryBottom<T, P & { [KK in K1]: C1 }, L, S, C>
-
-  whereSql<K1 extends string, K2 extends string, C1, C2>(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-  ): QueryBottom<T, P & { [KK in K1]: C1 } & { [KK in K2]: C2 }, L, S, C>
-
-  whereSql<K1 extends string, K2 extends string, K3 extends string, C1, C2, C3>(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-    sqlFragment3: SqlFragment<T, K3, C3>,
-  ): QueryBottom<
-    T,
-    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K2]: C3 },
-    L,
-    S,
-    C
-  >
-
-  whereSql<
-    K1 extends string,
-    K2 extends string,
-    K3 extends string,
-    K4 extends string,
-    C1,
-    C2,
-    C3,
-    C4,
-  >(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-    sqlFragment3: SqlFragment<T, K3, C3>,
-    sqlFragment4: SqlFragment<T, K4, C4>,
-  ): QueryBottom<
-    T,
-    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K3]: C3 } & {
-      [KK in K4]: C4
+  where<
+    M extends {
+      [key: string]:
+        | TableColumn<T, any, any>
+        | WhereParameterType<any>
+        | WhereParameterTypeOfColumn<T, any>
     },
-    L,
-    S,
-    C
-  >
-
-  whereSql<
-    K1 extends string,
-    K2 extends string,
-    K3 extends string,
-    K4 extends string,
-    K5 extends string,
-    C1,
-    C2,
-    C3,
-    C4,
-    C5,
   >(
-    sqlFragment1: SqlFragment<T, K1, C1>,
-    sqlFragment2: SqlFragment<T, K2, C2>,
-    sqlFragment3: SqlFragment<T, K3, C3>,
-    sqlFragment4: SqlFragment<T, K4, C4>,
-    sqlFragment5: SqlFragment<T, K5, C5>,
-  ): QueryBottom<
-    T,
-    P & { [KK in K1]: C1 } & { [KK in K2]: C2 } & { [KK in K3]: C3 } & {
-      [KK in K4]: C4
-    } & { [KK in K5]: C5 },
-    L,
-    S,
-    C
-  >
-
-  /**
-   * Untyped whereSql in case you need more than 5 SqlFragments.
-   */
-  whereSqlUntyped(
-    ...sqlFragments: Array<SqlFragment<any, any, any>>
-  ): QueryBottom<T, P & { [key: string]: any }, L, S, C>
+    mapping: M,
+    sql: string,
+    ...moreSql: string[]
+  ): QueryBottom<T, P & WhereParameters<M>, L, S, C>
 
   // SELECT
 

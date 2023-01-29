@@ -454,7 +454,7 @@ To filter which rows are included in query, use `whereEq`, `whereIn` and `whereS
 
 When you include multiple `where`-methods, their individual conditions are `AND`ed together.
 
-To get `OR` conditions, use the more freeform `whereSql` that lets you append where conditions in any form
+To get `OR` conditions, use the more freeform `where` that lets you write where conditions in any form.
 
 Using these `where`-methods introduces query parameters which need to be passed as a second argument to the `fetch` methods.
 
@@ -471,15 +471,6 @@ const userById = query(Users).whereEq(Users.id, 'idParam')
 
 await user.fetch(userById, {idParam: 1})
 // => [{id: 1, ...}, ...]
-```
-
-Transparently switches to `IS NULL` if the parameter value is `null`
-
-```typescript
-const usersQuery = query(Users).whereEq(Users.name, 'nameParam')
-
-await usersQuery.fetch(client, {nameParam: null})
-// => [{name: null, ...}, ...]
 ```
 
 Multiple `whereEq`s are combined with `AND`:
@@ -510,27 +501,24 @@ const allUsers = await usersQuery.fetch(client, {id: query.anyParam, removedAt: 
 
 Append something similiar to a `WHERE col IN $parameter` condition to the query.
 
-Actually, to keep the query builder simple and also compare `NULL` against `null`, its appending an `WHERE col = ANY(parameterValue)` [array comparison](https://www.postgresql.org/docs/current/functions-comparisons.html) instead of an `IN`.
-
-Transparently handles `NULL`s similar to `whereEq`.
+Actually, to keep the query builder simple, it is appending an `WHERE col = ANY(parameterValue)` [array comparison](https://www.postgresql.org/docs/current/functions-comparisons.html) instead of an `IN`.
 
 ```typescript
 const usersQuery = query(Users)
   .whereIn(Users.name, 'names')
 
-await usersQuery.fetch(client, {names: ['user-1', null, 'user-2']})
+await usersQuery.fetch(client, {names: ['user-1', 'user-2']})
 // => [
 //   {name: 'user-1', ...},
 //   {name: 'user-2', ...},
-//   {name: null, ...}
 // ]
 ```
 
-#### `query.whereSql(...sqlFragment[])`
+#### `query.where(mapping, sqlString, ...additionalSqlStrings[])`
 
-Build a custom where condition using SQL snippets build out of tagged templates.
+Build a plaintext sql where condition.
 
-Each tagged template may contain a single optional columns and a single optional parameter key to keep the used columns and the query parameter names type safe.
+Specify columns and parameters to use in mapping.
 
 For example, use a column and a parameter key for a `>`-condition:
 
@@ -538,11 +526,11 @@ For example, use a column and a parameter key for a `>`-condition:
 import {query, sql} from 'typesafe-query-builder'
 
 const userQuery = query(Users)
-  .whereSql(sql`${Users.id} > ${sql.number('id')}`)
+  .where({idCol: Users.id, idParam: query.paramOf(Users.id)}, "idCol > idParam OR id_col IS NULL`)
   .orderBy(Users.id)
 
-await userQuery.fetch(client, {id: 10})
-// => [{id: 11, ...}, {id: 12, ...}]
+await userQuery.fetch(client, {idParam: 10})
+// => [{id: null, ...}, {id: 11, ...}, {id: 12, ...}]
 ```
 
 Or get all users with name longer than `x` characters.
@@ -551,30 +539,11 @@ Or get all users with name longer than `x` characters.
 import {query, sql} from 'typesafe-query-builder'
 
 const userQuery = query(Users)
-  .whereSql(sql`LENGTH(${Users.name}) > ${sql.number('nameLength')}`)
+  .where({nameCol: Users.name, nameLength: query.paramNumber()}, 'LENGTH(nameCol) > nameLength')
 
 await userQuery.fetch(client, {nameLength: 10})
 // => [{name: 'very-long-user-name', ...}, ...]
 ```
-
-Up to 5 sql tagged templates can be combined into one condition:
-
-```typescript
-import {query, sql} from 'typesafe-query-builder'
-
-const userQuery = query(Users)
-  .whereSql(
-    sql`(${Users.id} BETWEEN ${sql.number('lower')}`,
-    sql`AND ${sql.number('upper')}) OR `,
-    sql`${Users.name} IS NULL OR`,
-    sql`${Users.name} = ANY(${sql.stringArray('names')})`,
-  )
-
-await userQuery.fetch(client, {lower: 5, upper: 10, names: ['user-a', 'user-b']})
-// => [{id: 5, ...}, ...]
-```
-
-Use the `Query.whereSqlUntyped` method to use any number of sql tagged templates withou table typing and parameter typing.
 
 ### Order By, Limit, Offset, Locks
 
@@ -773,6 +742,12 @@ The exact error depends on your validation/runtype implementation.
 
 - subselects: better `orderBy` parameter handling for jsonArray: use a method instead of an optional parameter, see jsonArray method type definition
 - subselects: add `assertNotNull()` to subselects to remove `null` from the inferred type for a subselect by using a runtime check
+
+- release todos
+  - improve whereSql or find a way to combine whereX methods with and / or
+  - join
+  - fetch
+  - insert / update / delete
 
 ### V1
 

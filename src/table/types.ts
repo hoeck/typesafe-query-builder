@@ -97,6 +97,14 @@ export declare class TableColumn<T, P, C> {
   protected c: C
 }
 
+export type TableColumnType<C> = C extends TableColumn<any, any, infer X>
+  ? X
+  : never
+
+export type TableColumnTable<C> = C extends TableColumn<infer X, any, any>
+  ? X
+  : never
+
 /**
  * T .. available columns
  * P .. params
