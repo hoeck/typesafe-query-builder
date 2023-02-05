@@ -1,6 +1,7 @@
 ### 4.0.0
 
 - `Query.select` and new methods on `Table`: `include`, `exclude`, `all`, `json`
+- `Query.where` to create complex where conditions (replaces `Query.whereSql`)
 
 ### 3.6.0
 
