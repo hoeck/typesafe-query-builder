@@ -900,8 +900,9 @@ The exact error depends on your validation/runtype implementation.
 
 ## Similar Projects
 
-* [Mostly ORMLess](https://github.com/jawj/mostly-ormless/blob/master/README.md)
-  - Write sql using template strings and typed schema objects for type inferrence.
+* [zapatos](https://github.com/jawj/zapatos)
+  - write sql using template strings and typed schema objects for type inference.
+  - developed into a library from [Mostly ORMLess](https://github.com/jawj/mostly-ormless/blob/master/README.md) by the same author
 * [tsql](https://github.com/AnyhowStep/tsql)
 * [massivejs](https://massivejs.org)
   - pg only
@@ -923,9 +924,16 @@ The exact error depends on your validation/runtype implementation.
   - db-agnostic (atm. MS-SQL only) and its own in memory DB for testing
   - covers every SQL feature incl. functions, WITH, ...
 * [kysely](https://github.com/koskimas/kysely)
-  - tries to be universal query builder
+  - tries to be a universal query builder
   - makes heavy use of typescript template literals (making it look similar to knex)
   - schema made up of plain typescript interfaces
   - db agnostic
 * [crudely-typed](https://github.com/danvk/crudely-typed)
   - relies on interfaces generated from the schema with [pg-to-ts](https://github.com/danvk/pg-to-ts)
+* [Orchid-ORM](https://github.com/romeerez/orchid-orm)
+  - flexible query builder using a mix of chaining methods and light usage of template literals
+  - works on a predefined schema
+
+### Related Reddit Threads
+
+* [Orchid ORM Announcement] https://old.reddit.com/r/typescript/comments/10tdr30/announcing_a_new_typescript_orm/
