@@ -31,6 +31,14 @@ type JoinedSelection<T, L, M, S> = T extends L
   : S
 
 /**
+ * Helper type for whereIsNull to determine whether a column can be null.
+ *
+ * Does give a false positive for json columns that include `null` as a valid
+ * json value.
+ */
+type IsNullable<T> = null extends T ? T : never
+
+/**
  * Parameter type for `.where` parameters.
  */
 export interface WhereParameterType<T> {
@@ -174,6 +182,23 @@ export declare class QueryBottom<
   whereExists<P1, C1 extends T>(
     subselect: QueryBottom<any, P1, any, any, C1>,
   ): QueryBottom<T, P & P1, L, S, C>
+
+  /**
+   * Append a WHERE col IS NULL condition
+   *
+   * Optionally use a boolean query param to determine the null check:
+   *
+   *   true      .. `col IS NULL`
+   *   false     .. `col IS NOT NULL`
+   *   ANY_PARAM .. don't append condition at all
+   */
+  whereIsNull<CP>(
+    col: TableColumn<T, any, IsNullable<CP>>,
+  ): QueryBottom<T, P, L, S, C>
+  whereIsNull<CP, K extends string>(
+    col: TableColumn<T, any, IsNullable<CP>>,
+    paramKey: K,
+  ): QueryBottom<T, P & { [KK in K]: boolean | AnyParam }, L, S, C>
 
   /**
    * Universal SQL where condition.
