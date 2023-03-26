@@ -1,5 +1,10 @@
 import { query } from '../../src'
-import { client, Games, Manufacturers, Systems } from '../helpers'
+import {
+  client,
+  expectValuesUnsorted,
+  Manufacturers,
+  Systems,
+} from '../helpers'
 
 describe('whereEq', () => {
   test('number', async () => {
@@ -46,5 +51,33 @@ describe('whereEq', () => {
     expect(await q.fetch(client, { manufacturerId: 1, year: 1990 })).toEqual([
       { name: 'Game Gear' },
     ])
+  })
+
+  test('subselect', async () => {
+    const q = query(Systems)
+      .select(Systems.include('name'))
+      .whereEq(
+        Systems.manufacturerId,
+        query(Manufacturers)
+          .select(Manufacturers.include('id'))
+          .whereEq(Manufacturers.country, 'manufacturerCountry')
+          .whereEq(Manufacturers.name, 'manufacturerName'),
+      )
+
+    expectValuesUnsorted(
+      await q.fetch(client, {
+        manufacturerCountry: 'USA',
+        manufacturerName: query.anyParam,
+      }),
+      [{ name: 'Atari 2600' }],
+    )
+
+    expectValuesUnsorted(
+      await q.fetch(client, {
+        manufacturerCountry: query.anyParam,
+        manufacturerName: 'Sega',
+      }),
+      [{ name: 'Master System' }, { name: 'Genesis' }, { name: 'Game Gear' }],
+    )
   })
 })
