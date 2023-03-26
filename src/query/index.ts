@@ -1,2 +1,2 @@
 export { DatabaseClient, LockMode, ResultType } from './types'
-export { sql, query } from './query'
+export { query } from './query'

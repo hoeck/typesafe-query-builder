@@ -22,9 +22,6 @@ import {
   LockMode,
   QueryItem,
   QueryRoot,
-  SqlFragment,
-  SqlFragmentBuilder,
-  SqlFragmentParam,
 } from './types'
 
 /*
@@ -85,69 +82,6 @@ features:
 
 
 */
-
-const sqlImplementation = (
-  literals: TemplateStringsArray,
-  param1?: any,
-  param2?: any,
-) => {
-  let column: any
-  let paramKey: any
-  let columnFirst: boolean = false
-
-  if (param1 && param1.__typesafQueryBuilderSqlFragmentParam === true) {
-    paramKey = param1.paramKey
-    columnFirst = false
-
-    if (param2 instanceof TableImplementation) {
-      column = param2
-    } else {
-      if (param2 !== undefined) {
-        assert.fail('expected param2 to be undefined')
-      }
-    }
-  } else if (param1 instanceof TableImplementation) {
-    column = param1
-    columnFirst = true
-
-    if (param2 && param2.__typesafQueryBuilderSqlFragmentParam === true) {
-      paramKey = param2.paramKey
-    } else {
-      if (param2 !== undefined) {
-        assert.fail('expected param2 to be undefined')
-      }
-    }
-  } else if (param1 === undefined && param2 === undefined) {
-    /* sql literal */
-  } else {
-    assert.fail(`no matching parameters in sql fragment: ${literals}`)
-  }
-
-  return {
-    column,
-    columnFirst,
-    paramKey,
-    // the paramValue attribute is only used in the typesystem
-    literals: literals.raw,
-  } as any
-}
-
-function createSqlParam(key: any): SqlFragmentParam<any, any> {
-  return {
-    __typesafQueryBuilderSqlFragmentParam: true,
-    paramKey: key,
-  }
-}
-
-sqlImplementation.param = createSqlParam // TODO: param of table type
-sqlImplementation.number = createSqlParam
-sqlImplementation.string = createSqlParam
-sqlImplementation.boolean = createSqlParam
-sqlImplementation.date = createSqlParam
-sqlImplementation.numberArray = createSqlParam
-sqlImplementation.stringArray = createSqlParam
-
-export const sql: SqlFragmentBuilder = sqlImplementation
 
 type AnyTable = Table<any, any>
 type AnyTableColumn = TableColumn<any, any, any>
@@ -348,21 +282,6 @@ class QueryImplementation {
                 type: 'query',
                 query: param,
               },
-      },
-    ])
-  }
-
-  whereSql(...params: Array<SqlFragment<any, any, any>>) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      {
-        queryType: 'whereSql',
-        fragments: params.map((f) => ({
-          column: f.column ? getTableImplementation(f.column) : undefined,
-          columnFirst: f.columnFirst,
-          literals: f.literals,
-          paramKey: f.paramKey,
-        })),
       },
     ])
   }

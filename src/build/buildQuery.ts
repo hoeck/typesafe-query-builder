@@ -38,7 +38,6 @@ export function buildColumns(
       case 'orderBy':
       case 'whereEq':
       case 'whereIn':
-      case 'whereSql':
       case 'canaryColumn':
       case 'select': // ???
         break
@@ -92,7 +91,6 @@ export function buildResultConverter(query: QueryItem[]) {
       case 'orderBy':
       case 'whereEq':
       case 'whereIn':
-      case 'whereSql':
       case 'canaryColumn':
       case 'select':
         break
@@ -222,23 +220,6 @@ export function buildSqlQuery(
           default:
             assertNever(parameter)
         }
-
-        break
-      }
-      case 'whereSql': {
-        // // aliases for each table referenced in the fragment
-        // const columnsSql = item.fragments.map((f) => {
-        //   if (!f.column) {
-        //     return
-        //   }
-        //
-        //   const table = f.column
-        //   const alias = sql.getAlias(table.tableName)
-        //
-        //   return table.getReferencedColumnSql(alias)
-        // })
-
-        // sql.addWhereSql(item.fragments, columnsSql)
 
         break
       }

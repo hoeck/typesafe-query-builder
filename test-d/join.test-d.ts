@@ -1,5 +1,6 @@
-import { expectError, expectType, expectAssignable } from 'tsd'
-import { DatabaseClient, query, sql } from '../src'
+import { expectError, expectType } from 'tsd'
+import { query } from '../src'
+import { parameterType, resultType } from './helpers'
 import {
   Franchises,
   Games,
@@ -7,7 +8,6 @@ import {
   Manufacturers,
   Systems,
 } from './helpers/classicGames'
-import { parameterType, resultType } from './helpers'
 
 // join
 

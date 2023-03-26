@@ -1,13 +1,7 @@
 import * as assert from 'assert'
 import { QueryBuilderUsageError } from '../errors'
 import { TableImplementation, column, ColumnImplementation } from '../table'
-import {
-  QueryItem,
-  JoinItem,
-  LockMode,
-  SqlFragmentImplementation,
-  anyParam,
-} from '../query/types'
+import { QueryItem, JoinItem, LockMode, anyParam } from '../query/types'
 import { BuildContext } from './buildContext'
 import { assertNever } from '../utils'
 
@@ -120,79 +114,6 @@ export class SqlQuery {
 
   addWhereIn(leftSql: string, rightSql: string) {
     this.where.push(`${leftSql} IN (${rightSql})`)
-  }
-
-  // given the template-string-fragments and some strings, interpolate them
-  // into a single resulting string
-  private createSqlFragmentString(literals: string[], params: string[]) {
-    if (literals.length - 1 !== params.length) {
-      assert.fail(
-        `SqlQuery: not enough parameters (${
-          params.length
-        }) for template literal strings array: ${JSON.stringify(literals)}`,
-      )
-    }
-
-    const res: string[] = []
-
-    for (const i in params) {
-      res.push(literals[i])
-      res.push(params[i])
-    }
-
-    res.push(literals[literals.length - 1])
-
-    return res.join('')
-  }
-
-  addWhereSql(
-    fragments: SqlFragmentImplementation[],
-    columnsSql: (string | undefined)[],
-  ) {
-    if (!fragments.length) {
-      return
-    }
-
-    if (fragments.length !== columnsSql.length) {
-      assert.fail('SqlQuery: fragments and columnsSql must be the same length')
-    }
-
-    const sqlExpressions = fragments.map((f, i) => {
-      if (f.column) {
-        // fragment contains a column expression ...
-        const colSql = columnsSql[i]
-
-        if (!colSql) {
-          assert.fail(`SqlQuery: columnSql at ${i} is undefined`)
-        }
-
-        if (f.paramKey) {
-          // ... and a parameter expression ...
-          const p = this.ctx.getNextParameter(f.paramKey)
-
-          if (f.columnFirst) {
-            // ... and the col expression comes first
-            return this.createSqlFragmentString(f.literals, [colSql, p])
-          } else {
-            // ... and the parameter expression comes first
-            return this.createSqlFragmentString(f.literals, [p, colSql])
-          }
-        } else {
-          // ... and nothing else
-          return this.createSqlFragmentString(f.literals, [colSql])
-        }
-      } else if (f.paramKey) {
-        // fragment only contains a parameter expression
-        const p = this.ctx.getNextParameter(f.paramKey)
-
-        return this.createSqlFragmentString(f.literals, [p])
-      } else {
-        // constant string only
-        return this.createSqlFragmentString(f.literals, [])
-      }
-    })
-
-    this.where.push(`(${sqlExpressions.join(' ')})`)
   }
 
   setLock(lockMode: LockMode) {

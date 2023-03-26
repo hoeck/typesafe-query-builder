@@ -1,7 +1,7 @@
-import { expectError, expectType, expectAssignable } from 'tsd'
-import { DatabaseClient, query, sql } from '../src'
-import { Games, Systems } from './helpers/classicGames'
+import { expectError, expectType } from 'tsd'
+import { query } from '../src'
 import { parameterType, resultType } from './helpers'
+import { Games, Systems } from './helpers/classicGames'
 
 {
   const q = query(Systems).select(Systems.include('name')).orderBy(Systems.year)

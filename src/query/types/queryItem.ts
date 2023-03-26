@@ -1,6 +1,5 @@
 import { SelectionImplementation, TableImplementation } from '../../table'
 import { LockMode } from './queryBottom'
-import { SqlFragmentImplementation } from './sqlFragment'
 
 type CannotImportBuildContextBcCircularImports = any
 
@@ -42,7 +41,6 @@ export type QueryItem =
   | JoinItem
   | WhereEqItem
   | WhereInItem
-  | WhereSqlItem
   | OrderByItem
   | LimitItem
   | OffsetItem
@@ -73,11 +71,6 @@ export interface WhereInItem {
   queryType: 'whereIn'
   column: TableImplementation
   parameter: ParameterKeyExpression | QueryExpression
-}
-
-export interface WhereSqlItem {
-  queryType: 'whereSql'
-  fragments: SqlFragmentImplementation[]
 }
 
 export interface OrderByItem {
