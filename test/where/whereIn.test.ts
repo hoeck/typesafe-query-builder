@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { client, expectValuesUnsorted, Games } from '../helpers'
+import { client, expectValuesUnsorted, Games, GamesSystems } from '../helpers'
 
 describe('whereIn', () => {
   test('ids', async () => {
@@ -56,6 +56,23 @@ describe('whereIn', () => {
       { id: 4 },
       { id: 5 },
       { id: 6 },
+    ])
+  })
+
+  test('subselect', async () => {
+    const result = await query(Games)
+      .select(Games.include('title'))
+      .whereIn(
+        Games.id,
+        query(GamesSystems)
+          .select(GamesSystems.include('gameId'))
+          .whereEq(GamesSystems.systemId, 'systemId'),
+      )
+      .fetch(client, { systemId: 1 })
+
+    expectValuesUnsorted(result, [
+      { title: 'Ultima IV' },
+      { title: 'Sonic the Hedgehog' },
     ])
   })
 })
