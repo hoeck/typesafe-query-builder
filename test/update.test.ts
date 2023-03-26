@@ -1,4 +1,4 @@
-import { query, sql } from '../src'
+import { query } from '../src'
 
 import { client, users, jsonAnyTable } from './helpers'
 

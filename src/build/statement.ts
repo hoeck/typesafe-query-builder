@@ -91,17 +91,21 @@ export class SqlQuery {
     this.offset = offset
   }
 
-  addWhereIsNull(columnSql: string) {
-    this.where.push(`${columnSql} IS NULL`)
+  addWhereIsNull(columnSql: string, isNull: boolean) {
+    if (isNull) {
+      this.where.push(`${columnSql} IS NULL`)
+    } else {
+      this.where.push(`${columnSql} IS NOT NULL`)
+    }
   }
 
   addWhereEqSql(leftSql: string, rightSql: string) {
     this.where.push(`${leftSql} = ${rightSql}`)
   }
 
-  addWhereEqAny(columnSql: string, parameterSql: string) {
+  addWhereEqAny(columnSql: string, parameterName: string) {
     const c = columnSql
-    const p = parameterSql
+    const p = parameterName
 
     // Use an array comparison function (instead of IN) so we can pass
     // parameters as a simple json array in a simple arg without having to

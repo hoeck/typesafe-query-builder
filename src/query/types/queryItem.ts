@@ -41,6 +41,7 @@ export type QueryItem =
   | JoinItem
   | WhereEqItem
   | WhereInItem
+  | WhereIsNullItem
   | OrderByItem
   | LimitItem
   | OffsetItem
@@ -71,6 +72,12 @@ export interface WhereInItem {
   queryType: 'whereIn'
   column: TableImplementation
   parameter: ParameterKeyExpression | QueryExpression
+}
+
+export interface WhereIsNullItem {
+  queryType: 'whereIsNull'
+  column: TableImplementation
+  parameterKey?: string
 }
 
 export interface OrderByItem {

@@ -1,4 +1,5 @@
 import { QueryParams } from '../common'
+import { QueryBuilderUsageError } from '../errors'
 import { anyParam, QueryItem } from '../query/types'
 import { ColumnImplementation } from '../table'
 import { assertNever } from '../utils'
@@ -38,6 +39,7 @@ export function buildColumns(
       case 'orderBy':
       case 'whereEq':
       case 'whereIn':
+      case 'whereIsNull':
       case 'canaryColumn':
       case 'select': // ???
         break
@@ -91,6 +93,7 @@ export function buildResultConverter(query: QueryItem[]) {
       case 'orderBy':
       case 'whereEq':
       case 'whereIn':
+      case 'whereIsNull':
       case 'canaryColumn':
       case 'select':
         break
@@ -158,7 +161,10 @@ export function buildSqlQuery(
                 // the any param basically provides the missing neutral value that causes any
                 // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
               } else if (paramValue === null) {
-                sql.addWhereIsNull(column.getReferencedColumnSql(ctx))
+                // no automatic checks against null
+                throw new QueryBuilderUsageError(
+                  'use whereIsNull to explicitly check for null',
+                )
               } else {
                 sql.addWhereEqSql(
                   column.getReferencedColumnSql(ctx),
@@ -173,7 +179,6 @@ export function buildSqlQuery(
               column.getReferencedColumnSql(ctx),
               parameter.table.getReferencedColumnSql(ctx),
             )
-
             break
 
           case 'query':
@@ -223,6 +228,32 @@ export function buildSqlQuery(
 
         break
       }
+
+      case 'whereIsNull': {
+        const { column, parameterKey } = item
+
+        if (parameterKey === undefined) {
+          sql.addWhereIsNull(column.getReferencedColumnSql(ctx), true)
+        } else if (typeof parameterKey === 'string') {
+          const paramValue = params[parameterKey]
+
+          if (paramValue === anyParam) {
+            // no-op
+          } else {
+            if (typeof paramValue !== 'boolean') {
+              throw new QueryBuilderUsageError(
+                'expected a boolean parameter value for whereIsNull',
+              )
+            }
+
+            sql.addWhereIsNull(column.getReferencedColumnSql(ctx), paramValue)
+          }
+        } else {
+          assertNever(parameterKey)
+        }
+        break
+      }
+
       case 'orderBy': {
         // const table = item.column
         // const alias = sql.getAlias(table.tableName)

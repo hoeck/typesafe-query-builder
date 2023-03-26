@@ -286,6 +286,17 @@ class QueryImplementation {
     ])
   }
 
+  whereIsNull(column: AnyTableColumn, param?: string) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'whereIsNull',
+        column: getTableImplementation(column),
+        parameterKey: param,
+      },
+    ])
+  }
+
   select(...selections: SelectionImplementation[]) {
     return new QueryImplementation(this.tables, [
       ...this.query,
