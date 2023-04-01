@@ -120,6 +120,10 @@ export class SqlQuery {
     this.where.push(`${leftSql} IN (${rightSql})`)
   }
 
+  addWhereExists(subquerySql: string) {
+    this.where.push(`EXISTS (${subquerySql})`)
+  }
+
   setLock(lockMode: LockMode) {
     if (lockMode !== 'none' && lockMode !== 'share' && lockMode !== 'update') {
       throw new QueryBuilderUsageError(

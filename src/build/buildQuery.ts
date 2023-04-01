@@ -39,6 +39,7 @@ export function buildColumns(
       case 'orderBy':
       case 'whereEq':
       case 'whereIn':
+      case 'whereExists':
       case 'whereIsNull':
       case 'canaryColumn':
       case 'select': // ???
@@ -93,6 +94,7 @@ export function buildResultConverter(query: QueryItem[]) {
       case 'orderBy':
       case 'whereEq':
       case 'whereIn':
+      case 'whereExists':
       case 'whereIsNull':
       case 'canaryColumn':
       case 'select':
@@ -225,6 +227,14 @@ export function buildSqlQuery(
           default:
             assertNever(parameter)
         }
+
+        break
+      }
+
+      case 'whereExists': {
+        const { subquery } = item
+
+        sql.addWhereExists(subquery.query.buildSql(ctx, params))
 
         break
       }

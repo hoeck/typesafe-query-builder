@@ -286,6 +286,16 @@ class QueryImplementation {
     ])
   }
 
+  whereExists(subquery: QueryImplementation) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        queryType: 'whereExists',
+        subquery: { type: 'query', query: subquery },
+      },
+    ])
+  }
+
   whereIsNull(column: AnyTableColumn, param?: string) {
     return new QueryImplementation(this.tables, [
       ...this.query,
