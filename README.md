@@ -745,9 +745,66 @@ The exact error depends on your validation/runtype implementation.
 
 - release todos
   - improve whereSql or find a way to combine whereX methods with and / or
+    - keep basic whereX methods (or maybe remove them too if generic where is concise even for basic id = :param filters), remove `query.anyParam`
+    - add generic typed `where` method that uses functions & polish-reverse-notation to build arbitrary expressions:
+      ```
+      const q = query(Systems)
+        .select(Systems.include('id'))
+        .where(
+          ({ and, between, ilike, like, literal, iftrue, ifnull, ifdefined }) =>
+            and(
+              ifdefined(
+                'lower',
+                ifdefined(
+                  'upper',
+                  between(Systems.year, 'lower', 'upper'),
+                  true,
+                ),
+                true,
+              ),
+              iftrue(
+                'caseSensitive',
+                ifnull('name', literal('true'), like(Systems.name, 'name')),
+                ifnull('name', 'true', ilike(Systems.name, 'name')),
+              ),
+            ),
+        )
+      ```
   - join
   - fetch
   - insert / update / delete
+
+- custom sql query escape hatch:
+  - provide templating utilities/helpers to write sql queries that use the schema for
+    - mapping db column names to schema column names
+    - to generate boilerplate (e.g. long select lists and tedious `json_build_object` expressions)
+    - to enforce runtime type safety and to infer a queries result type (via the runtype)
+  - example:
+  ```
+  const customQuery = sql(sql.columnsList(Manufacturers), {
+    system: sql.columnsJson(Systems),
+  })`
+    SELECT ${sql.columnsList(Manufacturers)},
+           ${sql.columnsJson(Systems)} AS system
+    FROM ${sql(Manufacturers)}
+    JOIN ${sql(Systems)} ON ${sql(Systems.manufacturerId)} = ${sql(
+    Manufacturers.id,
+  )}
+    WHERE ${sql(Manufacturers.name)} ilike '%a%'
+      AND ${sql(Manufacturers.id)} IN ${sql.paramArrayOf(Manufacturers.id, 'ids')}
+    ORDER BY ${sql(Systems.name)} DESC
+  `
+  ```
+  - cons (compared to builder queries):
+    - repetition
+    - might fail an runtime (when the query has a syntax or runtype type error
+    - needs a prettier sql plugin & embedded prettier sql formatting to work, otherwise lots of manual indentation are required
+    - limited autocompletion so tables, no autocompletion for the sql
+    - no typechecking for used columns & tables
+  - pros:
+    - express any complicated postgres query using latest pg features
+    - keep queries bound to the schema & runtype checked against it
+    - easily extendable with new utilities
 
 ### V1
 
