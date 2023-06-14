@@ -32,6 +32,11 @@ export type Table<T, P> = {
   [K in keyof T]: TableColumn<T, P, T[K]>
 } & TableProjectionMethods<T, P>
 
+/**
+ * The shape of a table
+ */
+export type TableType<T> = T extends Table<infer X, any> ? X : never
+
 declare class DatabaseTableDefaultColumns<T> {
   protected typesafeQueryBuilderDefaultColumns: T
 }

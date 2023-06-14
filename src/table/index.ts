@@ -1,17 +1,18 @@
-export { Column, ColumnImplementation, column } from './columns'
+export { Column, column, ColumnImplementation } from './columns'
 export {
-  SelectionImplementation,
-  TableImplementation,
   getTableImplementation,
+  SelectionImplementation,
   table,
+  TableImplementation,
 } from './table'
 export {
+  DatabaseTable,
+  RemoveTableName,
   Table,
   TableProjectionMethods,
   TableRow,
-  TableTypeWithDefaults,
   TableRowInsert,
-  DatabaseTable,
-  RemoveTableName,
+  TableType,
+  TableTypeWithDefaults,
 } from './types'
 export type { TableColumn, TableColumnType } from './types'

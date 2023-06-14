@@ -2,6 +2,7 @@ import { Selection, Table, TableColumn } from '../../table/types'
 import { AssertHasSingleKey, Nullable } from '../../utils'
 import { AnyParam, ComparableTypes } from './atoms'
 import { DatabaseClient } from './databaseClient'
+import { Expression, ExpressionFactory } from './expression'
 
 /**
  * postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
@@ -201,27 +202,11 @@ export declare class QueryBottom<
   ): QueryBottom<T, P & { [KK in K]: boolean | AnyParam }, L, S, C>
 
   /**
-   * Universal SQL where condition.
-   *
-   * Declare columns & parameters in mappings and use them in the sql string.
-   *
-   * Additional sql strings are joined with spaces. Use them to increase
-   * readabilty in long and complex conditions.
-   *
-   * TODO: add support for lists & subqueries
+   * Generic where expression.
    */
-  where<
-    M extends {
-      [key: string]:
-        | TableColumn<T, any, any>
-        | WhereParameterType<any>
-        | WhereParameterTypeOfColumn<T, any>
-    },
-  >(
-    mapping: M,
-    sql: string,
-    ...moreSql: string[]
-  ): QueryBottom<T, P & WhereParameters<M>, L, S, C>
+  where<P1>(
+    e: (b: ExpressionFactory<T>) => Expression<boolean, T, P1>,
+  ): QueryBottom<T, P & P1, L, S, C>
 
   // SELECT
 

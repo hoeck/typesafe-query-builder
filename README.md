@@ -770,6 +770,18 @@ The exact error depends on your validation/runtype implementation.
             ),
         )
       ```
+  - if the generic where is good enough, use expressions for joins too!
+    ```
+      const q = query(Manufacturers)
+       .join(Manufacturers, Systems, ({ eq }) =>
+         eq(Manufacturers.id, Systems.manufacturerId),
+       )
+    ```
+    and get rid of the second type parameter of `TableColumn` (`P`, which is
+    needed if the to-be-joined table is a subquery that needs parameters -
+    that would simplify tablecolumntypes quite a bit and remove the need to
+    use `TableColumn` both in joins and in expressions)
+    - also would allow to use arbitrary join conditions, e.g. `join(Manufacturers, Systems, ({eq, and, isNotNull} => and(eq(Manufacturer.id, Systems.id), isNotNull(Systems.name))))`
   - join
   - fetch
   - insert / update / delete
