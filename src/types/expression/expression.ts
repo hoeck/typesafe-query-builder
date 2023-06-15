@@ -1,5 +1,5 @@
 /**
- * An sql expression.
+ * An SQL expression.
  *
  * Use this to build where and join conditions.
  */

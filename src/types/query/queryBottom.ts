@@ -1,9 +1,9 @@
-import { Selection, Table, TableColumn } from '../../table/types'
+import { Selection, Table } from '../table'
 import { AssertHasSingleKey, Nullable } from '../../utils'
 import { AnyParam, ComparableTypes } from './atoms'
 import { DatabaseClient } from './databaseClient'
-import { ExpressionFactory } from './expression'
-import { Expression } from '../../common'
+import { ExpressionFactory } from '../expression/expressionFactory'
+import { Expression } from '../expression/expression'
 
 /**
  * postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE

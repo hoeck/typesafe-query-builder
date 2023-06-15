@@ -5,8 +5,8 @@ import {
   TableColumn,
   TableColumnType,
   TableColumnTable,
-} from '../../table/types'
-import { SetOptional } from '../../utils'
+} from '../table'
+import { SetOptional } from '../helpers'
 import { AnyParam } from './atoms'
 import { DatabaseClient } from './databaseClient'
 import { Delete } from './delete'

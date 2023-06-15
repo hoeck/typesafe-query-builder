@@ -4,22 +4,17 @@ export {
   QueryBuilderUsageError,
   QueryBuilderValidationError,
 } from './errors'
+export { query } from './query'
+export { column, table } from './table'
 export {
+  Column,
   DatabaseClient,
   Expression,
   ExpressionFactory,
   LockMode,
-  query,
   ResultType,
-} from './query'
-export {
-  Column,
-  column,
   Table,
-  table,
-  TableRow,
-  TableRowInsert,
   TableType,
   TableTypeWithDefaults,
-} from './table'
+} from './types'
 export { omit, pick } from './utils'

@@ -1,6 +1,6 @@
-import { QueryParams } from '../common'
+import { QueryParams } from './queryParams'
 import { QueryBuilderUsageError } from '../errors'
-import { anyParam, QueryItem } from '../query/types'
+import { anyParam, QueryItem } from '../types'
 import { ColumnImplementation } from '../table'
 import { assertNever } from '../utils'
 import { BuildContext } from './buildContext'

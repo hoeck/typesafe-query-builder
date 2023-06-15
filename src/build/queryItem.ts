@@ -1,5 +1,5 @@
-import { SelectionImplementation, TableImplementation } from '../../table'
-import { LockMode } from './queryBottom'
+import { SelectionImplementation, TableImplementation } from '../table'
+import { LockMode } from '../types'
 
 type CannotImportBuildContextBcCircularImports = any
 

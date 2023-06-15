@@ -1,8 +1,7 @@
-import { TableColumn } from '../../../table'
 import { Expression } from './expression'
 import { ComparableTypes } from './helpers'
-import { QueryBottom } from '../queryBottom'
-import { AssertHasSingleKey } from '../../../utils'
+import { QueryBottom } from '../query/queryBottom'
+import { AssertHasSingleKey } from '../helpers'
 
 /**
  * a = b

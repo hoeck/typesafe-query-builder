@@ -1,5 +1,6 @@
-import { AssertHasSingleKey, SetOptional } from '../utils'
-import { Expression } from '../common'
+import { AssertHasSingleKey, SetOptional } from '../helpers'
+import { Expression } from '../expression/expression'
+import { Column, DefaultValue } from './column'
 
 // // mapped helper type from SO:
 // // https://stackoverflow.com/questions/44323441/changing-property-name-in-typescript-mapped-type
@@ -92,26 +93,6 @@ export type TableRowInsert<X> = X extends DatabaseTable<infer T, infer D>
 // > &
 //   Omit<TableType<T>, TableColumnsWithDefaults<TableType<T>>>
 export type TableTypeWithDefaults = any
-
-/**
- * A column of type C that belongs to a Table<T,P>
- *
- * Contains all information required to join the table or use one of its
- * columns in a condition.
- */
-export declare class TableColumn<T, P, C> {
-  protected t: T
-  protected p: P
-  protected c: C
-}
-
-export type TableColumnType<C> = C extends TableColumn<any, any, infer X>
-  ? X
-  : never
-
-export type TableColumnTable<C> = C extends TableColumn<infer X, any, any>
-  ? X
-  : never
 
 /**
  * T .. available columns
@@ -251,4 +232,21 @@ export interface TableProjectionMethods<T, P> {
    */
   // TODO: implementation & type test
   // alias<T extends string>(name: T): ???
+}
+
+export interface TableConstructor {
+  <N extends string, T>(
+    tableName: N,
+    columns: { [K in keyof T]: Column<T[K]> },
+  ): DatabaseTable<
+    // TableName first to make this the first thing in typescript errors that TS
+    // will find and report as a mismatch. Without that, it would report first
+    // that columns are missing to make two different tables compatible.
+    TableName<N> & { [K in keyof T]: Exclude<T[K], DefaultValue> },
+    {
+      [K in keyof T]: DefaultValue extends Extract<T[K], DefaultValue>
+        ? K
+        : never
+    }[keyof T]
+  >
 }

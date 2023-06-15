@@ -1,15 +1,15 @@
 import * as util from 'util'
-import { BuildContext } from '../build'
-import { QueryParams } from '../common'
+import { BuildContext, QueryParams } from '../build'
 import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
-import { assert, assertFail, assertNever } from '../utils'
 import {
   Column,
-  ColumnImplementation,
-  DefaultValue,
-  getColumnImplementation,
-} from './columns'
-import { DatabaseTable, Table, TableName } from './types'
+  DatabaseTable,
+  Table,
+  TableName,
+  TableConstructor,
+} from '../types'
+import { assert, assertFail, assertNever } from '../utils'
+import { ColumnImplementation, getColumnImplementation } from './columns'
 
 // access the tables internals for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
@@ -604,21 +604,8 @@ export class TableImplementation {
 
 /**
  * Define a relation consisting of typed columns.
- *
- * TODO: investigate alternative columns syntaxes, e.g. just a list of columns
  */
-export function table<N extends string, T>(
-  tableName: N,
-  columns: { [K in keyof T]: Column<T[K]> },
-): DatabaseTable<
-  // TableName first to make this the first thing in typescript errors that TS
-  // will find and report as a mismatch. Without that, it would report first
-  // that columns are missing to make two different tables compatible.
-  TableName<N> & { [K in keyof T]: Exclude<T[K], DefaultValue> },
-  {
-    [K in keyof T]: DefaultValue extends Extract<T[K], DefaultValue> ? K : never
-  }[keyof T]
-> {
+export const table: TableConstructor = (tableName, columns) => {
   // remove type info from columns to access their private attributes
   const columnImplementations: { [key: string]: ColumnImplementation } = {}
 
@@ -626,24 +613,17 @@ export function table<N extends string, T>(
     columnImplementations[k] = getColumnImplementation((columns as any)[k])
   })
 
-  // TODO: remove json-agg primary key magic
-  // // each table needs at least 1 primary key column
-  // const hasPrimaryKey = Object.values(columnImplementations).some(
-  //   (c: any) => c.isPrimaryKey,
-  // )
-  //
-  // if (!hasPrimaryKey) {
-  //   throw new QueryBuilderUsageError(
-  //     `table ${tableName} does not have any primary keys`,
-  //   )
-  // }
-
   return new TableImplementation(
     tableName,
     columnImplementations,
   ).getTableProxy() as any
 }
 
+/**
+ * Reach into the table internals.
+ *
+ * Required to build the actual sql query.
+ */
 export function getTableImplementation(table: any): TableImplementation {
   const implementation = (table as any)[tableImplementationSymbol]
 

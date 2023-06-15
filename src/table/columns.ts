@@ -1,85 +1,62 @@
 import * as assert from 'assert'
 import { inspect } from 'util'
-
 import { QueryBuilderUsageError, QueryBuilderValidationError } from '../errors'
+import { Column, ColumnConstructor } from '../types'
 
 function identity(value: unknown): unknown {
   return value
 }
 
-/**
- * Column constructor
- *
- * `sqlName` is the name of the column in the database table, e.g. `user_id`.
- * `validator` is a function that checks the columns value before inserts and
- *             updates and also serves to determine the columns type.
- *             When the value doesn't match the expected type or shape, any
- *             error that function raises will be catched and wrapped in a
- *             QueryBuilderValidationError that contains additional context
- *             information such as table and column name where the error
- *             occured.
- * `fromJson` is a function that is called to turn a projected json value into
- *            the columns type, e.g. turn an iso-date-string into a Javascript
- *            Date. We need this when using `selectAsJson` or
- *            `selectAsJsonAgg` and the column is of type Date.
- */
-export function column(sqlName: string): Column<unknown>
-export function column<T>(
+export const column: ColumnConstructor = (
   sqlName: string,
-  validator: (value: unknown) => T, // checks/converts the datatype when inserting a column
-  fromJson?: (value: unknown) => T, // converts the selected value from json
-): Column<T>
-export function column(
-  sqlName: string,
-  validator?: (value: unknown) => any, // checks and or converts the datatype when inserting a column
-  fromJson?: (value: unknown) => any, // converts the selected value from json
-): Column<any> {
+  validator?: (v: unknown) => any,
+  fromJson?: (v: unknown) => any,
+) => {
   if (!validator) {
-    return new Column({ name: sqlName, columnValue: identity, fromJson })
+    return new ColumnImplementation({
+      name: sqlName,
+      columnValue: identity,
+      fromJson,
+    }) as any
   }
 
-  return new Column({ name: sqlName, columnValue: validator, fromJson })
-}
-
-type EnumObject = { [key: string]: string | number }
-
-export class DefaultValue {
-  protected _typesafeQueryBuilderDefaultValue_ =
-    '_typesafeQueryBuilderDefaultValue_'
+  return new ColumnImplementation({
+    name: sqlName,
+    columnValue: validator,
+    fromJson,
+  }) as any
 }
 
 /**
- * A column of a table
- *
- * T .. column type
+ * Implementation for Column
  */
-export class Column<T> {
+export class ColumnImplementation {
   // column value type represented by its validation function
-  private columnValue: (value: unknown) => T
+  columnValue: (value: unknown) => any
 
   // name of the column in the database
-  private name: string
+  name: string
 
   // whether this column can contain nulls (needed when creating the query as
   // the type information in T is gone at runtime)
-  private isNullable?: true
+  isNullable?: true
 
   // optional serialization from basic types - required for data types that
   // are represented in the database but are just 'strings' when selected via
   // json such as SQL timestamps
-  private fromJson?: (value: unknown) => T // converts the selected value from json
+  fromJson?: (value: unknown) => any // converts the selected value from json
 
   // TODO: also support a toJson but figure out how that works with non-json columns
   // toJson?: (value: T) => string | number | null | undefined | boolean, // convert into json
 
   // When true, this column is a primary key.
   // Required to compute group by clauses for json_agg aggregations.
-  private isPrimaryKey?: true
+  isPrimaryKey?: true
 
   constructor(params: {
     name: string
-    columnValue: (value: unknown) => T
-    fromJson?: (value: unknown) => T
+    columnValue: (value: unknown) => any
+    fromJson?: (value: unknown) => any
     isPrimaryKey?: true
     isNullable?: true
   }) {
@@ -92,8 +69,8 @@ export class Column<T> {
 
   // ColumnImplementation methods
 
-  private copy(params: { name: string }) {
-    return new Column({
+  copy(params: { name: string }) {
+    return new ColumnImplementation({
       name: params.name,
       columnValue: this.columnValue,
       fromJson: this.fromJson,
@@ -102,11 +79,11 @@ export class Column<T> {
     })
   }
 
-  private getColumnSql(tableAlias: string): string {
+  getColumnSql(tableAlias: string): string {
     return `${tableAlias}.${this.name}`
   }
 
-  private getColumnSelectSql(tableAlias: string, columnAlias: string): string {
+  getColumnSelectSql(tableAlias: string, columnAlias: string): string {
     const colSql = this.getColumnSql(tableAlias)
 
     if (columnAlias.includes('"')) {
@@ -125,7 +102,7 @@ export class Column<T> {
    *
    * Has no meaning right now and is just to document the schema
    */
-  primary(): Column<T> {
+  primary() {
     this.isPrimaryKey = true
 
     return this
@@ -137,23 +114,21 @@ export class Column<T> {
    * Columns with defaults can be ommitted in insert queries.
    * `nullable` values always have null as the default.
    */
-  default(): Column<T | DefaultValue> {
-    // cast to any bc we need to change this columns type
-    const anyThis: any = this
+  default() {
     const columnValue = this.columnValue
 
-    anyThis.columnValue = (value: unknown) => {
+    this.columnValue = (value: unknown) => {
       if (value === undefined) {
         // insert filters any undefined columns but the validations runs
         // before that step and is the only part of the column that knowns
         // about it being optional
-        return undefined as any
+        return undefined
       }
 
       return columnValue(value)
     }
 
-    return anyThis
+    return this
   }
 
   /**
@@ -161,14 +136,11 @@ export class Column<T> {
    *
    * That means it can hold `null` and also uses null as its default.
    */
-  null(): Column<T | null | DefaultValue> {
-    // cast to any bc we need to change this columns type
-    const anyThis: any = this
-
+  null() {
     const fromJson = this.fromJson
     const columnValue = this.columnValue
 
-    anyThis.columnValue = (value: unknown): T | null => {
+    this.columnValue = (value: unknown) => {
       // check for both null and undefined as the default value for nullable
       // columns is always null and undefined in inserts means `use the
       // default`
@@ -181,9 +153,9 @@ export class Column<T> {
 
     // explicit tag that this may be null, required to generate `IS NULL`
     // where expressions
-    anyThis.isNullable = true
+    this.isNullable = true
 
-    anyThis.fromJson = fromJson
+    this.fromJson = fromJson
       ? (value: any) => {
           if (value === null) {
             return null
@@ -193,12 +165,12 @@ export class Column<T> {
         }
       : undefined
 
-    return anyThis
+    return this
   }
 
   /// built-in column types
 
-  private checkThatColumnValueIsIdentity() {
+  checkThatColumnValueIsIdentity() {
     if (this.columnValue !== identity) {
       throw new QueryBuilderUsageError(
         `column ${this.name} - type methods such as .integer(), .string(), and .date() must be called directly after creating a column`,
@@ -212,12 +184,10 @@ export class Column<T> {
    * Column values being integers is only checked when inserting or updating
    * data.
    */
-  integer(): Column<number> {
+  integer(): ColumnImplementation {
     this.checkThatColumnValueIsIdentity()
 
-    const anyThis: any = this
-
-    anyThis.columnValue = (value: unknown) => {
+    this.columnValue = (value: unknown) => {
       if (typeof value !== 'number') {
         throw new QueryBuilderValidationError(
           `column ${this.name} - expected an integer but got: ${inspect(
@@ -239,7 +209,7 @@ export class Column<T> {
       return value
     }
 
-    return anyThis
+    return this
   }
 
   /**
@@ -247,12 +217,10 @@ export class Column<T> {
    *
    * postgres types: TEXT, VARCHAR
    */
-  string(): Column<string> {
+  string() {
     this.checkThatColumnValueIsIdentity()
 
-    const anyThis: any = this
-
-    anyThis.columnValue = (value: unknown) => {
+    this.columnValue = (value: unknown) => {
       if (typeof value !== 'string') {
         throw new QueryBuilderValidationError(
           `column ${this.name} - expected a string but got: ${inspect(
@@ -264,7 +232,7 @@ export class Column<T> {
       return value
     }
 
-    return anyThis
+    return this
   }
 
   /**
@@ -272,12 +240,10 @@ export class Column<T> {
    *
    * postgres type: BOOLEAN
    */
-  boolean(): Column<boolean> {
+  boolean() {
     this.checkThatColumnValueIsIdentity()
 
-    const anyThis: any = this
-
-    anyThis.columnValue = (value: unknown) => {
+    this.columnValue = (value: unknown) => {
       if (typeof value !== 'boolean') {
         throw new QueryBuilderValidationError(
           `column ${this.name} - expected a boolean but got: ${inspect(
@@ -289,7 +255,7 @@ export class Column<T> {
       return value
     }
 
-    return anyThis
+    return this
   }
 
   /**
@@ -297,12 +263,10 @@ export class Column<T> {
    *
    * postgres types: TIMESTAMPTZ
    */
-  date(): Column<Date> {
+  date() {
     this.checkThatColumnValueIsIdentity()
 
-    const anyThis: any = this
-
-    anyThis.columnValue = (value: unknown) => {
+    this.columnValue = (value: unknown) => {
       if (!(value instanceof Date)) {
         throw new QueryBuilderValidationError(
           `column {this.name} - expected a Date but got: ${inspect(value).slice(
@@ -315,7 +279,7 @@ export class Column<T> {
       return value
     }
 
-    anyThis.fromJson = (value: unknown) => {
+    this.fromJson = (value: unknown) => {
       if (value instanceof Date) {
         return value
       }
@@ -333,7 +297,7 @@ export class Column<T> {
       )
     }
 
-    return anyThis
+    return this
   }
 
   /**
@@ -345,7 +309,7 @@ export class Column<T> {
    *
    * postgres types: JSON, JSONB
    */
-  json<J>(validator: (data: unknown) => J): Column<J> {
+  json(validator: (data: unknown) => any) {
     this.checkThatColumnValueIsIdentity()
 
     const anyThis: any = this
@@ -366,44 +330,7 @@ export class Column<T> {
    *
    * postgres types: TEXT, VARCHAR
    */
-  stringUnion<A extends string>(a: A): Column<A>
-  stringUnion<A extends string, B extends string>(a: A, b: B): Column<A | B>
-  stringUnion<A extends string, B extends string, C extends string>(
-    a: A,
-    b: B,
-    c: C,
-  ): Column<A | B | C>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-  >(a: A, b: B, c: C, d: D): Column<A | B | C | D>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-    E extends string,
-  >(a: A, b: B, c: C, d: D, e: E): Column<A | B | C | D | E>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-    E extends string,
-    F extends string,
-  >(a: A, b: B, c: C, d: D, e: E, f: F): Column<A | B | C | D | E | F>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-    E extends string,
-    F extends string,
-    G extends string,
-  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G): Column<A | B | C | D | E | F | G>
-  stringUnion(...elements: any[]): Column<any> {
+  stringUnion(...elements: any[]) {
     this.checkThatColumnValueIsIdentity()
 
     const index: Set<string> = new Set(elements)
@@ -427,10 +354,10 @@ export class Column<T> {
     return anyThis
   }
 
-  enum<T extends EnumObject, S extends keyof T>(enumObject: T): Column<T[S]> {
+  enum(enumObject: any) {
     this.checkThatColumnValueIsIdentity()
 
-    const valueIndex: Set<string | number> = new Set(
+    const valueIndex = new Set(
       Object.entries(enumObject)
         .filter(([k, _v]) => {
           if (/^\d+$/.test(k) && !isNaN(Number(k))) {
@@ -446,9 +373,8 @@ export class Column<T> {
           return v
         }),
     )
-    const anyThis: any = this
 
-    anyThis.columnValue = (value: unknown) => {
+    this.columnValue = (value: unknown) => {
       // reverse lookup for number enums
       if (typeof value === 'number' && enumObject[value] !== undefined) {
         return value
@@ -469,26 +395,8 @@ export class Column<T> {
       return value
     }
 
-    return anyThis
+    return this
   }
-}
-
-/**
- * Internal interface that maps exactly to a Column
- *
- * Basically just turns the private fields into public fields and throws away
- * the generic type information. When generating sql queries, we don't need
- * that.
- */
-export interface ColumnImplementation {
-  columnValue: (value: unknown) => any
-  fromJson?: (value: unknown) => any
-  isNullable?: true
-  isPrimaryKey?: true
-  name: string
-  copy(params: { name: string }): ColumnImplementation
-  getColumnSql(tableAlias: string): string
-  getColumnSelectSql(tableAlias: string, columnAlias: string): string
 }
 
 /**

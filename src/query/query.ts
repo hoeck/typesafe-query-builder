@@ -16,13 +16,8 @@ import {
   TableColumn,
   TableImplementation,
 } from '../table'
-import {
-  anyParam,
-  DatabaseClient,
-  LockMode,
-  QueryItem,
-  QueryRoot,
-} from './types'
+import { DatabaseClient, LockMode, QueryRoot } from '../types'
+import { QueryItem } from './queryItem'
 
 /*
 
