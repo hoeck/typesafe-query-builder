@@ -1,7 +1,7 @@
 import { expectError, expectType } from 'tsd'
 import { query } from '../src'
 import { parameterType, resultType, client } from './helpers'
-import { Games, Systems } from './helpers/classicGames'
+import { Games, Systems, Manufacturers } from './helpers/classicGames'
 
 // test some basic expressions within a query
 // exhaustive expression & expression factory tests are in a separate file/folder
@@ -53,6 +53,40 @@ import { Games, Systems } from './helpers/classicGames'
   expectType<{ useId: boolean; useName: boolean; id: number; name: string }>(
     parameterType(q),
   )
+}
+
+{
+  // eq + subquery
+  const q = query(Systems)
+    .select(Systems.include('id', 'name'))
+    .where((e) =>
+      e.eq(
+        Systems.manufacturerId,
+        query(Manufacturers)
+          .select(Manufacturers.include('id'))
+          .where((f) => f.eq(Manufacturers.name, 'name')),
+      ),
+    )
+
+  expectType<{ id: number; name: string }>(resultType(q))
+  expectType<{ name: string }>(parameterType(q))
+}
+
+{
+  // eq + correlated subquery
+  const q = query(Systems)
+    .select(Systems.include('id', 'name'))
+    .where((e) =>
+      e.eq(
+        e.param('name').string(),
+        query(Manufacturers)
+          .select(Manufacturers.include('id'))
+          .where((f) => f.eq(Manufacturers.name, 'name')),
+      ),
+    )
+
+  expectType<{ id: number; name: string }>(resultType(q))
+  expectType<{ name: string }>(parameterType(q))
 }
 
 /*

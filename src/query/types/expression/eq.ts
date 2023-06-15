@@ -1,6 +1,8 @@
 import { TableColumn } from '../../../table'
 import { Expression } from './expression'
 import { ComparableTypes } from './helpers'
+import { QueryBottom } from '../queryBottom'
+import { AssertHasSingleKey } from '../../../utils'
 
 /**
  * a = b
@@ -24,15 +26,16 @@ export interface Eq<T> {
     b: K,
   ): Expression<boolean, T, P & { [KK in K]: Exclude<ET, null> }>
 
-  // compare a table against an expression
-  <CT extends ComparableTypes, P>(
-    a: TableColumn<T, any, CT>,
-    b: Expression<CT, T, P>,
-  ): Expression<boolean, T, P>
-
-  // compare a table against a parameter (shortcut to avoid using param)
-  <CT extends ComparableTypes, K extends string>(
-    a: TableColumn<T, any, CT>,
-    b: K,
-  ): Expression<boolean, T, { [KK in K]: Exclude<CT, null> }>
+  // compare an expression against a subquery
+  <
+    CT extends ComparableTypes,
+    PA,
+    S1,
+    // only allow certain comparable columns (those for which pg implements equals)
+    // `| null` because they may be nullable (but null cannot be compared against)
+    PB extends (S1[keyof S1] & ComparableTypes) | null,
+  >(
+    a: Expression<CT, T, PA>,
+    b: QueryBottom<any, PB, any, AssertHasSingleKey<S1>, any>,
+  ): Expression<boolean, T, PA & PB>
 }

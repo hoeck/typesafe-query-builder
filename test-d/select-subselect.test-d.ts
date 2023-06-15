@@ -95,3 +95,24 @@ const selectTests = (async () => {
       .fetch(client),
   )
 })()
+
+{
+  expectAssignable<{ name: string | null; title: string | null }[]>(
+    await query(Systems)
+      .select(
+        query(Manufacturers)
+          .where(({ eq }) => eq(Manufacturers.id, Systems.id))
+          .select(Manufacturers.include('name')),
+        query(Games)
+          .join(Games, GamesSystems, ({ eq, and, ifNull }) =>
+            and(
+              eq(Games.id, GamesSystems.gameId),
+              ifNull(GamesSystems.played, false),
+            ),
+          )
+          .where(({ eq }) => eq(GamesSystems.systemId, Systems.id))
+          .select(Games.include('title')),
+      )
+      .fetch(client),
+  )
+}

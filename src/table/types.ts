@@ -1,4 +1,5 @@
 import { AssertHasSingleKey, SetOptional } from '../utils'
+import { Expression } from '../common'
 
 // // mapped helper type from SO:
 // // https://stackoverflow.com/questions/44323441/changing-property-name-in-typescript-mapped-type
@@ -23,13 +24,15 @@ export declare class TableName<N> {
 export type RemoveTableName<T> = { [K in keyof T]: T[K] }
 
 /**
- * A table expression to use in joins and subqueries and for column references.
+ * A table to use in queries, joins, selects and expressions.
+ *
+ * Contains its columns as expressions to use them in join conditions and filters.
  *
  * T available column types (a nominal type using `TableName<>`)
  * P parameters (in case this is a subquery)
  */
 export type Table<T, P> = {
-  [K in keyof T]: TableColumn<T, P, T[K]>
+  [K in keyof T]: Expression<T[K], T, P>
 } & TableProjectionMethods<T, P>
 
 /**
@@ -238,7 +241,7 @@ export interface TableProjectionMethods<T, P> {
   column<K extends keyof T>(
     this: Table<T, P>,
     columnName: K,
-  ): TableColumn<T, P, T[K]>
+  ): Expression<T[K], T, P>
 
   /**
    * Return the same table but with another name.

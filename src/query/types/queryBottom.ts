@@ -2,7 +2,8 @@ import { Selection, Table, TableColumn } from '../../table/types'
 import { AssertHasSingleKey, Nullable } from '../../utils'
 import { AnyParam, ComparableTypes } from './atoms'
 import { DatabaseClient } from './databaseClient'
-import { Expression, ExpressionFactory } from './expression'
+import { ExpressionFactory } from './expression'
+import { Expression } from '../../common'
 
 /**
  * postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
@@ -202,7 +203,7 @@ export declare class QueryBottom<
   ): QueryBottom<T, P & { [KK in K]: boolean | AnyParam }, L, S, C>
 
   /**
-   * Generic where expression.
+   * Use an Expression as the where clause.
    */
   where<P1>(
     e: (b: ExpressionFactory<T>) => Expression<boolean, T, P1>,

@@ -36,6 +36,20 @@ const whereTests = (async () => {
       .fetch(client, { name: 'Sega' }),
   )
 
+  // new expression based exists
+  expectType<{ name: string }[]>(
+    await query(Franchises)
+      .select(Franchises.include('name'))
+      .where(({ exists }) =>
+        exists(
+          query(Manufacturers)
+            .select(Manufacturers.include('id'))
+            .where((f) => f.eq(Manufacturers.name, 'name')),
+        ),
+      )
+      .fetch(client, { name: 'Sega' }),
+  )
+
   expectError(
     query(Franchises)
       .select(Franchises.include('name'))
