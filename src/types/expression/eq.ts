@@ -27,14 +27,13 @@ export interface Eq<T> {
 
   // compare an expression against a subquery
   <
-    CT extends ComparableTypes,
+    ET extends ComparableTypes,
     PA,
-    S1,
-    // only allow certain comparable columns (those for which pg implements equals)
-    // `| null` because they may be nullable (but null cannot be compared against)
-    PB extends (S1[keyof S1] & ComparableTypes) | null,
+    PB,
+    // selected column must have the same type as the first expressions type
+    S1 extends Record<any, ET | null>,
   >(
-    a: Expression<CT, T, PA>,
-    b: QueryBottom<any, PB, any, AssertHasSingleKey<S1>, any>,
+    a: Expression<ET, T, PA>,
+    b: QueryBottom<any, PB, any, AssertHasSingleKey<S1>, T>,
   ): Expression<boolean, T, PA & PB>
 }

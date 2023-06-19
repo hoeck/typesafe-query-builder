@@ -5,6 +5,7 @@ import { IsNull } from './isNull'
 import { Literal, LiteralString } from './literal'
 import { Or } from './or'
 import { Param } from './param'
+import { Subquery } from './subquery'
 
 export declare class ExpressionFactory<T> {
   protected __t: T // union of all tables allowed in each expression
@@ -17,4 +18,5 @@ export declare class ExpressionFactory<T> {
   literalString: LiteralString
   or: Or<T>
   param: Param
+  subquery: Subquery<T>
 }

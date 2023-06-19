@@ -8,3 +8,7 @@ export declare class Expression<R, T, P> {
   protected __t: T // union of all tables allowed in the expression
   protected __p: P // parameters used in the expression
 }
+
+export type ExpressionType<E> = E extends Expression<infer T, any, any>
+  ? T
+  : never

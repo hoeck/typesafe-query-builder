@@ -6,8 +6,9 @@ import {
   buildResultConverter,
   buildSqlQuery,
   buildUpdate,
+  QueryItem,
+  QueryParams,
 } from '../build'
-import { QueryParams } from '../common'
 import { QueryBuilderResultError, QueryBuilderValidationError } from '../errors'
 import {
   getTableImplementation,
@@ -17,7 +18,6 @@ import {
   TableImplementation,
 } from '../table'
 import { DatabaseClient, LockMode, QueryRoot } from '../types'
-import { QueryItem } from './queryItem'
 
 /*
 
@@ -632,5 +632,3 @@ export const query: QueryRoot = function query(table: any) {
     [{ queryType: 'from', table: ti }],
   ) as any
 } as any
-
-query.anyParam = anyParam

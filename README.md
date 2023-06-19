@@ -782,6 +782,9 @@ The exact error depends on your validation/runtype implementation.
     that would simplify tablecolumntypes quite a bit and remove the need to
     use `TableColumn` both in joins and in expressions)
     - also would allow to use arbitrary join conditions, e.g. `join(Manufacturers, Systems, ({eq, and, isNotNull} => and(eq(Manufacturer.id, Systems.id), isNotNull(Systems.name))))`
+  - `eq` (and other expression operator improvements):
+    - for each overload, add a separate method for enforce that overload, e.g `eq.expressionEqExpression` or `eq.expressionEqParameterString` to help figuring out issues with overloads
+    - refine `null` handling: if any eq parameter is `null`, the result of eq is `boolean | null` and not just `boolean`
   - join
   - fetch
   - insert / update / delete

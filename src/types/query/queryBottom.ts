@@ -1,5 +1,5 @@
 import { Selection, Table } from '../table'
-import { AssertHasSingleKey, Nullable } from '../../utils'
+import { AssertHasSingleKey, Nullable } from '../helpers'
 import { AnyParam, ComparableTypes } from './atoms'
 import { DatabaseClient } from './databaseClient'
 import { ExpressionFactory } from '../expression/expressionFactory'
@@ -206,7 +206,7 @@ export declare class QueryBottom<
    * Use an Expression as the where clause.
    */
   where<P1>(
-    e: (b: ExpressionFactory<T>) => Expression<boolean, T, P1>,
+    e: (b: ExpressionFactory<T | C>) => Expression<boolean, any, P1>,
   ): QueryBottom<T, P & P1, L, S, C>
 
   // SELECT
@@ -546,7 +546,7 @@ export declare class QueryBottom<
   orderBy<CP extends ComparableTypes | null>(
     // Postgres allows any column in an order by statement,
     // standard sql only allows order by the selected columns
-    col: TableColumn<T, any, CP>,
+    col: Expression<CP, T, {}>,
     direction?: 'asc' | 'desc',
     nulls?: 'nullsFirst' | 'nullsLast',
   ): QueryBottom<T, P, L, S, C>

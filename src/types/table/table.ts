@@ -1,5 +1,5 @@
 import { AssertHasSingleKey, SetOptional } from '../helpers'
-import { Expression } from '../expression/expression'
+import { Expression, ExpressionType } from '../expression/expression'
 import { Column, DefaultValue } from './column'
 
 // // mapped helper type from SO:
@@ -97,8 +97,7 @@ export type TableTypeWithDefaults = any
 /**
  * T .. available columns
  * P .. params
- * S .. selected columns
- * C .. correlated table
+ * S .. mapping selected columns: {[name]: type} //TODO: EXTRACT TYPE FROM EXPRESSION
  */
 export declare class Selection<T, P, S> {
   protected t: T
@@ -125,7 +124,6 @@ export declare class Selection<T, P, S> {
    * Uses the Postgres `json_agg` function under the hood.
    */
   jsonArray<K extends string, O extends keyof T, S, SS = AssertHasSingleKey<S>>(
-    this: Selection<T, P, S>,
     key: K,
     // TODO: orderBy -> {orderBy: O, direction: dir} OR as an extra method
     //       .orderBy(name, dir) bc. the current way of passing the column as
@@ -184,7 +182,6 @@ export interface TableProjectionMethods<T, P> {
    *
    */
   include<K extends keyof T>(
-    this: Table<T, P>,
     ...keys: K[]
   ): Selection<
     T,
@@ -196,7 +193,7 @@ export interface TableProjectionMethods<T, P> {
   /**
    * Choose all columns to appear in the result.
    */
-  all(this: Table<T, P>): Selection<
+  all(): Selection<
     T,
     P,
     // TableName nominal type is removed as we don't need it in the result type any more.
@@ -207,7 +204,6 @@ export interface TableProjectionMethods<T, P> {
    * Choose columns to omit from the result
    */
   exclude<K extends keyof T>(
-    this: Table<T, P>,
     ...keys: K[]
   ): Selection<
     T,
@@ -219,10 +215,7 @@ export interface TableProjectionMethods<T, P> {
   /**
    * Get a reference to a column in case it clashes with one of the table methods.
    */
-  column<K extends keyof T>(
-    this: Table<T, P>,
-    columnName: K,
-  ): Expression<T[K], T, P>
+  column<K extends keyof T>(columnName: K): Expression<T[K], T, P>
 
   /**
    * Return the same table but with another name.
@@ -234,19 +227,27 @@ export interface TableProjectionMethods<T, P> {
   // alias<T extends string>(name: T): ???
 }
 
+/**
+ * Create a table from a map of columns.
+ *
+ * Returns a `Table` with additional information about sql-`DEFAULT` columns
+ * to be able to create proper insert row types.
+ */
 export interface TableConstructor {
   <N extends string, T>(
     tableName: N,
     columns: { [K in keyof T]: Column<T[K]> },
-  ): DatabaseTable<
-    // TableName first to make this the first thing in typescript errors that TS
-    // will find and report as a mismatch. Without that, it would report first
-    // that columns are missing to make two different tables compatible.
-    TableName<N> & { [K in keyof T]: Exclude<T[K], DefaultValue> },
-    {
-      [K in keyof T]: DefaultValue extends Extract<T[K], DefaultValue>
-        ? K
-        : never
-    }[keyof T]
-  >
+  ): Table<
+    TableName<N> & {
+      [K in keyof T]: Exclude<T[K], DefaultValue>
+    },
+    never
+  > &
+    DatabaseTableDefaultColumns<
+      {
+        [K in keyof T]: DefaultValue extends Extract<T[K], DefaultValue>
+          ? K
+          : never
+      }[keyof T]
+    >
 }

@@ -56,13 +56,14 @@ import { Games, Systems, Manufacturers } from './helpers/classicGames'
 }
 
 {
-  // eq + subquery
+  // eq + uncorrelated subquery
   const q = query(Systems)
     .select(Systems.include('id', 'name'))
     .where((e) =>
       e.eq(
         Systems.manufacturerId,
-        query(Manufacturers)
+        e
+          .subquery(Manufacturers)
           .select(Manufacturers.include('id'))
           .where((f) => f.eq(Manufacturers.name, 'name')),
       ),
@@ -76,12 +77,12 @@ import { Games, Systems, Manufacturers } from './helpers/classicGames'
   // eq + correlated subquery
   const q = query(Systems)
     .select(Systems.include('id', 'name'))
-    .where((e) =>
-      e.eq(
-        e.param('name').string(),
-        query(Manufacturers)
-          .select(Manufacturers.include('id'))
-          .where((f) => f.eq(Manufacturers.name, 'name')),
+    .where(({ eq, param, subquery }) =>
+      eq(
+        param('name').type<string | null>(),
+        subquery(Manufacturers)
+          .select(Manufacturers.include('name'))
+          .where(({ eq }) => eq(Manufacturers.id, Systems.manufacturerId)),
       ),
     )
 
