@@ -13,11 +13,9 @@ import { QueryBuilderResultError, QueryBuilderValidationError } from '../errors'
 import {
   getTableImplementation,
   SelectionImplementation,
-  Table,
-  TableColumn,
   TableImplementation,
 } from '../table'
-import { DatabaseClient, LockMode, QueryRoot } from '../types'
+import { DatabaseClient, LockMode, QueryRoot, Table } from '../types'
 
 /*
 
@@ -79,7 +77,7 @@ features:
 */
 
 type AnyTable = Table<any, any>
-type AnyTableColumn = TableColumn<any, any, any>
+type AnyTableColumn = any
 
 // call each columns validation function for the given data and assign the
 // validated value

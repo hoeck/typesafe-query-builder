@@ -9,11 +9,14 @@ export { column, table } from './table'
 export {
   Column,
   DatabaseClient,
+  DefaultValue,
   Expression,
   ExpressionFactory,
   LockMode,
   ResultType,
   Table,
+  TableRow,
+  TableRowInsert,
   TableType,
   TableTypeWithDefaults,
 } from './types'

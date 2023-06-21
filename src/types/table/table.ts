@@ -19,7 +19,7 @@ import { Column, DefaultValue } from './column'
 //   : never
 
 export declare class TableName<N> {
-  protected _typesafeQueryBuilerTableName_: N
+  private _typesafeQueryBuilerTableName_: N
 }
 
 export type RemoveTableName<T> = { [K in keyof T]: T[K] }
@@ -32,8 +32,15 @@ export type RemoveTableName<T> = { [K in keyof T]: T[K] }
  * T available column types (a nominal type using `TableName<>`)
  * P parameters (in case this is a subquery)
  */
-export type Table<T, P> = {
-  [K in keyof T]: Expression<T[K], T, P>
+export type Table<T, P extends {} = {}> = {
+  [K in keyof T]: Expression<
+    T[K],
+    T,
+    // column-expressions do not need to pass on the tables parameters - we
+    // get them already via the table in the query, subquery or join method.
+    {},
+    K // alias
+  >
 } & TableProjectionMethods<T, P>
 
 /**
@@ -42,7 +49,8 @@ export type Table<T, P> = {
 export type TableType<T> = T extends Table<infer X, any> ? X : never
 
 declare class DatabaseTableDefaultColumns<T> {
-  protected typesafeQueryBuilderDefaultColumns: T
+  // TODO: why does TS complain about `protected` now?
+  typesafeQueryBuilderDefaultColumns: T
 }
 
 /**
@@ -52,6 +60,12 @@ declare class DatabaseTableDefaultColumns<T> {
  * Does not need any parameters.
  */
 export type DatabaseTable<T, D> = Table<T, {}> & DatabaseTableDefaultColumns<D>
+
+export type ExtractTableName<T> = T extends Table<infer C, any>
+  ? C extends TableName<infer N>
+    ? N
+    : never
+  : never
 
 /**
  * The row type of a table (sans the table name)
@@ -97,7 +111,7 @@ export type TableTypeWithDefaults = any
 /**
  * T .. available columns
  * P .. params
- * S .. mapping selected columns: {[name]: type} //TODO: EXTRACT TYPE FROM EXPRESSION
+ * S .. mapping selected columns: {[name]: type}
  */
 export declare class Selection<T, P, S> {
   protected t: T
@@ -123,7 +137,7 @@ export declare class Selection<T, P, S> {
    * Needs either a group-by or a subselect.
    * Uses the Postgres `json_agg` function under the hood.
    */
-  jsonArray<K extends string, O extends keyof T, S, SS = AssertHasSingleKey<S>>(
+  jsonArray<K extends string, O extends keyof T, SS = AssertHasSingleKey<S>>(
     key: K,
     // TODO: orderBy -> {orderBy: O, direction: dir} OR as an extra method
     //       .orderBy(name, dir) bc. the current way of passing the column as
@@ -175,7 +189,7 @@ export declare class Selection<T, P, S> {
 /**
  * Selecting and Aggregation over tables
  */
-export interface TableProjectionMethods<T, P> {
+export interface TableProjectionMethods<T, P extends {} = {}> {
   /**
    * Choose columns to appear in the result.
    *
@@ -215,7 +229,7 @@ export interface TableProjectionMethods<T, P> {
   /**
    * Get a reference to a column in case it clashes with one of the table methods.
    */
-  column<K extends keyof T>(columnName: K): Expression<T[K], T, P>
+  column<K extends keyof T>(columnName: K): Expression<T[K], T, P, K>
 
   /**
    * Return the same table but with another name.
@@ -241,7 +255,7 @@ export interface TableConstructor {
     TableName<N> & {
       [K in keyof T]: Exclude<T[K], DefaultValue>
     },
-    never
+    {}
   > &
     DatabaseTableDefaultColumns<
       {

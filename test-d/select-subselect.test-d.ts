@@ -7,112 +7,80 @@ import {
   Manufacturers,
   Systems,
 } from './helpers/classicGames'
+import { resultType, parameterType } from './helpers'
+import {
+  ExpressionAlias,
+  ExpressionType,
+  ExpressionParameter,
+  ExpressionTable,
+} from '../src/types/expression/expression'
 
 const client: DatabaseClient = {} as DatabaseClient
 
-const selectTests = (async () => {
-  // select with a query (subselect)
+{
+  // single subselect
 
-  expectType<{ name: string | null }[]>(
-    await query(Systems)
-      .select(
-        query(Manufacturers)
-          .whereEq(Manufacturers.id, Systems.manufacturerId)
-          .select(Manufacturers.include('name')),
-      )
-      .fetch(client),
+  const q = query(Systems).select(({ subquery }) =>
+    subquery(Manufacturers)
+      .select(Manufacturers.include('name'))
+      .where(({ eq }) => eq(Manufacturers.id, Systems.manufacturerId)),
   )
 
-  expectType<{ name: string | null }[]>(
-    await query(Franchises)
-      .select(
-        query(Manufacturers)
-          .whereEq(Manufacturers.id, Franchises.manufacturerId)
-          .select(Manufacturers.include('name')),
-      )
-      .fetch(client),
-  )
+  expectType<{}>(parameterType(q))
+  expectType<{ name: string | null }>(resultType(q))
 
   expectError(
-    await query(Systems).select(
-      query(Manufacturers)
-        .whereEq(Manufacturers.id, Systems.id)
+    query(Systems).select(({ subquery }) =>
+      subquery(Manufacturers)
+        .where(({ eq }) => eq(Manufacturers.id, Systems.id))
         // more than 1 col selected
         .select(Manufacturers.include('name', 'id')),
     ),
   )
 
   expectError(
-    await query(Systems).select(
-      query(Manufacturers)
+    query(Systems).select(({ subquery }) =>
+      subquery(Manufacturers)
         // mismatching column types
-        .whereEq(Manufacturers.id, Systems.name)
+        .where(({ eq }) => eq(Manufacturers.id, Systems.name))
         .select(Manufacturers.include('name')),
     ),
   )
-
-  // join and select-2 overload with a query (subselect)
-
-  expectAssignable<
-    { id: number; manufacturerId: number; name: string | null }[]
-  >(
-    await query(Systems)
-      .select(
-        Systems.include('id', 'manufacturerId'),
-        query(Manufacturers)
-          .whereEq(Manufacturers.id, Systems.id)
-          .select(Manufacturers.include('name')),
-      )
-      .fetch(client),
-  )
-
-  expectAssignable<
-    { id: number; manufacturerId: number; name: string | null }[]
-  >(
-    await query(Systems)
-      .select(
-        query(Manufacturers)
-          .whereEq(Manufacturers.id, Systems.id)
-          .select(Manufacturers.include('name')),
-        Systems.include('id', 'manufacturerId'),
-      )
-      .fetch(client),
-  )
-
-  // nested subquery
-
-  expectAssignable<{ name: string | null; title: string | null }[]>(
-    await query(Systems)
-      .select(
-        query(Manufacturers)
-          .whereEq(Manufacturers.id, Systems.id)
-          .select(Manufacturers.include('name')),
-        query(Games)
-          .join(Games.id, GamesSystems.gameId)
-          .whereEq(GamesSystems.systemId, Systems.id)
-          .select(Games.include('title')),
-      )
-      .fetch(client),
-  )
-})()
+}
 
 {
-  expectAssignable<{ name: string | null; title: string | null }[]>(
-    await query(Systems)
-      .select(
-        query(Manufacturers)
-          .where(({ eq }) => eq(Manufacturers.id, Systems.id))
-          .select(Manufacturers.include('name')),
-        query(Games)
-          .join(Games, GamesSystems, ({ eq, and, ifNull }) =>
-            and(
-              eq(Games.id, GamesSystems.gameId),
-              ifNull(GamesSystems.played, false),
-            ),
-          )
-          .where(({ eq }) => eq(GamesSystems.systemId, Systems.id))
-          .select(Games.include('title')),
-      )
-      .fetch(client),
+  // select and subselect
+
+  const q = query(Systems)
+    .select(Systems.include('id', 'manufacturerId'))
+    .select(({ subquery }) =>
+      subquery(Manufacturers)
+        .where(({ eq }) => eq(Manufacturers.id, Systems.id))
+        .select(Manufacturers.include('name')),
+    )
+
+  expectType<{}>(parameterType(q))
+  expectType<{ id: number; manufacturerId: number; name: string | null }>(
+    resultType(q),
   )
+}
+
+{
+  // two subqueries
+  const q = query(Systems)
+    .select(({ subquery }) =>
+      subquery(Manufacturers)
+        .where(({ eq }) => eq(Manufacturers.id, Systems.id))
+        .select(Manufacturers.include('name')),
+    )
+    .select(({ subquery }) =>
+      subquery(Games)
+        .join(Games, GamesSystems)
+        .on(({ eq }) => eq(Games.id, GamesSystems.gameId))
+        .where(({ eq }) => eq(GamesSystems.systemId, Systems.id))
+        .select(Games.include('title')),
+    )
+
+  expectType<{}>(parameterType(q))
+  expectType<{ name: string | null; title: string | null }>(resultType(q))
 }

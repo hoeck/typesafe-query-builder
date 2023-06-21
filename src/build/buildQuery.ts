@@ -1,10 +1,12 @@
 import { QueryParams } from './queryParams'
 import { QueryBuilderUsageError } from '../errors'
-import { anyParam, QueryItem } from '../types'
+import { QueryItem } from './queryItem'
 import { ColumnImplementation } from '../table'
 import { assertNever } from '../utils'
 import { BuildContext } from './buildContext'
 import { SqlQuery } from './statement'
+
+const anyParamTodoRemoveMe: any = 0
 
 // return the columns to select when building subselects
 export function buildColumns(
@@ -159,7 +161,7 @@ export function buildSqlQuery(
             {
               const paramValue = params[parameter.name]
 
-              if (paramValue === anyParam) {
+              if (paramValue === anyParamTodoRemoveMe) {
                 // the any param basically provides the missing neutral value that causes any
                 // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
               } else if (paramValue === null) {
@@ -205,7 +207,7 @@ export function buildSqlQuery(
             {
               const paramValue = params[parameter.name]
 
-              if (paramValue === anyParam) {
+              if (paramValue === anyParamTodoRemoveMe) {
                 // the any param basically provides the missing neutral value that causes any
                 // where expression to be evaluated as `TRUE`, so it's the opposite of `NULL`
               } else {
@@ -247,7 +249,7 @@ export function buildSqlQuery(
         } else if (typeof parameterKey === 'string') {
           const paramValue = params[parameterKey]
 
-          if (paramValue === anyParam) {
+          if (paramValue === anyParamTodoRemoveMe) {
             // no-op
           } else {
             if (typeof paramValue !== 'boolean') {

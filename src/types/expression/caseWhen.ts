@@ -9,7 +9,13 @@ export interface CaseWhen<T> {
   __t: T
 
   // 1 case
-  <ConditionParam0, ResultType0, ResultParam0, ElseParam, ElseType>(
+  <
+    ConditionParam0 extends {},
+    ResultType0,
+    ResultParam0 extends {},
+    ElseParam extends {},
+    ElseType,
+  >(
     case0: [
       Expression<boolean, T, ConditionParam0>,
       Expression<ResultType0, T, ResultParam0>,
@@ -23,13 +29,13 @@ export interface CaseWhen<T> {
 
   // 2 cases
   <
-    ConditionParam0,
+    ConditionParam0 extends {},
     ResultType0,
-    ResultParam0,
-    ConditionParam1,
+    ResultParam0 extends {},
+    ConditionParam1 extends {},
     ResultType1,
-    ResultParam1,
-    ElseParam,
+    ResultParam1 extends {},
+    ElseParam extends {},
     ElseType,
   >(
     case0: [
@@ -49,16 +55,16 @@ export interface CaseWhen<T> {
 
   // 3 cases
   <
-    ConditionParam0,
+    ConditionParam0 extends {},
     ResultType0,
-    ResultParam0,
-    ConditionParam1,
+    ResultParam0 extends {},
+    ConditionParam1 extends {},
     ResultType1,
-    ResultParam1,
-    ConditionParam2,
+    ResultParam1 extends {},
+    ConditionParam2 extends {},
     ResultType2,
-    ResultParam2,
-    ElseParam,
+    ResultParam2 extends {},
+    ElseParam extends {},
     ElseType,
   >(
     case0: [
@@ -88,19 +94,19 @@ export interface CaseWhen<T> {
 
   // 4 cases
   <
-    ConditionParam0,
+    ConditionParam0 extends {},
     ResultType0,
-    ResultParam0,
-    ConditionParam1,
+    ResultParam0 extends {},
+    ConditionParam1 extends {},
     ResultType1,
-    ResultParam1,
-    ConditionParam2,
+    ResultParam1 extends {},
+    ConditionParam2 extends {},
     ResultType2,
-    ResultParam2,
-    ConditionParam3,
+    ResultParam2 extends {},
+    ConditionParam3 extends {},
     ResultType3,
-    ResultParam3,
-    ElseParam,
+    ResultParam3 extends {},
+    ElseParam extends {},
     ElseType,
   >(
     case0: [
@@ -136,22 +142,22 @@ export interface CaseWhen<T> {
 
   // 5 cases
   <
-    ConditionParam0,
+    ConditionParam0 extends {},
     ResultType0,
-    ResultParam0,
-    ConditionParam1,
+    ResultParam0 extends {},
+    ConditionParam1 extends {},
     ResultType1,
-    ResultParam1,
-    ConditionParam2,
+    ResultParam1 extends {},
+    ConditionParam2 extends {},
     ResultType2,
-    ResultParam2,
-    ConditionParam3,
+    ResultParam2 extends {},
+    ConditionParam3 extends {},
     ResultType3,
-    ResultParam3,
-    ConditionParam4,
+    ResultParam3 extends {},
+    ConditionParam4 extends {},
     ResultType4,
-    ResultParam4,
-    ElseParam,
+    ResultParam4 extends {},
+    ElseParam extends {},
     ElseType,
   >(
     case0: [

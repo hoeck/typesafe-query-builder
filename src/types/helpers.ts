@@ -12,13 +12,36 @@ export type IsUnion<T, U extends T = T> = (
 /**
  * Test whether T is an object with a single key
  *
- * Evaluates to T (exactly 1 key) or never (0, 2 or more keys or not an object).
+ * Evaluates to T (exactly 1 key) or unknown (0, 2 or more keys or not an object).
  */
 export type AssertHasSingleKey<T> = keyof T extends never
   ? never
   : IsUnion<keyof T> extends true
   ? never
   : T
+
+/**
+ * Resolve to the value type of a single key object {key: value}.
+ */
+export type SingleSelectionValue<T> = keyof T extends never
+  ? unknown
+  : IsUnion<keyof T> extends true
+  ? unknown
+  : T[keyof T]
+
+/**
+ * Resolve to the key type of a single key object {key: value}.
+ *
+ * When the object type T does contain zero or more than 1 key, resolve to
+ * unknown. The latter is not assignable to string so QueryBottom.select will
+ * yield an error when passing an expression that doesn't exactly contain 1
+ * aliased value/column.
+ */
+export type SingleSelectionKey<T> = keyof T extends never
+  ? unknown
+  : IsUnion<keyof T> extends true
+  ? unknown
+  : keyof T
 
 /**
  * Set all keys D in interface T as optional.

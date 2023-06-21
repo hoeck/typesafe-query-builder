@@ -1,6 +1,6 @@
 import { expectError, expectType } from 'tsd'
-import { Expression, ExpressionFactory, TableType, query } from '../../src'
-import { Franchises, Systems, Manufacturers } from '../helpers/classicGames'
+import { Expression, ExpressionFactory, TableType } from '../../src'
+import { Franchises, Manufacturers, Systems } from '../helpers/classicGames'
 import { expressionType } from './helpers'
 
 const f = new ExpressionFactory<TableType<typeof Franchises>>()
@@ -45,7 +45,7 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
 
 // nullable expression + expression
 {
-  const nullable: Expression<number | null, any, any> = 0 as any
+  const nullable: Expression<number | null, any, {}> = 0 as any
 
   expectType<[boolean, {}]>(expressionType(f.eq(f.literal(42), nullable)))
   expectType<[boolean, {}]>(expressionType(f.eq(nullable, nullable)))

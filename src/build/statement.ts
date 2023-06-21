@@ -1,9 +1,10 @@
 import * as assert from 'assert'
 import { QueryBuilderUsageError } from '../errors'
-import { TableImplementation, column, ColumnImplementation } from '../table'
-import { QueryItem, JoinItem, LockMode, anyParam } from '../query/types'
-import { BuildContext } from './buildContext'
+import { TableImplementation } from '../table'
+import { LockMode } from '../types'
 import { assertNever } from '../utils'
+import { BuildContext } from './buildContext'
+import { JoinItem } from './queryItem'
 
 /**
  * Building an sql query string

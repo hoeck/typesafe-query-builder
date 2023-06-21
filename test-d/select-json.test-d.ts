@@ -12,7 +12,6 @@ const client: DatabaseClient = {} as DatabaseClient
 
 const selectTests = (async () => {
   // selecting columns into a json object
-
   expectType<{ system: { id: number; name: string } }[]>(
     await query(Systems)
       .select(Systems.include('id', 'name').jsonObject('system'))
@@ -79,14 +78,13 @@ const selectTests = (async () => {
     { name: string; franchises: { id: number; name: string }[] | null }[]
   >(
     await query(Manufacturers)
-      .select(
-        Manufacturers.include('name'),
-        // using a subselect
-        query(Franchises)
+      .select(Manufacturers.include('name'))
+      .select(({ subquery }) =>
+        subquery(Franchises)
           .select(
             Franchises.include('id', 'name').jsonObjectArray('franchises'),
           )
-          .whereEq(Franchises.manufacturerId, Manufacturers.id),
+          .where(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id)),
       )
       .fetch(client),
   )

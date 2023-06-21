@@ -1,12 +1,6 @@
-import { expectType, expectAssignable } from 'tsd'
-import { column, Column, TableRow, TableRowInsert } from '../src'
-
-import {
-  Systems,
-  Franchises,
-  Manufacturers,
-  Games,
-} from './helpers/classicGames'
+import { expectAssignable, expectType } from 'tsd'
+import { Column, TableRow, TableRowInsert, column } from '../src'
+import { Franchises } from './helpers/classicGames'
 
 // column types
 

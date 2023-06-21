@@ -9,16 +9,13 @@ const unionTests = (async () => {
   const q = query.union(
     query(Systems)
       .select(Systems.include('id', 'name'))
-      .whereEq(Systems.id, 'id'),
+      .where(({ eq }) => eq(Systems.id, 'idParam')),
     query(Systems)
       .select(Systems.include('id', 'name'))
-      .whereEq(Systems.name, 'name'),
+      .where(({ eq }) => eq(Systems.name, 'nameParam')),
   )
 
-  expectType<{
-    id: number | typeof query.anyParam
-    name: string | typeof query.anyParam
-  }>(parameterType(q))
+  expectType<{ idParam: number; nameParam: string }>(parameterType(q))
   expectType<{ id: number; name: string }>(resultType(q))
 
   expectError(
@@ -37,16 +34,13 @@ const unionAllTests = (async () => {
   const q = query.unionAll(
     query(Systems)
       .select(Systems.include('id', 'name'))
-      .whereEq(Systems.id, 'id'),
+      .where(({ eq }) => eq(Systems.id, 'idParam')),
     query(Systems)
       .select(Systems.include('id', 'name'))
-      .whereEq(Systems.name, 'name'),
+      .where(({ eq }) => eq(Systems.name, 'nameParam')),
   )
 
-  expectType<{
-    id: number | typeof query.anyParam
-    name: string | typeof query.anyParam
-  }>(parameterType(q))
+  expectType<{ idParam: number; nameParam: string }>(parameterType(q))
   expectType<{ id: number; name: string }>(resultType(q))
 
   expectError(

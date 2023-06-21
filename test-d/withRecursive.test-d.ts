@@ -11,13 +11,15 @@ const withRecursiveTests = (async () => {
   const fittingComponents = query.withRecursive(() => {
     const r0 = query(PcComponents)
       .select(PcComponents.include('id', 'name'))
-      .whereEq(PcComponents.name, 'name')
+      .where(({ eq }) => eq(PcComponents.name, 'name'))
 
     return query.union(
       r0,
       query(PcComponents)
-        .join(PcComponents.id, PcComponentsFits.componentId)
-        .join(PcComponentsFits.fitsOnComponentId, r0.table().id)
+        .join(PcComponents, PcComponentsFits)
+        .on(({ eq }) => eq(PcComponents.id, PcComponentsFits.componentId))
+        .join(PcComponentsFits, r0.table())
+        .on(({ eq }) => eq(PcComponentsFits.fitsOnComponentId, r0.table().id))
         .select(PcComponents.include('id', 'name')),
     )
   })
@@ -40,6 +42,6 @@ const withRecursiveTests = (async () => {
   //   )
   //   SELECT id FROM pc_components LIMIT 1000
 
-  expectType<{ name: string | typeof query.anyParam }>(parameterType(q))
+  expectType<{ name: string }>(parameterType(q))
   expectType<{ id: number; name: string }>(resultType(q))
 })()

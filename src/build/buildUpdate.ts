@@ -1,6 +1,6 @@
 import * as assert from 'assert'
 import { QueryBuilderUsageError } from '../errors'
-import { anyParam, QueryItem } from '../query/types'
+import { QueryItem } from './queryItem'
 import { TableImplementation } from '../table'
 import { BuildContext } from './buildContext'
 import { SqlQuery } from './statement'

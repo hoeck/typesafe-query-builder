@@ -1,4 +1,3 @@
-export * from './atoms'
 export * from './databaseClient'
 export * from './delete'
 export * from './joins'

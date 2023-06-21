@@ -1,5 +1,5 @@
-import { Selection, TableColumn } from '../../table/types'
-import { AnyParam, ComparableTypes } from './atoms'
+import { Selection } from '../table'
+import { ComparableTypes } from '../expression/helpers'
 import { DatabaseClient } from './databaseClient'
 
 /**
@@ -17,32 +17,32 @@ export declare class Update<T, P = {}, S = void> {
     paramKey: N,
   ): Update<T, P & { [K in N]: Partial<T> }, S>
 
-  /**
-   * WHERE <COL> = <PARAM> condition for the update
-   *
-   * Multiple `where`s are `AND`ed together.
-   */
-  whereEq<CP extends ComparableTypes, N extends string>(
-    col: TableColumn<T, any, CP>,
-    paramKey: N,
-  ): Update<T, P & { [K in N]: CP | AnyParam }, S>
-
-  /**
-   * WHERE <COL> IN <PARAM-LIST> condition for updates.
-   *
-   * Multiple `where`s are `AND`ed together.
-   */
-  whereIn<CP extends ComparableTypes, K extends string>(
-    col: TableColumn<T, any, CP>,
-    paramKey: K,
-  ): Update<T, P & { [KK in K]: CP[] | AnyParam }, S>
-
-  /**
-   * Explicitly set the Postgres RETURNING clause.
-   *
-   * By default, return everything.
-   */
-  returning<S1>(selection: Selection<T, {}, S1>): Update<T, P, S1>
+  // /**
+  //  * WHERE <COL> = <PARAM> condition for the update
+  //  *
+  //  * Multiple `where`s are `AND`ed together.
+  //  */
+  // whereEq<CP extends ComparableTypes, N extends string>(
+  //   col: TableColumn<T, any, CP>,
+  //   paramKey: N,
+  // ): Update<T, P & { [K in N]: CP | AnyParam }, S>
+  //
+  // /**
+  //  * WHERE <COL> IN <PARAM-LIST> condition for updates.
+  //  *
+  //  * Multiple `where`s are `AND`ed together.
+  //  */
+  // whereIn<CP extends ComparableTypes, K extends string>(
+  //   col: TableColumn<T, any, CP>,
+  //   paramKey: K,
+  // ): Update<T, P & { [KK in K]: CP[] | AnyParam }, S>
+  //
+  // /**
+  //  * Explicitly set the Postgres RETURNING clause.
+  //  *
+  //  * By default, return everything.
+  //  */
+  // returning<S1>(selection: Selection<T, {}, S1>): Update<T, P, S1>
 
   /**
    * Perform the update.

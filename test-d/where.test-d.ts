@@ -5,8 +5,19 @@ import { Games, Systems, Manufacturers } from './helpers/classicGames'
 
 // test some basic expressions within a query
 // exhaustive expression & expression factory tests are in a separate file/folder
+
 {
-  // basic eq usage with a parameter
+  // eq without a parameter
+  const q = query(Systems)
+    .select(Systems.include('name'))
+    .where(({ eq }) => eq(Systems.id, Systems.manufacturerId))
+
+  expectType<{ name: string }>(resultType(q))
+  expectType<{}>(parameterType(q))
+}
+
+{
+  // eq with a parameter
   const q = query(Systems)
     .select(Systems.include('name'))
     .where(({ eq }) => eq(Systems.id, 'id'))
@@ -60,7 +71,7 @@ import { Games, Systems, Manufacturers } from './helpers/classicGames'
   const q = query(Systems)
     .select(Systems.include('id', 'name'))
     .where((e) =>
-      e.eq(
+      e.eq.expressionEqExpression(
         Systems.manufacturerId,
         e
           .subquery(Manufacturers)
@@ -87,7 +98,7 @@ import { Games, Systems, Manufacturers } from './helpers/classicGames'
     )
 
   expectType<{ id: number; name: string }>(resultType(q))
-  expectType<{ name: string }>(parameterType(q))
+  expectType<{ name: string | null }>(parameterType(q))
 }
 
 /*

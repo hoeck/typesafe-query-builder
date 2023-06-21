@@ -1,5 +1,4 @@
-import { AssertHasSingleKey } from '../helpers'
-import { QueryBottom } from '../query/queryBottom'
+import { Query } from '../query/joins'
 import { Table } from '../table'
 
 // Cannot use a plain `query` because type-inference for the correlated table
@@ -8,13 +7,16 @@ import { Table } from '../table'
 
 /**
  * A (correlated) subquery.
+ *
+ * As QueryBottom extends from Expression, the subquery can be used in place
+ * of any expression, for example:
+ *
+ *   eq('idParam', subquery(ExampleTable).select(ExampleTable.include('id')))
  */
 export interface Subquery<T> {
-  <TT, P, S1 extends Record<any, any>>(t: Table<TT, never>): QueryBottom<
+  <TT, P extends {}>(t: Table<TT, {}>): Query<
     TT,
     P,
-    any,
-    AssertHasSingleKey<S1>,
-    T
+    T // in the subquery, you can use all tables of the surrounding query
   >
 }

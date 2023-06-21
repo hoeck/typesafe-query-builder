@@ -1,4 +1,4 @@
-import { anyParam, QueryItem } from '../query/types'
+import { QueryItem } from './queryItem'
 
 export function buildDelete(query: QueryItem): string {
   throw new Error('todo')
