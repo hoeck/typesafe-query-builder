@@ -1,5 +1,6 @@
 import { AndOr } from './andOr'
 import { CaseWhen } from './caseWhen'
+import { Coalesce } from './coalesce'
 import { Eq } from './eq'
 import { IsNull } from './isNull'
 import { Literal, LiteralString } from './literal'
@@ -12,6 +13,7 @@ export declare class ExpressionFactory<T> {
 
   and: AndOr<T>
   caseWhen: CaseWhen<T>
+  coalesce: Coalesce<T>
   eq: Eq<T>
   isNull: IsNull<T>
   literal: Literal
