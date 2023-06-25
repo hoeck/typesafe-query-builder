@@ -16,11 +16,11 @@ const f = new ExpressionFactory<
   )
 
   // 1 case + else
-  expectType<[boolean | string, { useId: boolean; id: number }]>(
+  expectType<[boolean, { useId: boolean; id: number }]>(
     expressionType(
       f.caseWhen(
         [f.eq('useId', f.literal(true)), f.eq(Franchises.id, 'id')],
-        f.literal('foo'),
+        f.literal(true),
       ),
     ),
   )
@@ -41,16 +41,13 @@ const f = new ExpressionFactory<
 
   // 2 cases + else
   expectType<
-    [
-      boolean | number,
-      { useId: boolean; useName: boolean; id: number; name: string },
-    ]
+    [boolean, { useId: boolean; useName: boolean; id: number; name: string }]
   >(
     expressionType(
       f.caseWhen(
         [f.eq('useId', f.literal(true)), f.eq(Franchises.id, 'id')],
         [f.eq('useName', f.literal(true)), f.eq(Franchises.name, 'name')],
-        f.literal(25),
+        f.literal(false),
       ),
     ),
   )
@@ -86,7 +83,7 @@ const f = new ExpressionFactory<
   // 3 cases + else
   expectType<
     [
-      boolean | number,
+      boolean,
       {
         useId: boolean
         useName: boolean
@@ -105,7 +102,7 @@ const f = new ExpressionFactory<
           f.eq('useManufacturerId', f.literal(true)),
           f.eq(Manufacturers.id, 'mId'),
         ],
-        f.literal(42),
+        f.literal(false),
       ),
     ),
   )
@@ -240,6 +237,35 @@ const f = new ExpressionFactory<
         [f.eq('filterParam', f.literal('id')), f.eq(Franchises.id, 'id')],
         [f.eq('filterParam', f.literal(true)), f.eq(Franchises.name, 'name')],
       ),
+    ),
+  )
+}
+
+{
+  // the resulting case expression must not be a union type, except for being nullable
+  expectError(
+    f.caseWhen(
+      [f.literal(false), f.literal('foo')],
+      [f.literal(false), f.literal(1)],
+    ),
+  )
+
+  // why is this working?? why is it accepting `|null` but not `|number` ???
+  // maybe because the `else` is optional and this its returntype is inferrred as null?
+  expectType<[string | null, {}]>(
+    expressionType(
+      f.caseWhen(
+        [f.literal(false), f.literal('foo')],
+        [f.literal(false), f.literal(null)],
+      ),
+    ),
+  )
+
+  expectError(
+    f.caseWhen(
+      [f.literal(false), f.literal('foo')],
+      [f.literal(false), f.literal('bar')],
+      f.param('e').type<boolean>(),
     ),
   )
 }
