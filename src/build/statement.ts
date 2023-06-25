@@ -114,6 +114,10 @@ export class SqlQuery {
     // Looking at the query plan it seems like `... IN x` is compiled down
     // to `= ANY(x)`.
     // see https://www.postgresql.org/docs/current/functions-comparisons.html
+    //
+    // in addition,
+    // https://www.postgresql.org/docs/current/functions-subquery.html also
+    // says that `= ANY` is equal to `IN`
     this.where.push(`${c} = ANY(${p})`)
   }
 
