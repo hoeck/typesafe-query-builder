@@ -3,6 +3,7 @@ import { CaseWhen } from './caseWhen'
 import { Eq } from './eq'
 import { IsNull } from './isNull'
 import { Literal, LiteralString } from './literal'
+import { Not } from './not'
 import { Param } from './param'
 import { Subquery } from './subquery'
 
@@ -15,6 +16,7 @@ export declare class ExpressionFactory<T> {
   isNull: IsNull<T>
   literal: Literal
   literalString: LiteralString
+  not: Not<T>
   or: AndOr<T>
   param: Param
   subquery: Subquery<T>
