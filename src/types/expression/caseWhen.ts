@@ -17,7 +17,7 @@ export interface CaseWhen<T> {
     ElseType,
   >(
     case0: [
-      Expression<boolean, T, ConditionParam0>,
+      Expression<boolean | null, T, ConditionParam0>,
       Expression<ResultType0, T, ResultParam0>,
     ],
     caseElse?: Expression<ElseType, T, ElseParam>,
@@ -39,11 +39,11 @@ export interface CaseWhen<T> {
     ElseType,
   >(
     case0: [
-      Expression<boolean, T, ConditionParam0>,
+      Expression<boolean | null, T, ConditionParam0>,
       Expression<ResultType0, T, ResultParam0>,
     ],
     case1: [
-      Expression<boolean, T, ConditionParam1>,
+      Expression<boolean | null, T, ConditionParam1>,
       Expression<ResultType1, T, ResultParam1>,
     ],
     caseElse?: Expression<ElseType, T, ElseParam>,
@@ -68,15 +68,15 @@ export interface CaseWhen<T> {
     ElseType,
   >(
     case0: [
-      Expression<boolean, T, ConditionParam0>,
+      Expression<boolean | null, T, ConditionParam0>,
       Expression<ResultType0, T, ResultParam0>,
     ],
     case1: [
-      Expression<boolean, T, ConditionParam1>,
+      Expression<boolean | null, T, ConditionParam1>,
       Expression<ResultType1, T, ResultParam1>,
     ],
     case2: [
-      Expression<boolean, T, ConditionParam2>,
+      Expression<boolean | null, T, ConditionParam2>,
       Expression<ResultType2, T, ResultParam2>,
     ],
     caseElse?: Expression<ElseType, T, ElseParam>,
@@ -110,19 +110,19 @@ export interface CaseWhen<T> {
     ElseType,
   >(
     case0: [
-      Expression<boolean, T, ConditionParam0>,
+      Expression<boolean | null, T, ConditionParam0>,
       Expression<ResultType0, T, ResultParam0>,
     ],
     case1: [
-      Expression<boolean, T, ConditionParam1>,
+      Expression<boolean | null, T, ConditionParam1>,
       Expression<ResultType1, T, ResultParam1>,
     ],
     case2: [
-      Expression<boolean, T, ConditionParam2>,
+      Expression<boolean | null, T, ConditionParam2>,
       Expression<ResultType2, T, ResultParam2>,
     ],
     case3: [
-      Expression<boolean, T, ConditionParam3>,
+      Expression<boolean | null, T, ConditionParam3>,
       Expression<ResultType3, T, ResultParam3>,
     ],
     caseElse?: Expression<ElseType, T, ElseParam>,
@@ -161,23 +161,23 @@ export interface CaseWhen<T> {
     ElseType,
   >(
     case0: [
-      Expression<boolean, T, ConditionParam0>,
+      Expression<boolean | null, T, ConditionParam0>,
       Expression<ResultType0, T, ResultParam0>,
     ],
     case1: [
-      Expression<boolean, T, ConditionParam1>,
+      Expression<boolean | null, T, ConditionParam1>,
       Expression<ResultType1, T, ResultParam1>,
     ],
     case2: [
-      Expression<boolean, T, ConditionParam2>,
+      Expression<boolean | null, T, ConditionParam2>,
       Expression<ResultType2, T, ResultParam2>,
     ],
     case3: [
-      Expression<boolean, T, ConditionParam3>,
+      Expression<boolean | null, T, ConditionParam3>,
       Expression<ResultType3, T, ResultParam3>,
     ],
     case4: [
-      Expression<boolean, T, ConditionParam4>,
+      Expression<boolean | null, T, ConditionParam4>,
       Expression<ResultType4, T, ResultParam4>,
     ],
     caseElse?: Expression<ElseType, T, ElseParam>,

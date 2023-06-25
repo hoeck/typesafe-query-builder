@@ -19,9 +19,15 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
 
 // nullable column + param
 {
-  expectType<[boolean, { mid: number }]>(
-    expressionType(f.eq(Franchises.manufacturerId, 'mid')),
-  )
+  expectType<
+    [
+      // -> comparing against a nullable column may result in null
+      boolean | null,
+      // -> the inferred parameter is non-null because you cannot compare
+      //    against null using `=`
+      { mid: number },
+    ]
+  >(expressionType(f.eq(Franchises.manufacturerId, 'mid')))
 }
 
 // column (expression) + expression
@@ -47,8 +53,10 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
 {
   const nullable: Expression<number | null, any, {}> = 0 as any
 
-  expectType<[boolean, {}]>(expressionType(f.eq(f.literal(42), nullable)))
-  expectType<[boolean, {}]>(expressionType(f.eq(nullable, nullable)))
+  expectType<[boolean | null, {}]>(
+    expressionType(f.eq(f.literal(42), nullable)),
+  )
+  expectType<[boolean | null, {}]>(expressionType(f.eq(nullable, nullable)))
 }
 
 // param + expression / expression + param
@@ -63,7 +71,7 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
 
 // expression + uncorrelated subquery
 {
-  expectType<[boolean, { name: string }]>(
+  expectType<[boolean | null, { name: string }]>(
     expressionType(
       f.eq(
         Franchises.manufacturerId,
@@ -116,7 +124,13 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
       f
         .subquery(Manufacturers)
         .select(Manufacturers.include('name'))
-        .where((d) => d.eq(Manufacturers.id, Systems.id)), // non-correlated table
+        .where((d) =>
+          d.eq(
+            Manufacturers.id,
+            // non-correlated table
+            Systems.id,
+          ),
+        ),
     ),
   )
 
@@ -126,7 +140,13 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
       f
         .subquery(Manufacturers)
         .select(Manufacturers.include('name'))
-        .where((d) => d.eq(Manufacturers.id, Franchises.name)), // invalid correlated column type
+        .where((d) =>
+          d.eq(
+            Manufacturers.id,
+            // invalid correlated column type
+            Franchises.name,
+          ),
+        ),
     ),
   )
 
@@ -136,7 +156,13 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
       f
         .subquery(Manufacturers)
         .select(Manufacturers.include('name'))
-        .where((d) => d.eq(Manufacturers.name, Franchises.id)), // invalid correlated column type
+        .where((d) =>
+          d.eq(
+            Manufacturers.name,
+            // invalid correlated column type
+            Franchises.id,
+          ),
+        ),
     ),
   )
 }

@@ -17,7 +17,10 @@ export type ComparableTypes = string | number | boolean | BigInt | Date | null
  */
 export type IsNullable<T> = null extends T ? T : never
 
-// for merging parameter types?
-export type Merge<A, B> = { [K in keyof A & keyof B]: A[K] | B[K] } & {
-  [K in Exclude<keyof A, keyof B>]: A[K]
-} & { [K in Exclude<keyof B, keyof A>]: B[K] }
+/**
+ * Used to emulate SQLs NULL propagation.
+ *
+ * For example, `a = b`, `a AND b` and many others will return null if a or b
+ * are null.
+ */
+export type PropagateNull<T> = T extends null ? null : never

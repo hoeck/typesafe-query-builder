@@ -54,7 +54,9 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
    * Use an Expression as the where clause.
    */
   where<P1 extends {}>(
-    e: (b: ExpressionFactory<T | C>) => Expression<boolean, T | C, P1, any>,
+    e: (
+      b: ExpressionFactory<T | C>,
+    ) => Expression<boolean | null, T | C, P1, any>,
   ): QueryBottom<T, P & P1, L, S, C>
 
   // SELECT

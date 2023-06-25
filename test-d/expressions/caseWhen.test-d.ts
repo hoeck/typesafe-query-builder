@@ -147,7 +147,8 @@ const f = new ExpressionFactory<
   // 4 cases + else
   expectType<
     [
-      boolean,
+      // `| null` because the `else` expression may resolve to null
+      boolean | null,
       {
         useId: boolean
         useName: boolean
@@ -183,7 +184,7 @@ const f = new ExpressionFactory<
   // 5 cases + else
   expectType<
     [
-      boolean,
+      boolean | null,
       {
         useId: boolean
         useName: boolean

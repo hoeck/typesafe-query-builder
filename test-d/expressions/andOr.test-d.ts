@@ -3,6 +3,10 @@ import { ExpressionFactory, TableType } from '../../src'
 import { Franchises } from '../helpers/classicGames'
 import { expressionType } from './helpers'
 
+/**
+ * `and` and `or` use the same interface in ExpressionFactory.
+ * So we only test `and` here.
+ */
 const f = new ExpressionFactory<TableType<typeof Franchises>>()
 
 {
@@ -46,6 +50,19 @@ const f = new ExpressionFactory<TableType<typeof Franchises>>()
   expectType<[boolean, { param: never }]>(
     expressionType(
       f.and(f.eq('param', f.literal(0)), f.eq('param', f.literal('foo'))),
+    ),
+  )
+}
+
+{
+  // null propagation
+  expectType<[boolean | null, { a: boolean | null }]>(
+    expressionType(f.and(f.param('a').type<boolean | null>())),
+  )
+
+  expectType<[boolean | null, { a: boolean; b: boolean | null }]>(
+    expressionType(
+      f.and(f.param('a').type<boolean>(), f.param('b').type<boolean | null>()),
     ),
   )
 }

@@ -17,7 +17,7 @@ export interface Query<T, P extends {}, C = never>
   ): {
     on: (
       joinCondition: (f: ExpressionFactory<T | T2>) => Expression<
-        boolean,
+        boolean | null,
         T | T2,
         // IMHO there is no need to have parameters in join conditions.
         // Not having them keeps the number of generic variables low.
@@ -36,7 +36,7 @@ export interface Query<T, P extends {}, C = never>
     on: (
       joinCondition: (
         f: ExpressionFactory<T | T2>,
-      ) => Expression<boolean, T | T2, {}>,
+      ) => Expression<boolean | null, T | T2, {}>,
     ) => Join2<T, T2, P & PJ, T2, C>
   }
 }
@@ -56,7 +56,7 @@ export interface Join2<T1, T2, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | TJ>,
-      ) => Expression<boolean, T1 | T2 | TJ, PJC>,
+      ) => Expression<boolean | null, T1 | T2 | TJ, PJC>,
     ) => Join3<T1, T2, TJ, P & PJ, L, C>
   }
 
@@ -70,7 +70,7 @@ export interface Join2<T1, T2, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | TJ>,
-      ) => Expression<boolean, T1 | T2 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | TJ, {}>,
     ) => Join3<T1, T2, TJ, P & PJ, L | TJ, C>
   }
 }
@@ -90,7 +90,7 @@ export interface Join3<T1, T2, T3, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | TJ, {}>,
     ) => Join4<T1, T2, T3, TJ, P & PJ, L, C>
   }
 
@@ -104,7 +104,7 @@ export interface Join3<T1, T2, T3, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | TJ, {}>,
     ) => Join4<T1, T2, T3, TJ, P & PJ, L | TJ, C>
   }
 }
@@ -124,7 +124,7 @@ export interface Join4<T1, T2, T3, T4, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | T4 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | T4 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | T4 | TJ, {}>,
     ) => Join5<T1, T2, T3, T4, TJ, P & PJ, L, C>
   }
 
@@ -138,7 +138,7 @@ export interface Join4<T1, T2, T3, T4, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | T4 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | T4 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | T4 | TJ, {}>,
     ) => Join5<T1, T2, T3, T4, TJ, P & PJ, L | TJ, C>
   }
 }
@@ -163,7 +163,7 @@ export interface Join5<T1, T2, T3, T4, T5, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | T4 | T5 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | T4 | T5 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | T4 | T5 | TJ, {}>,
     ) => Join6<T1, T2, T3, T4, T5, TJ, P & PJ, L, C>
   }
 
@@ -182,7 +182,7 @@ export interface Join5<T1, T2, T3, T4, T5, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | T4 | T5 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | T4 | T5 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | T4 | T5 | TJ, {}>,
     ) => Join6<T1, T2, T3, T4, T5, TJ, P & PJ, L | TJ, C>
   }
 }
@@ -208,7 +208,7 @@ export interface Join6<T1, T2, T3, T4, T5, T6, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | T4 | T5 | T6 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | T4 | T5 | T6 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | T4 | T5 | T6 | TJ, {}>,
     ) => Join7<T1, T2, T3, T4, T5, T6, TJ, P & PJ, L, C>
   }
 
@@ -228,7 +228,7 @@ export interface Join6<T1, T2, T3, T4, T5, T6, P extends {}, L, C>
     on: (
       joinCondition: (
         f: ExpressionFactory<T1 | T2 | T3 | T4 | T5 | T6 | TJ>,
-      ) => Expression<boolean, T1 | T2 | T3 | T4 | T5 | T6 | TJ, {}>,
+      ) => Expression<boolean | null, T1 | T2 | T3 | T4 | T5 | T6 | TJ, {}>,
     ) => Join7<T1, T2, T3, T4, T5, T6, TJ, P & PJ, L | TJ, C>
   }
 }
