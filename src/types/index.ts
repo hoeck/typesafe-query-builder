@@ -1,4 +1,4 @@
-export {
+export type {
   Expression,
   ExpressionAlias,
   ExpressionFactory,
@@ -6,8 +6,14 @@ export {
   ExpressionTable,
   ExpressionType,
 } from './expression'
-export { DatabaseClient, LockMode, Query, QueryRoot, ResultType } from './query'
-export {
+export type {
+  DatabaseClient,
+  LockMode,
+  Query,
+  QueryRoot,
+  ResultType,
+} from './query'
+export type {
   Column,
   ColumnConstructor,
   DatabaseTable,
@@ -20,4 +26,5 @@ export {
   TableRowInsert,
   TableType,
   TableTypeWithDefaults,
+  TableUnionConstructor,
 } from './table'

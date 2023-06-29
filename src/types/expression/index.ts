@@ -1,10 +1,10 @@
 // export Expression for end-users only, expression will be directly imported
 // by query and table to avoid broad circular imports
-export {
+export type {
   Expression,
   ExpressionAlias,
   ExpressionParameter,
   ExpressionTable,
   ExpressionType,
 } from './expression'
-export { ExpressionFactory } from './expressionFactory'
+export type { ExpressionFactory } from './expressionFactory'

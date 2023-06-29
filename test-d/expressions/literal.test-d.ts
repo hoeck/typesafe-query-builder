@@ -1,9 +1,9 @@
 import { expectError, expectType } from 'tsd'
-import { ExpressionFactory, TableType } from '../../src'
-import { Franchises, Systems } from '../helpers/classicGames'
+import { TableType, expressionFactory } from '../../src'
+import { Franchises } from '../helpers/classicGames'
 import { expressionType } from './helpers'
 
-const f = new ExpressionFactory<TableType<typeof Franchises>>()
+const f = expressionFactory<TableType<typeof Franchises>>()
 
 {
   // literal types are widened to their bases

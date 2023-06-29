@@ -7,6 +7,7 @@ import {
   Table,
   TableName,
   TableConstructor,
+  TableUnionConstructor,
 } from '../types'
 import { assert, assertFail, assertNever } from '../utils'
 import { ColumnImplementation, getColumnImplementation } from './columns'
@@ -605,19 +606,26 @@ export class TableImplementation {
 /**
  * Define a relation consisting of typed columns.
  */
-export const table: TableConstructor = (tableName, columns) => {
-  // remove type info from columns to access their private attributes
-  const columnImplementations: { [key: string]: ColumnImplementation } = {}
+export const table: TableConstructor = Object.assign(
+  (tableName: string, columns: Record<string, Column<any>>) => {
+    // remove type info from columns to access their private attributes
+    const columnImplementations: { [key: string]: ColumnImplementation } = {}
 
-  Object.keys(columns).forEach((k) => {
-    columnImplementations[k] = getColumnImplementation((columns as any)[k])
-  })
+    Object.keys(columns).forEach((k) => {
+      columnImplementations[k] = getColumnImplementation((columns as any)[k])
+    })
 
-  return new TableImplementation(
-    tableName,
-    columnImplementations,
-  ).getTableProxy() as any
-}
+    return new TableImplementation(
+      tableName,
+      columnImplementations,
+    ).getTableProxy() as any
+  },
+  {
+    discriminatedUnion: (...tables: any[]) => {
+      return 0 as any
+    },
+  },
+)
 
 /**
  * Reach into the table internals.

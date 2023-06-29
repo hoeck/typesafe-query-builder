@@ -21,10 +21,28 @@ export type ResultType<T> = T extends QueryBottom<any, any, any, infer S, any>
 /**
  * Helper type for selected column / subqueries
  */
-
 type JoinedSelection<T, L, S> = T extends L
   ? Nullable<S> // left joined columns may be null
   : S
+
+/**
+ * Narrow discriminated union to a specific subtype.
+ *
+ * Basically the type equivalent of:
+ *
+ *   if (u[k] === 'type-a') {
+ *     // u is now narrowed to type-a
+ *   }
+ */
+type NarrowDiscriminatedUnion<
+  U,
+  K extends keyof U,
+  L extends U[K],
+> = U extends {
+  [Key in K]: L
+}
+  ? U
+  : never
 
 /**
  * Building that part of a query which comes after the joins.
@@ -103,6 +121,37 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
     direction?: 'asc' | 'desc',
     nulls?: 'nullsFirst' | 'nullsLast',
   ): QueryBottom<T, P, L, S, C>
+
+  /**
+   * Discriminated union support
+   *
+   * Perform `select`s and `where`s against the table pretending that it
+   * only consists the narrowed type.
+   * Compiles down to sql using `case when` statements over `Key`.
+   *
+   * Create Discriminated Tables with `table.discriminatedUnion`.
+
+   * Warning: Typings are a bit sloppy - not everthing that typechecks will
+   * actually work in practice:
+   *
+   * - apply `.join`s to the query before using narrow, inside a narrowed
+   *   query, joins are not supported
+   * - non-discriminated select must appear after narrow
+   */
+  narrow<
+    Key extends keyof T,
+    Vals extends T[Key],
+    NarrowedTable extends NarrowDiscriminatedUnion<T, Key, Vals>,
+    P1 extends {},
+    S1,
+  >(
+    key: Key,
+    values: Vals | Vals[],
+    cb: (
+      q: QueryBottom<NarrowedTable, P, L, {}, C>,
+      t: Table<NarrowedTable, {}>,
+    ) => QueryBottom<NarrowedTable, P1, L, S1, C>,
+  ): QueryBottom<T, P & P1, L, {} extends S ? S1 : S | S1, C>
 
   /**
    * Append an SQL LIMIT clause to the query.

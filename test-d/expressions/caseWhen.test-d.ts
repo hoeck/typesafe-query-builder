@@ -1,9 +1,9 @@
-import { expectError, expectType, expectAssignable } from 'tsd'
-import { ExpressionFactory, TableType } from '../../src'
+import { expectError, expectType } from 'tsd'
+import { TableType, expressionFactory } from '../../src'
 import { Franchises, Manufacturers } from '../helpers/classicGames'
 import { expressionType } from './helpers'
 
-const f = new ExpressionFactory<
+const f = expressionFactory<
   TableType<typeof Franchises> | TableType<typeof Manufacturers>
 >()
 

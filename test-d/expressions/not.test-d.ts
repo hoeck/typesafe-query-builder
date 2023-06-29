@@ -1,10 +1,10 @@
 import { expectError, expectType } from 'tsd'
-import { ExpressionFactory, TableType } from '../../src'
+import { TableType, expressionFactory } from '../../src'
 import { GamesSystems, Systems } from '../helpers/classicGames'
 import { expressionType } from './helpers'
 
-const f = new ExpressionFactory<TableType<typeof GamesSystems>>()
-const g = new ExpressionFactory<TableType<typeof Systems>>()
+const f = expressionFactory<TableType<typeof GamesSystems>>()
+const g = expressionFactory<TableType<typeof Systems>>()
 
 {
   // param

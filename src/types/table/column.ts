@@ -84,47 +84,14 @@ export declare class Column<T> {
   json<J>(validator: (data: unknown) => J): Column<J>
 
   /**
-   * Map a string union to a
+   * Literal type or literal union type.
    *
-   * postgres types: TEXT, VARCHAR
+   * Use a string / number literal union in place of an enum.
+   * Use a single string / number literal as type tags in discriminated unions.
    */
-  stringUnion<A extends string>(a: A): Column<A>
-  stringUnion<A extends string, B extends string>(a: A, b: B): Column<A | B>
-  stringUnion<A extends string, B extends string, C extends string>(
-    a: A,
-    b: B,
-    c: C,
-  ): Column<A | B | C>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-  >(a: A, b: B, c: C, d: D): Column<A | B | C | D>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-    E extends string,
-  >(a: A, b: B, c: C, d: D, e: E): Column<A | B | C | D | E>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-    E extends string,
-    F extends string,
-  >(a: A, b: B, c: C, d: D, e: E, f: F): Column<A | B | C | D | E | F>
-  stringUnion<
-    A extends string,
-    B extends string,
-    C extends string,
-    D extends string,
-    E extends string,
-    F extends string,
-    G extends string,
-  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G): Column<A | B | C | D | E | F | G>
+  literal<A extends string[] | number[] | boolean[] | bigint[]>(
+    ...values: A
+  ): Column<A[number]>
 
   enum<T extends EnumObject, S extends keyof T>(enumObject: T): Column<T[S]>
 }

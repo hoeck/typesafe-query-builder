@@ -1,7 +1,5 @@
 import { table, column as col } from '../../src'
 
-// improved test data increase reasoning about it
-
 export const Manufacturers = table('classicgames.manufacturers', {
   id: col('id').integer().primary().default(),
   name: col('name').string(),
@@ -56,3 +54,54 @@ export const GamesSystems = table('classicgames.games_systems', {
   releaseDate: col('release_date').date().null(),
   played: col('played').boolean().default(),
 })
+
+const accessoriesCommonColumns = {
+  id: col('id').integer().default(),
+  systemId: col('system_id').integer(),
+  name: col('name').string(),
+}
+
+export const Accessories = table.discriminatedUnion(
+  table('accessories', {
+    ...accessoriesCommonColumns,
+    type: col('type').literal('gamepad'),
+    buttonCount: col('button_count').integer(),
+  }),
+  table('accessories', {
+    ...accessoriesCommonColumns,
+    type: col('type').literal('lightgun'),
+  }),
+  table('accessories', {
+    ...accessoriesCommonColumns,
+    type: col('type').literal('joystick'),
+  }),
+  table('accessories', {
+    ...accessoriesCommonColumns,
+    type: col('type').literal('paddle'),
+  }),
+)
+
+const devicesCommonColumns = {
+  id: col('id').integer().default(),
+  name: col('name').string(),
+}
+
+export const Devices = table.discriminatedUnion(
+  table('devices', {
+    ...devicesCommonColumns,
+    type: col('type').literal('console'),
+    systemId: col('system_id').integer(),
+    revision: col('revision').integer().null(),
+  }),
+  table('devices', {
+    ...devicesCommonColumns,
+    type: col('type').literal('dedicatedConsole'),
+    systemId: col('system_id').integer(),
+    gamesCount: col('gamesCount').integer(),
+  }),
+  table('devices', {
+    ...devicesCommonColumns,
+    type: col('type').literal('emulator'),
+    url: col('url').string(),
+  }),
+)

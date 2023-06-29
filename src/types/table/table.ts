@@ -264,4 +264,99 @@ export interface TableConstructor {
           : never
       }[keyof T]
     >
+
+  discriminatedUnion: TableUnionConstructor
+}
+
+/**
+ * Create a table that describes a discriminated union.
+ *
+ * Use a table definition for each union member.
+ * When writing queries, use `narrow` to only select or filter using columns
+ * that are valid for a specific union member.
+ *
+ * The real database table will contain all columns of all members. Columns
+ * that do appear in all union members may be not null. Other columns must be
+ * null.
+ * The query builder will manage splitting the query over the union members
+ * and will mangle the resultset so that each union only contains columns it
+ * uses.
+ */
+export interface TableUnionConstructor {
+  <T0, D0>(t0: Table<T0, {}> & DatabaseTableDefaultColumns<D0>): Table<T0, {}> &
+    DatabaseTableDefaultColumns<D0>
+
+  <T0, T1, D0, D1>(
+    t0: Table<T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<T1, {}> & DatabaseTableDefaultColumns<D1>,
+  ): Table<T0 | T1, {}> & DatabaseTableDefaultColumns<D0 | D1>
+
+  <N, T0, T1, T2, D0, D1, D2>(
+    t0: Table<TableName<N> & T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<TableName<N> & T1, {}> & DatabaseTableDefaultColumns<D1>,
+    t2: Table<TableName<N> & T2, {}> & DatabaseTableDefaultColumns<D2>,
+  ): Table<T0 | T1 | T2, {}> & DatabaseTableDefaultColumns<D0 | D1 | D2>
+
+  <N, T0, T1, T2, T3, D0, D1, D2, D3>(
+    t0: Table<TableName<N> & T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<TableName<N> & T1, {}> & DatabaseTableDefaultColumns<D1>,
+    t2: Table<TableName<N> & T2, {}> & DatabaseTableDefaultColumns<D2>,
+    t3: Table<TableName<N> & T3, {}> & DatabaseTableDefaultColumns<D3>,
+  ): Table<T0 | T1 | T2 | T3, {}> &
+    DatabaseTableDefaultColumns<D0 | D1 | D2 | D3>
+
+  <N, T0, T1, T2, T3, T4, D0, D1, D2, D3, D4>(
+    t0: Table<TableName<N> & T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<TableName<N> & T1, {}> & DatabaseTableDefaultColumns<D1>,
+    t2: Table<TableName<N> & T2, {}> & DatabaseTableDefaultColumns<D2>,
+    t3: Table<TableName<N> & T3, {}> & DatabaseTableDefaultColumns<D3>,
+    t4: Table<TableName<N> & T4, {}> & DatabaseTableDefaultColumns<D4>,
+  ): Table<T0 | T1 | T2 | T3 | T4, {}> &
+    DatabaseTableDefaultColumns<D0 | D1 | D2 | D3 | D4>
+
+  <N, T0, T1, T2, T3, T4, T5, D0, D1, D2, D3, D4, D5>(
+    t0: Table<TableName<N> & T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<TableName<N> & T1, {}> & DatabaseTableDefaultColumns<D1>,
+    t2: Table<TableName<N> & T2, {}> & DatabaseTableDefaultColumns<D2>,
+    t3: Table<TableName<N> & T3, {}> & DatabaseTableDefaultColumns<D3>,
+    t4: Table<TableName<N> & T4, {}> & DatabaseTableDefaultColumns<D4>,
+    t5: Table<TableName<N> & T5, {}> & DatabaseTableDefaultColumns<D5>,
+  ): Table<T0 | T1 | T2 | T3 | T4 | T5, {}> &
+    DatabaseTableDefaultColumns<D0 | D1 | D2 | D3 | D4 | D5>
+
+  <N, T0, T1, T2, T3, T4, T5, T6, D0, D1, D2, D3, D4, D5, D6>(
+    t0: Table<TableName<N> & T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<TableName<N> & T1, {}> & DatabaseTableDefaultColumns<D1>,
+    t2: Table<TableName<N> & T2, {}> & DatabaseTableDefaultColumns<D2>,
+    t3: Table<TableName<N> & T3, {}> & DatabaseTableDefaultColumns<D3>,
+    t4: Table<TableName<N> & T4, {}> & DatabaseTableDefaultColumns<D4>,
+    t5: Table<TableName<N> & T5, {}> & DatabaseTableDefaultColumns<D5>,
+    t6: Table<TableName<N> & T6, {}> & DatabaseTableDefaultColumns<D6>,
+  ): Table<T0 | T1 | T2 | T3 | T4 | T5 | T6, {}> &
+    DatabaseTableDefaultColumns<D0 | D1 | D2 | D3 | D4 | D5 | D6>
+
+  <N, T0, T1, T2, T3, T4, T5, T6, T7, D0, D1, D2, D3, D4, D5, D6, D7>(
+    t0: Table<TableName<N> & T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<TableName<N> & T1, {}> & DatabaseTableDefaultColumns<D1>,
+    t2: Table<TableName<N> & T2, {}> & DatabaseTableDefaultColumns<D2>,
+    t3: Table<TableName<N> & T3, {}> & DatabaseTableDefaultColumns<D3>,
+    t4: Table<TableName<N> & T4, {}> & DatabaseTableDefaultColumns<D4>,
+    t5: Table<TableName<N> & T5, {}> & DatabaseTableDefaultColumns<D5>,
+    t6: Table<TableName<N> & T6, {}> & DatabaseTableDefaultColumns<D6>,
+    t7: Table<TableName<N> & T7, {}> & DatabaseTableDefaultColumns<D7>,
+  ): Table<T0 | T1 | T2 | T3 | T4 | T5 | T6 | T7, {}> &
+    DatabaseTableDefaultColumns<D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7>
+
+  <N, T0, T1, T2, T3, T4, T5, T6, T7, T8, D0, D1, D2, D3, D4, D5, D6, D7, D8>(
+    t0: Table<TableName<N> & T0, {}> & DatabaseTableDefaultColumns<D0>,
+    t1: Table<TableName<N> & T1, {}> & DatabaseTableDefaultColumns<D1>,
+    t2: Table<TableName<N> & T2, {}> & DatabaseTableDefaultColumns<D2>,
+    t3: Table<TableName<N> & T3, {}> & DatabaseTableDefaultColumns<D3>,
+    t4: Table<TableName<N> & T4, {}> & DatabaseTableDefaultColumns<D4>,
+    t5: Table<TableName<N> & T5, {}> & DatabaseTableDefaultColumns<D5>,
+    t6: Table<TableName<N> & T6, {}> & DatabaseTableDefaultColumns<D6>,
+    t7: Table<TableName<N> & T7, {}> & DatabaseTableDefaultColumns<D7>,
+    t8: Table<TableName<N> & T8, {}> & DatabaseTableDefaultColumns<D8>,
+  ): Table<T0 | T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, {}> &
+    DatabaseTableDefaultColumns<D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8>
 }

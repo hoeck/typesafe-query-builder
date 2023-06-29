@@ -1,2 +1,2 @@
-export * from './table'
-export * from './column'
+export type * from './column'
+export type * from './table'
