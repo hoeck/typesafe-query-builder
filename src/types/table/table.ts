@@ -1,5 +1,5 @@
-import { AssertHasSingleKey, SetOptional } from '../helpers'
-import { Expression, ExpressionType } from '../expression/expression'
+import { Expression } from '../expression/expression'
+import { AssertHasSingleKey } from '../helpers'
 import { Column, DefaultValue } from './column'
 
 // // mapped helper type from SO:
@@ -22,6 +22,9 @@ export declare class TableName<N> {
   private _typesafeQueryBuilerTableName_: N
 }
 
+/**
+ * Get rid of the _typesafeQueryBuilerTableName_ property on T.
+ */
 export type RemoveTableName<T> = { [K in keyof T]: T[K] }
 
 /**
@@ -61,11 +64,33 @@ declare class DatabaseTableDefaultColumns<T> {
  */
 export type DatabaseTable<T, D> = Table<T, {}> & DatabaseTableDefaultColumns<D>
 
+/**
+ * Get the name of a Table.
+ */
 export type ExtractTableName<T> = T extends Table<infer C, any>
   ? C extends TableName<infer N>
     ? N
     : never
   : never
+
+// set optional helper
+type SetOptionalRaw<T, D extends string> = Omit<T, D> &
+  Partial<Pick<T, Extract<D, keyof T>>>
+
+/**
+ * Set all keys D in T as optional.
+ */
+export type SetOptional<T, K extends string> =
+  // by wrapping setoptionalraw in a condition it distributes over unions so
+  // we reach discriminated union support
+  T extends any ? SetOptional<T, K> : never
+
+/**
+ * Set all keys D in T to also accept a DefaultValue.
+ */
+export type SetDefault<T, D extends string> = {
+  [K in keyof T]: K extends D ? T[K] | DefaultValue : T[K]
+}
 
 /**
  * The row type of a table (sans the table name)
@@ -82,7 +107,34 @@ export type TableRow<T> = T extends Table<infer C, any>
  */
 export type TableRowInsert<X> = X extends DatabaseTable<infer T, infer D>
   ? D extends string
-    ? SetOptional<T, D>
+    ? SetDefault<T, D>
+    : T
+  : never
+
+/**
+ * Like `TableRowInsert` but with optional instead of required defaults.
+ */
+// export type TableRowInsertOptional<X> = X extends DatabaseTable<
+//   infer T,
+//   infer D
+// >
+//   ? D extends string
+//     ? SetOptionalRaw<T, D>
+//     : T
+//   : never
+export type TableRowInsertOptional<X> = X extends DatabaseTable<
+  infer T,
+  infer D
+>
+  ? D extends string
+    ? // The following is SetOptional<T, D> but expanded manually because
+      // otherwise typescript fails to resolve this complaining with:
+      // "Type instantiation is excessively deep and possibly infinite."
+      // `T extends any` is required so that the default-partial is applied over
+      // union table types.
+      T extends any
+      ? Omit<T, D> & Partial<Pick<T, Extract<D, keyof T>>>
+      : never
     : T
   : never
 

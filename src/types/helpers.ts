@@ -44,12 +44,6 @@ export type SingleSelectionKey<T> = keyof T extends never
   : keyof T
 
 /**
- * Set all keys D in interface T as optional.
- */
-export type SetOptional<T, D extends string> = Omit<T, D> &
-  Partial<Pick<T, Extract<D, keyof T>>>
-
-/**
  * Like Partial<T> but with null instead of optional.
  */
 export type Nullable<T> = { [K in keyof T]: T[K] | null }

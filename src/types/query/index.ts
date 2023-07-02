@@ -1,5 +1,7 @@
 export * from './databaseClient'
 export * from './delete'
+export * from './insert'
+export * from './insertStatement'
 export * from './joins'
 export * from './queryBottom'
 export * from './queryRoot'

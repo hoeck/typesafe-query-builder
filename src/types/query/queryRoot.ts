@@ -1,7 +1,8 @@
-import { SetOptional } from '../helpers'
-import { DatabaseTable, Selection, Table } from '../table'
+import { DatabaseTable, DefaultValue, Table } from '../table'
 import { DatabaseClient } from './databaseClient'
 import { Delete } from './delete'
+import { InsertIntoConstructor } from './insert'
+import { InsertStatementConstructor } from './insertStatement'
 import { Query } from './joins'
 import { QueryBottom } from './queryBottom'
 import { Update } from './update'
@@ -181,41 +182,13 @@ export interface QueryRoot {
     q6: QueryBottom<any, P6, any, S>,
   ): QueryBottom<any, P0 & P1 & P2 & P3 & P4 & P5 & P6, any, S>
 
-  /**
-   * No-fuzz insert of a single row.
-   *
-   * `insertOne` is separate (not overloaded) from `insertMany` to get more
-   * readable Typescript errors in case `data` is of the wrong type.
-   */
-  insertOne<T, D extends string>(
-    client: DatabaseClient,
-    databaseTable: DatabaseTable<T, D>,
-    data: SetOptional<T, D>,
-  ): Promise<void>
-  insertOne<T, D extends string, S>(
-    client: DatabaseClient,
-    databaseTable: DatabaseTable<T, D>,
-    data: SetOptional<T, D>,
-    returning: Selection<T, {}, S>,
-  ): Promise<S>
+  insertInto: InsertIntoConstructor
+  insertStatement: InsertStatementConstructor
 
   /**
-   * No-fuzz insert of many rows.
-   *
-   * `insertMany` is separate (not overloaded) from `insertOne` to get more
-   * readable Typescript errors in case `data` is of the wrong type.
+   * Marker for default values in inserts.
    */
-  insertMany<T, D extends string>(
-    client: DatabaseClient,
-    databaseTable: DatabaseTable<T, D>,
-    data: SetOptional<T, D>[],
-  ): Promise<void>
-  insertMany<T, D extends string, S>(
-    client: DatabaseClient,
-    databaseTable: DatabaseTable<T, D>,
-    data: SetOptional<T, D>[],
-    returning: Selection<T, {}, S>,
-  ): Promise<S[]>
+  DEFAULT: DefaultValue
 
   /**
    * SQL update expression.

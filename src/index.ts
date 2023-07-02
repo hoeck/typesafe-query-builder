@@ -17,6 +17,7 @@ export type {
   Table,
   TableRow,
   TableRowInsert,
+  TableRowInsertOptional,
   TableType,
   TableTypeWithDefaults,
 } from './types'

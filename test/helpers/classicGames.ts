@@ -55,32 +55,6 @@ export const GamesSystems = table('classicgames.games_systems', {
   played: col('played').boolean().default(),
 })
 
-const accessoriesCommonColumns = {
-  id: col('id').integer().default(),
-  systemId: col('system_id').integer(),
-  name: col('name').string(),
-}
-
-export const Accessories = table.discriminatedUnion(
-  table('accessories', {
-    ...accessoriesCommonColumns,
-    type: col('type').literal('gamepad'),
-    buttonCount: col('button_count').integer(),
-  }),
-  table('accessories', {
-    ...accessoriesCommonColumns,
-    type: col('type').literal('lightgun'),
-  }),
-  table('accessories', {
-    ...accessoriesCommonColumns,
-    type: col('type').literal('joystick'),
-  }),
-  table('accessories', {
-    ...accessoriesCommonColumns,
-    type: col('type').literal('paddle'),
-  }),
-)
-
 const devicesCommonColumns = {
   id: col('id').integer().default(),
   name: col('name').string(),

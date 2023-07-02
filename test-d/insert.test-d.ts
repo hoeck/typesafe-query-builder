@@ -1,101 +1,174 @@
 import { expectError, expectType } from 'tsd'
 import { query } from '../src'
 import { client } from './helpers'
-import { Games, Manufacturers } from './helpers/classicGames'
+import {
+  Games,
+  Manufacturers,
+  GamesSystems,
+  Devices,
+} from './helpers/classicGames'
 
 const insertTests = (async () => {
   // basic single insert
   expectType<void>(
-    await query.insertOne(client, Manufacturers, {
-      name: 'SNK',
-      country: 'Japan',
-    }),
+    await query
+      .insertInto(Manufacturers)
+      .value({
+        id: query.DEFAULT,
+        name: 'SNK',
+        country: 'Japan',
+      })
+      .execute(client),
   )
 
   // returning + default values
   expectType<{
     id: number
   }>(
-    await query.insertOne(
-      client,
-      Manufacturers,
-      {
+    await query
+      .insertInto(Manufacturers)
+      .value({
         id: 32,
         name: 'SNK',
         country: 'Japan',
-      },
-      Manufacturers.include('id'),
-    ),
+      })
+      .returning(Manufacturers.include('id'))
+      .execute(client),
   )
 
   // invalid column
   expectError(
-    await query.insertOne(client, Manufacturers, {
-      wrongColumn: 'foo',
-      name: 'SNK',
-      country: 'Japan',
-    }),
+    await query
+      .insertInto(Manufacturers)
+      .value({
+        id: query.DEFAULT,
+        wrongColumn: 'foo',
+        name: 'SNK',
+        country: 'Japan',
+      })
+      .execute(client),
   )
 
   // missing required col
   expectError(
-    await query.insertOne(client, Manufacturers, {
-      country: 'Japan',
-    }),
+    await query
+      .insertInto(Manufacturers)
+      .value({
+        id: query.DEFAULT,
+        country: 'Japan',
+      })
+      .execute(client),
   )
 
   // invalid returning
   expectError(
-    await query.insertOne(
-      client,
-      Manufacturers,
-      {
+    await query
+      .insertInto(Manufacturers)
+      .value({
+        id: query.DEFAULT,
         name: 'SNK',
         country: 'Japan',
-      },
-      Games.include('id'),
-    ),
+      })
+      .returning(Games.include('id'))
+      .execute(client),
+  )
+
+  // single row discriminated union insert
+  expectType<{ id: number }>(
+    await query
+      .insertInto(Devices)
+      .value({
+        id: query.DEFAULT,
+        type: 'emulator',
+        name: 'Kega Fusion',
+        url: 'https://www.carpeludum.com/kega-fusion',
+      })
+      .returning(Devices.include('id'))
+      .execute(client),
   )
 
   // multiple rows insert
   expectType<void>(
-    await query.insertMany(client, Manufacturers, [
-      {
-        name: 'SNK',
-        country: 'Japan',
-      },
-    ]),
+    await query
+      .insertInto(Manufacturers)
+      .values([
+        {
+          id: query.DEFAULT,
+          name: 'SNK',
+          country: 'Japan',
+        },
+      ])
+      .execute(client),
   )
 
   // with returning
   expectType<{ id: number }[]>(
-    await query.insertMany(
-      client,
-      Manufacturers,
-      [
+    await query
+      .insertInto(Manufacturers)
+      .values([
         {
+          id: query.DEFAULT,
           name: 'SNK',
           country: 'Japan',
         },
-      ],
-      Manufacturers.include('id'),
-    ),
+      ])
+      .returning(Manufacturers.include('id'))
+      .execute(client),
   )
 
-  // input: a tree:
-  //
-  // const games = [{title: 'Sonic 2', systemIds: [1,2,3]}, {title: 'Sonic and Knuckles', systemIds: [2]}]
-  //
-  // output:
+  // related / nested inserts
+  const games = [
+    { title: 'Sonic 2', systemIds: [1, 2, 3] },
+    { title: 'Sonic and Knuckles', systemIds: [2] },
+  ]
+
+  await query
+    .insertStatement(({ addInsertInto, addReturnValue }) => {
+      games.forEach((g) => {
+        const { id: gameId } = addInsertInto(Games)
+          .value({
+            id: query.DEFAULT,
+            franchiseId: null,
+            urls: null,
+            title: g.title,
+          })
+          .returning(Games.include('id'))
+
+        addReturnValue({ gameId })
+
+        g.systemIds.forEach((systemId) => {
+          addInsertInto(GamesSystems).value({
+            played: query.DEFAULT,
+            releaseDate: null,
+            gameId,
+            systemId,
+          })
+        })
+      })
+    })
+    .execute(client)
+
+  // creates the following sql:
   //
   // WITH
   //   game_1 AS (INSERT INTO games VALUES ('sonic 2') RETURNING id),
-  //   game_2 AS (INSERT INTO games VALUES ('s & kn') RETURNING id)
   //   syst_1 AS (INSERT INTO games_systesm VALUES (game_1, 1)) RETURNING game_id,
   //   syst_2 AS (INSERT INTO games_systesm VALUES (game_1, 2)) RETURNING game_id,
   //   syst_3 AS (INSERT INTO games_systesm VALUES (game_1, 3)) RETURNING game_id,
+  //   game_2 AS (INSERT INTO games VALUES ('s & kn') RETURNING id)
   //   syst_4 AS (INSERT INTO games_systesm VALUES (game_2, 2)) RETURNING game_id
   // SELECT (select id from game_1 limit 1),(select id from game_2 limit 1)
+
+  /*
+
+    WITH
+      game_1 AS (INSERT INTO classicgames.games (title) VALUES ('sonic 2') RETURNING id),
+      games_systems_1 AS (INSERT INTO classicgames.games_systems (game_id, system_id) VALUES ((SELECT id FROM game_1), 2) RETURNING game_id, system_id)
+    SELECT row_to_json(game_1) FROM game_1
+    UNION ALL
+    SELECT row_to_json(games_systems_1) FROM games_systems_1;
+
+      */
 
   // ideas:
   //

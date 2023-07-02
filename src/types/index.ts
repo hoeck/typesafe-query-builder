@@ -8,6 +8,8 @@ export type {
 } from './expression'
 export type {
   DatabaseClient,
+  InsertIntoConstructor,
+  InsertStatementConstructor,
   LockMode,
   Query,
   QueryRoot,
@@ -24,6 +26,7 @@ export type {
   TableName,
   TableRow,
   TableRowInsert,
+  TableRowInsertOptional,
   TableType,
   TableTypeWithDefaults,
   TableUnionConstructor,
