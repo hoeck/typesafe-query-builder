@@ -1,77 +1,38 @@
 import { expectError, expectType } from 'tsd'
-import { DatabaseClient, query } from '../src'
-import { Games, Manufacturers, Systems } from './helpers/classicGames'
+import { query } from '../src'
+import { Delete } from '../src/types'
 import { client } from './helpers'
+import { Devices, Systems } from './helpers/classicGames'
 
-// const deleteTests = (async () => {
-//   // basic use
-//   expectType<void>(
-//     await query
-//       .delete(Systems)
-//       .whereEq(Systems.id, 'id')
-//       .execute(client, { id: 1 }),
-//   )
-//
-//   expectError(
-//     await query
-//       .delete(Systems)
-//       .whereEq(Systems.id, 'id')
-//       // invalid param
-//       .execute(client, { id: '1' }),
-//   )
-//
-//   expectError(
-//     await query
-//       .delete(Systems)
-//       // invalid table
-//       .whereEq(Games.id, 'id')
-//       .execute(client, { id: 1 }),
-//   )
-//
-//   // returning
-//   expectType<
-//     {
-//       id: number
-//       name: string
-//     }[]
-//   >(
-//     await query
-//       .delete(Systems)
-//       .whereEq(Systems.id, 'id')
-//       .returning(Systems.include('id', 'name'))
-//       .execute(client, { id: 1 }),
-//   )
-//
-//   expectError(
-//     await query
-//       .delete(Systems)
-//       .whereEq(Systems.id, 'id')
-//       // wrong table
-//       .returning(Manufacturers.include('id'))
-//       .execute(client, { id: 1 }),
-//   )
-//
-//   // whereIn
-//   expectType<void>(
-//     await query
-//       .delete(Systems)
-//       .whereIn(Systems.id, 'systemIds')
-//       .execute(client, { systemIds: [1, 2, 3] }),
-//   )
-//
-//   expectError(
-//     await query
-//       .delete(Systems)
-//       .whereIn(Systems.id, 'systemIds')
-//       // wrong param
-//       .execute(client, {}),
-//   )
-//
-//   expectError(
-//     await query
-//       .delete(Systems)
-//       .whereIn(Systems.id, 'systemIds')
-//       // wrong param
-//       .execute(client, { systemIds: [1, false] }),
-//   )
-// })()
+function deleteParams<X>(t: Delete<any, X, any>): X {
+  return {} as any
+}
+
+function deleteResult<X>(t: Delete<any, any, X>): X {
+  return {} as any
+}
+
+{
+  const q = query
+    .deleteFrom(Systems)
+    .where(({ eq }) => eq(Systems.id, 'id'))
+    .expectDeletedRowCount(1)
+
+  expectType<{ id: number }>(deleteParams(q))
+  expectType<{}>(deleteResult(q))
+  expectType<Promise<void>>(q.execute(client, { id: 1 }))
+
+  expectType<Promise<{ name: string; year: number }[]>>(
+    q.returning(Systems.include('name', 'year')).execute(client, { id: 1 }),
+  )
+
+  expectError(
+    query.deleteFrom(Systems).where(({ eq }) =>
+      eq(
+        // table not referenced in delete
+        Devices.id,
+        'id',
+      ),
+    ),
+  )
+}

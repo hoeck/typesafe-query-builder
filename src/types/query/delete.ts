@@ -1,48 +1,45 @@
+import { Expression, ExpressionFactory } from '../expression'
 import { Selection } from '../table'
-import { ComparableTypes } from '../expression/helpers'
 import { DatabaseClient } from './databaseClient'
 
 /**
  * SQL DELETE statement builder.
  */
-export declare class Delete<T, P = {}, S = void> {
-  protected __t: T
-  protected __p: P
-  protected __s: S
+export declare class Delete<T, P = {}, S = {}> {
+  protected __deleteTable: T
+  protected __deleteParams: P
+  protected __deleteReturning: S
 
-  // /**
-  //  * WHERE <COL> = <PARAM> condition for the delete.
-  //  *
-  //  * Multiple `where`s are `AND`ed together.
-  //  */
-  // whereEq<CP extends ComparableTypes, N extends string>(
-  //   col: TableColumn<T, any, CP>,
-  //   paramKey: N,
-  // ): Delete<T, P & { [K in N]: CP | AnyParam }, S>
-  //
-  // /**
-  //  * WHERE <COL> IN <PARAM-LIST> condition for the delete.
-  //  *
-  //  * Multiple `where`s are `AND`ed together.
-  //  */
-  // whereIn<CP extends ComparableTypes, K extends string>(
-  //   col: TableColumn<T, any, CP>,
-  //   paramKey: K,
-  // ): Delete<T, P & { [KK in K]: CP[] | AnyParam }, S>
-  //
-  // /**
-  //  * Explicitly set the Postgres RETURNING clause.
-  //  *
-  //  * By default, return everything.
-  //  */
-  // returning<S1>(selection: Selection<T, {}, S1>): Delete<T, P, S1>
+  /**
+   * Use an Expression as the where clause.
+   */
+  where<EP extends {}>(
+    e: (b: ExpressionFactory<T>) => Expression<boolean | null, T, EP, any>,
+  ): Delete<T, P & EP, S>
+
+  /**
+   * Raise an exception if the deleted row count differs from the expectation.
+   *
+   * Raising the exception will abort any pending transaction.
+   *
+   * Passing a single number to expect exactly that number of rows.
+   * Pass an object to define an *inclusive* range. If min or max are not
+   * specified, Infinity is assumed.
+   */
+  expectDeletedRowCount(exactCount: number): Delete<T, P, S>
+  expectDeletedRowCount(range: { min: number }): Delete<T, P, S>
+  expectDeletedRowCount(range: { max: number }): Delete<T, P, S>
+  expectDeletedRowCount(range: { min: number; max: number }): Delete<T, P, S>
+
+  /**
+   * Specify a RETURNING clause.
+   */
+  returning<S>(selection: Selection<T, {}, S>): Delete<T, P, S>
 
   /**
    * Perform the delete.
    */
-  execute(
-    //): Promise<S extends never ? void : S[]>
-    client: DatabaseClient,
-    params: P,
-  ): Promise<S extends void ? void : S[]>
+  execute: {} extends P
+    ? (client: DatabaseClient) => Promise<{} extends S ? void : S[]>
+    : (client: DatabaseClient, params: P) => Promise<{} extends S ? void : S[]>
 }

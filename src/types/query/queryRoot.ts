@@ -191,38 +191,12 @@ export interface QueryRoot {
   DEFAULT: DefaultValue
 
   /**
-   * SQL update expression.
+   * SQL UPDATE.
    */
   update<T>(table: DatabaseTable<T, any>): Update<T>
 
   /**
-   * Simple SQL update of many rows in one expression.
-   *
-   * Updates many rows at once, using an id column to identify records.
-   * Generates sth like:
-   *
-   *   UPDATE table t
-   *   SET (col_1, col_2) =
-   *     (SELECT col_1, col_2
-   *      FROM
-   *        (VALUES
-   *          (1,0,1),
-   *          (2,1,2)
-   *        ) AS v (id, col_1, col_2)
-   *      WHERE
-   *        t.id = v.id);
+   * SQL DELETE.
    */
-  updateMany<T, D, N extends keyof T>(
-    client: DatabaseClient,
-    params: {
-      table: DatabaseTable<T, D>
-      idColumn: N
-      data: (Pick<T, N> & Partial<Pick<T, Exclude<keyof T, N>>>)[]
-    },
-  ): Promise<void>
-
-  /**
-   * Delete rows.
-   */
-  delete<T, D>(table: DatabaseTable<T, D>): Delete<T>
+  deleteFrom<T, D>(table: DatabaseTable<T, D>): Delete<T>
 }

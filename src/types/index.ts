@@ -8,6 +8,7 @@ export type {
 } from './expression'
 export type {
   DatabaseClient,
+  Delete,
   InsertIntoConstructor,
   InsertStatementConstructor,
   LockMode,
