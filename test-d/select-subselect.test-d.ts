@@ -75,8 +75,7 @@ const client: DatabaseClient = {} as DatabaseClient
     )
     .select(({ subquery }) =>
       subquery(Games)
-        .join(Games, GamesSystems)
-        .on(({ eq }) => eq(Games.id, GamesSystems.gameId))
+        .join(GamesSystems, ({ eq }) => eq(Games.id, GamesSystems.gameId))
         .where(({ eq }) => eq(GamesSystems.systemId, Systems.id))
         .select(Games.include('title')),
     )

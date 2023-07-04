@@ -45,8 +45,9 @@ const selectTests = (async () => {
 
   expectType<{ name: string }[]>(
     await query(Franchises)
-      .join(Franchises, Manufacturers)
-      .on(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id))
+      .join(Manufacturers, ({ eq }) =>
+        eq(Franchises.manufacturerId, Manufacturers.id),
+      )
       .select(Manufacturers.include('name'))
       .fetch(client),
   )
@@ -55,8 +56,9 @@ const selectTests = (async () => {
 
   expectType<{ name: string | null }[]>(
     await query(Franchises)
-      .leftJoin(Franchises, Manufacturers)
-      .on(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id))
+      .leftJoin(Manufacturers, ({ eq }) =>
+        eq(Franchises.manufacturerId, Manufacturers.id),
+      )
       .select(Manufacturers.include('name'))
       .fetch(client),
   )
@@ -67,8 +69,9 @@ const selectTests = (async () => {
     { id: number; manufacturerId: number | null; name: string }[]
   >(
     await query(Franchises)
-      .join(Franchises, Manufacturers)
-      .on(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id))
+      .join(Manufacturers, ({ eq }) =>
+        eq(Franchises.manufacturerId, Manufacturers.id),
+      )
       .select(Franchises.include('id', 'manufacturerId'))
       .select(Manufacturers.include('name'))
       .fetch(client),
@@ -78,8 +81,9 @@ const selectTests = (async () => {
     { id: number; manufacturerId: number | null; name: string | null }[]
   >(
     await query(Franchises)
-      .leftJoin(Franchises, Manufacturers)
-      .on(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id))
+      .leftJoin(Manufacturers, ({ eq }) =>
+        eq(Franchises.manufacturerId, Manufacturers.id),
+      )
       .select(Franchises.include('id', 'manufacturerId'))
       .select(Manufacturers.include('name'))
       .fetch(client),
@@ -87,8 +91,9 @@ const selectTests = (async () => {
 
   expectError(
     await query(Franchises)
-      .leftJoin(Franchises, Manufacturers)
-      .on(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id))
+      .leftJoin(Manufacturers, ({ eq }) =>
+        eq(Franchises.manufacturerId, Manufacturers.id),
+      )
       // selecting from a non-queried table
       .select(Games.include('id', 'title'))
       .select(Manufacturers.include('name'))
@@ -98,8 +103,9 @@ const selectTests = (async () => {
   expectError(
     await query(Franchises)
       // joining from a non-queried table
-      .leftJoin(Systems, Manufacturers)
-      .on(({ eq }) => eq(Systems.manufacturerId, Manufacturers.id))
+      .leftJoin(Manufacturers, ({ eq }) =>
+        eq(Systems.manufacturerId, Manufacturers.id),
+      )
       .select(Franchises.include('id', 'name'))
       .select(Manufacturers.include('name'))
       .fetch(client),
@@ -108,8 +114,9 @@ const selectTests = (async () => {
   expectError(
     await query(Franchises)
       // joining a non-matching datatype
-      .leftJoin(Franchises, Manufacturers)
-      .on(({ eq }) => eq(Franchises.id, Manufacturers.country))
+      .leftJoin(Manufacturers, ({ eq }) =>
+        eq(Franchises.id, Manufacturers.country),
+      )
       .select(Franchises.include('id', 'name'))
       .select(Manufacturers.include('name'))
       .fetch(client),

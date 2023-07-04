@@ -16,10 +16,12 @@ const withRecursiveTests = (async () => {
     return query.union(
       r0,
       query(PcComponents)
-        .join(PcComponents, PcComponentsFits)
-        .on(({ eq }) => eq(PcComponents.id, PcComponentsFits.componentId))
-        .join(PcComponentsFits, r0.table())
-        .on(({ eq }) => eq(PcComponentsFits.fitsOnComponentId, r0.table().id))
+        .join(PcComponentsFits, ({ eq }) =>
+          eq(PcComponents.id, PcComponentsFits.componentId),
+        )
+        .join(r0.table(), ({ eq }) =>
+          eq(PcComponentsFits.fitsOnComponentId, r0.table().id),
+        )
         .select(PcComponents.include('id', 'name')),
     )
   })

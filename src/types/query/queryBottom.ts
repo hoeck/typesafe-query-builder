@@ -230,9 +230,6 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
    */
   explainAnalyze: (client: DatabaseClient, params?: P) => Promise<string>
 
-  getParams(): P
-  test: keyof P extends never ? 1 : 0
-
   /**
    * Execute the query and return all rows.
    */
