@@ -1,8 +1,13 @@
 type EnumObject = { [key: string]: string | number }
 
+/**
+ * Marker for a columns default value.
+ *
+ * Used in the type definition and in inserts / updates similar to SQL's
+ * `DEFAULT` keyword.
+ */
 export declare class DefaultValue {
-  // or use a symbol?
-  protected _typesafeQueryBuilderDefaultValue_: '_typesafeQueryBuilderDefaultValue_'
+  protected _typesafeQueryBuilderDefaultValue_: symbol
 }
 
 /**

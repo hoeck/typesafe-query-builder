@@ -1,4 +1,4 @@
-import { DatabaseTable, Selection, SetOptional, SetDefault } from '../table'
+import { DatabaseTable, Selection, SetDefault, SetOptional } from '../table'
 import { DatabaseClient } from './databaseClient'
 
 /**

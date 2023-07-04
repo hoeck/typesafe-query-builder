@@ -14,6 +14,7 @@ export type {
   Query,
   QueryRoot,
   ResultType,
+  Update,
 } from './query'
 export type {
   Column,

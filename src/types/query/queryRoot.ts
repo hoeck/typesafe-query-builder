@@ -186,7 +186,7 @@ export interface QueryRoot {
   insertStatement: InsertStatementConstructor
 
   /**
-   * Marker for default values in inserts.
+   * Marker for default values in inserts and updates.
    */
   DEFAULT: DefaultValue
 

@@ -34,7 +34,7 @@ type JoinedSelection<T, L, S> = T extends L
  *     // u is now narrowed to type-a
  *   }
  */
-type NarrowDiscriminatedUnion<
+export type NarrowDiscriminatedUnion<
   U,
   K extends keyof U,
   L extends U[K],
