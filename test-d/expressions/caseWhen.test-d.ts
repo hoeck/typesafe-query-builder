@@ -1,11 +1,9 @@
 import { expectError, expectType } from 'tsd'
-import { TableType, expressionFactory } from '../../src'
+import { expressionFactory } from '../../src'
 import { Franchises, Manufacturers } from '../helpers/classicGames'
 import { expressionType } from './helpers'
 
-const f = expressionFactory<
-  TableType<typeof Franchises> | TableType<typeof Manufacturers>
->()
+const f = expressionFactory(Franchises, Manufacturers)
 
 {
   // 1 case

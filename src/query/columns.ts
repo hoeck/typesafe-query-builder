@@ -1,4 +1,3 @@
-import * as assert from 'assert'
 import { inspect } from 'util'
 import { QueryBuilderUsageError, QueryBuilderValidationError } from '../errors'
 import { Column, ColumnConstructor } from '../types'

@@ -17,7 +17,7 @@ export interface QueryRoot {
   /**
    * Common table expression (`WITH`).
    *
-   * Returns a table that, when used in a query, buts this tables query
+   * Returns a table that, when used in a query, puts this tables query
    * expression in a `WITH` clause.
    *
    * The following SQL:

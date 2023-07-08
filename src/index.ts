@@ -4,8 +4,7 @@ export {
   QueryBuilderUsageError,
   QueryBuilderValidationError,
 } from './errors'
-export { expressionFactory, query } from './query'
-export { column, table } from './table'
+export { expressionFactory, query, column, table } from './query'
 export type {
   Column,
   DatabaseClient,

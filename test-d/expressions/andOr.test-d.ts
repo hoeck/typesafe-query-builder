@@ -1,5 +1,5 @@
 import { expectError, expectType } from 'tsd'
-import { TableType, expressionFactory } from '../../src'
+import { expressionFactory } from '../../src'
 import { Franchises } from '../helpers/classicGames'
 import { expressionType } from './helpers'
 
@@ -7,7 +7,7 @@ import { expressionType } from './helpers'
  * `and` and `or` use the same interface in ExpressionFactory.
  * So we only test `and` here.
  */
-const f = expressionFactory<TableType<typeof Franchises>>()
+const f = expressionFactory(Franchises)
 
 {
   // without parameters

@@ -13,6 +13,7 @@ export type {
   InsertStatementConstructor,
   LockMode,
   Query,
+  QueryBottom,
   QueryRoot,
   ResultType,
   Update,

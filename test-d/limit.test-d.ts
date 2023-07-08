@@ -14,8 +14,8 @@ import { Systems } from './helpers/classicGames'
   // with parameters
   const q = query(Systems)
     .select(Systems.include('name'))
-    .limitParam('a')
-    .offsetParam('b')
+    .limit('a')
+    .offset('b')
 
   expectType<{ name: string }>(resultType(q))
   expectType<{ a: number; b: number }>(parameterType(q))

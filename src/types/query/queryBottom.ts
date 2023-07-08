@@ -157,11 +157,7 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
    * Append an SQL LIMIT clause to the query.
    */
   limit(count: number): QueryBottom<T, P, L, S, C>
-
-  /**
-   * Append an SQL LIMIT clause to the query.
-   */
-  limitParam<K extends string>(
+  limit<K extends string>(
     countParam: K,
   ): QueryBottom<T, P & { [KK in K]: number }, L, S, C>
 
@@ -173,7 +169,7 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
   /**
    * Append an SQL OFFSET clause to the query.
    */
-  offsetParam<K extends string>(
+  offset<K extends string>(
     offsetParam: K,
   ): QueryBottom<T, P & { [KK in K]: number }, L, S, C>
 
