@@ -13,18 +13,11 @@ export interface UserRow {
 }
 
 export const users = table('users', {
-  userId: col('id')
-    .integer()
-    .primary()
-    .default(),
+  userId: col('id').integer().primary().default(),
   userName: col('name').string(),
   userEmail: col('email').string(),
-  userAvatar: col('avatar')
-    .string()
-    .null(),
-  userActive: col('active')
-    .date()
-    .null(),
+  userAvatar: col('avatar').string().null(),
+  userActive: col('active').date().null(),
 })
 
 export interface ItemRow {
@@ -35,10 +28,7 @@ export interface ItemRow {
 }
 
 export const items = table('items', {
-  itemId: col('id')
-    .integer()
-    .primary()
-    .default(),
+  itemId: col('id').integer().primary().default(),
   itemLabel: col('label').string(),
   itemUserId: col('user_id').integer(),
   itemActive: col('active').boolean(),
@@ -53,10 +43,7 @@ export interface EventRow {
 }
 
 export const events = table('events', {
-  eventId: col('id')
-    .integer()
-    .primary()
-    .default(),
+  eventId: col('id').integer().primary().default(),
   eventItemId: col('item_id').integer(),
   eventType: col('type').string(),
   eventTimestamp: col('timestamp').date(),
@@ -64,7 +51,7 @@ export const events = table('events', {
   // ad hoc runtype
   // in a real setup I would use a runtype library for this
   eventPayload: col('payload')
-    .json(value => {
+    .json((value) => {
       if (typeof value !== 'object') {
         throw new Error('not an object')
       }
@@ -87,9 +74,7 @@ export interface EventTypeRow {
 }
 
 export const eventTypes = table('event_types', {
-  type: col('type')
-    .stringUnion('A', 'B', 'C', 'D', 'E', 'X')
-    .primary(),
+  type: col('type').literal('A', 'B', 'C', 'D', 'E', 'X').primary(),
   description: col('description').string(),
   active: col('active').boolean(),
 })
@@ -105,26 +90,18 @@ export enum EventTypeEnum {
 }
 
 export const eventTypesWithEnum = table('event_types', {
-  type: col('type')
-    .enum(EventTypeEnum)
-    .primary(),
+  type: col('type').enum(EventTypeEnum).primary(),
   description: col('description').string(),
   active: col('active').boolean(),
 })
 
 export const emptyTable = table('empty_table', {
-  id: col('id')
-    .integer()
-    .primary()
-    .default(),
+  id: col('id').integer().primary().default(),
   value: col('value').string(),
   active: col('active').boolean(),
 })
 
 export const jsonAnyTable = table('json_any_table', {
-  id: col('id')
-    .integer()
-    .primary()
-    .default(),
-  value: col('value').json(v => v as any),
+  id: col('id').integer().primary().default(),
+  value: col('value').json((v) => v as any),
 })

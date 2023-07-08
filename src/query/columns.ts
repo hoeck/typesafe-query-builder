@@ -325,25 +325,30 @@ export class ColumnImplementation {
   }
 
   /**
-   * Map a string union to a
+   * Map a literal value union to a single postgres column.
    *
-   * postgres types: TEXT, VARCHAR
+   * postgres types: TEXT, VARCHAR, INT
    */
-  stringUnion(...elements: any[]) {
+  literal(...elements: any[]) {
     this.checkThatColumnValueIsIdentity()
 
-    const index: Set<string> = new Set(elements)
+    const index: Set<string | number | boolean | BigInt> = new Set(elements)
     const anyThis: any = this
 
-    anyThis.columnValue = (value: unknown): string => {
-      if (typeof value !== 'string' || !index.has(value)) {
+    anyThis.columnValue = (value: unknown) => {
+      if (
+        !(
+          typeof value === 'string' ||
+          typeof value === 'number' ||
+          typeof value === 'boolean' ||
+          typeof value === 'bigint'
+        ) ||
+        !index.has(value)
+      ) {
         throw new QueryBuilderValidationError(
-          `column ${
-            this.name
-          } - expected a string of ${elements} but got: ${inspect(value).slice(
-            0,
-            128,
-          )}`,
+          `column ${this.name} - expected one of ${elements} but got: ${inspect(
+            value,
+          ).slice(0, 128)}`,
         )
       }
 
