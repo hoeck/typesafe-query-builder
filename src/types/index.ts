@@ -8,6 +8,7 @@ export type {
 } from './expression'
 export type {
   DatabaseClient,
+  DatabaseEscapeFunctions,
   Delete,
   InsertIntoConstructor,
   InsertStatementConstructor,

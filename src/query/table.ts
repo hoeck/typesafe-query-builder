@@ -1,9 +1,23 @@
 import * as util from 'util'
 import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
-import { Column, Table, TableConstructor } from '../types'
-import { assert, assertFail } from '../utils'
+import {
+  DatabaseEscapeFunctions,
+  Column,
+  Table,
+  TableConstructor,
+} from '../types'
+import { assert, assertFail, assertNever } from '../utils'
 import { ColumnImplementation, getColumnImplementation } from './columns'
-import { ExprImpl } from './sql'
+import {
+  ExprImpl,
+  SqlToken,
+  joinTokens,
+  sqlNewline,
+  sqlWhitespace,
+  sqlParenOpen,
+  sqlParenClose,
+  wrapInParens,
+} from './sql'
 
 // access the tables internals for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
@@ -39,52 +53,37 @@ export class SelectionImplementation {
   }
 
   private getColumnAlias(columnName: string) {
-    const alias = this.columnNameMapping?.[columnName] ?? columnName
-
-    if (alias.includes("'")) {
-      throw new QueryBuilderUsageError(
-        `you must not use single quotes in column names at column >${alias}< in table >${this.table}<`,
-      )
-    }
-
-    return alias
+    return this.columnNameMapping?.[columnName] ?? columnName
   }
 
-  private getJsonBuildObjectExpression(tableAlias: string) {
-    return (
-      'JSON_BUILD_OBJECT(\n' +
-      this.selectedColumns
-        .map((s) => {
-          const column = this.table.getColumn(s)
-          const columnAlias = this.getColumnAlias(s)
-
-          return `'${columnAlias}', ${column.getColumnSql(tableAlias)}`
-        })
-        .join(',\n') +
-      '\n)'
-    )
-  }
-
-  private getProjectionSql(expression: string, projectionAlias: string) {
-    if (projectionAlias.includes('"')) {
-      throw new QueryBuilderAssertionError(
-        `projection alias >${projectionAlias}< must not contain double quotes in table >${this.table}<`,
-      )
-    }
-
-    return `${expression} AS "${projectionAlias}"`
+  private getJsonBuildObjectExpression(): SqlToken[] {
+    return [
+      'JSON_BUILD_OBJECT',
+      sqlParenOpen,
+      ...joinTokens(
+        this.selectedColumns.map((s): SqlToken[] => {
+          return [
+            { type: 'sqlLiteral', value: this.getColumnAlias(s) },
+            ',',
+            sqlWhitespace,
+            { type: 'sqlTableColumn', table: this.table, columnName: s },
+          ]
+        }),
+        [','],
+      ),
+      sqlParenClose,
+    ]
   }
 
   private getJsonAggSql(
-    expression: string,
-    tableAlias: string,
+    expression: SqlToken[],
     params: {
       key: string
       orderBy?: string
       direction?: 'ASC' | 'DESC'
     },
-  ) {
-    let orderBySql = ''
+  ): SqlToken[] {
+    let orderBySql: SqlToken[] = []
 
     if (params.orderBy) {
       const orderByColumn = this.table.getColumn(params.orderBy)
@@ -95,11 +94,23 @@ export class SelectionImplementation {
         )
       }
 
-      orderBySql += `ORDER BY ${orderByColumn.getColumnSql(tableAlias)}`
-
-      if (params.direction) {
-        orderBySql += ` ${params.direction}`
-      }
+      orderBySql = [
+        sqlWhitespace,
+        'ORDER BY',
+        sqlWhitespace,
+        {
+          type: 'sqlTableColumn',
+          columnName: params.orderBy,
+          table: this.table,
+        },
+        ...(params.direction === 'ASC'
+          ? [sqlWhitespace, 'ASC']
+          : params.direction === 'DESC'
+          ? [sqlWhitespace, 'DESC']
+          : params.direction === undefined
+          ? []
+          : assertNever(params.direction)),
+      ]
     } else {
       if (params.direction) {
         assertFail(
@@ -108,57 +119,81 @@ export class SelectionImplementation {
       }
     }
 
-    return this.getProjectionSql(
-      `JSON_AGG(\n${expression}\n${orderBySql})`,
-      params.key,
-    )
+    return [
+      'JSON_AGG',
+      ...wrapInParens([...expression, ...orderBySql]),
+      sqlWhitespace,
+      'AS',
+      sqlWhitespace,
+      { type: 'sqlIdentifier', value: params.key },
+    ]
   }
 
-  // getSelectSql(ctx: BuildContext, params: QueryParams): string {
-  //   const tableAlias = ctx.getAlias(this.table.getTableIdentifier())
-  //
-  //   // subselects ???
-  //
-  //   switch (this.projection?.type) {
-  //     case null:
-  //     case undefined:
-  //       return this.selectedColumns
-  //         .map((s) => {
-  //           return this.table
-  //             .getColumn(s)
-  //             .getColumnSelectSql(tableAlias, this.getColumnAlias(s))
-  //         })
-  //         .join(',\n')
-  //
-  //     case 'jsonObject': {
-  //       const objectSql = this.getJsonBuildObjectExpression(tableAlias)
-  //
-  //       return this.getProjectionSql(objectSql, this.projection.key)
-  //     }
-  //
-  //     case 'jsonArray': {
-  //       if (this.selectedColumns.length !== 1) {
-  //         assertFail(
-  //           'jsonArray needs exactly 1 selected column and this should have been checked earlier',
-  //         )
-  //       }
-  //
-  //       const columnSql = this.table
-  //         .getColumn(this.selectedColumns[0])
-  //         .getColumnSql(tableAlias)
-  //
-  //       return this.getJsonAggSql(columnSql, tableAlias, this.projection)
-  //     }
-  //
-  //     case 'jsonObjectArray':
-  //       const objectSql = this.getJsonBuildObjectExpression(tableAlias)
-  //
-  //       return this.getJsonAggSql(objectSql, tableAlias, this.projection)
-  //
-  //     default:
-  //       return assertNever(this.projection)
-  //   }
-  // }
+  getSelectSql(): SqlToken[] {
+    switch (this.projection?.type) {
+      case null:
+      case undefined:
+        // plain select
+        return joinTokens(
+          this.selectedColumns.map((s): SqlToken[] => {
+            const col = this.table.getColumn(s)
+
+            return [
+              {
+                type: 'sqlTableColumn',
+                table: this.table,
+                columnName: s,
+              },
+              sqlWhitespace,
+              'AS',
+              sqlWhitespace,
+              { type: 'sqlIdentifier', value: s },
+            ]
+          }),
+          [',', sqlNewline],
+        )
+
+      case 'jsonObject': {
+        // select columns into an object
+        const jsonBuildObjectSql = this.getJsonBuildObjectExpression()
+
+        return [
+          ...jsonBuildObjectSql,
+          sqlWhitespace,
+          'AS',
+          sqlWhitespace,
+          { type: 'sqlIdentifier', value: this.projection.key },
+        ]
+      }
+
+      case 'jsonArray': {
+        if (this.selectedColumns.length !== 1) {
+          throw new QueryBuilderAssertionError(
+            'jsonArray needs exactly 1 selected column (this should have been caught by the typechecker)',
+          )
+        }
+
+        return this.getJsonAggSql(
+          [
+            {
+              type: 'sqlTableColumn',
+              columnName: this.selectedColumns[0],
+              table: this.table,
+            },
+          ],
+          this.projection,
+        )
+      }
+
+      case 'jsonObjectArray':
+        const objectSql = this.getJsonBuildObjectExpression()
+
+        return this.getJsonAggSql(objectSql, this.projection)
+
+      default:
+        return assertNever(this.projection)
+    }
+  }
 
   // Selection interface
 
@@ -278,6 +313,9 @@ export class SelectionImplementation {
   }
 }
 
+/**
+ * To discern between Selection and Expression in `query.select`.
+ */
 export function isSelectionImplementation(
   x: unknown,
 ): x is SelectionImplementation {
@@ -320,18 +358,8 @@ export class TableImplementation {
   // same table
   private tableAlias?: string
 
-  // // when this table wraps a query as a subselect it may contain where
-  // // parameters which we need to preserve so they can be templated when
-  // // the final query is assembled
-  // // it also may contain a lockParam item that needs its lock type specified
-  // tableQuery?: (ctx: BuildContext, params?: any) => string
-
   // all columns available in this table to use in selection, projection, where, etc.
   private tableColumns: { [key: string]: ColumnImplementation }
-
-  // key into tableColumns when this TableImplementation acts as a Expression
-  // (a reference to a specific column)
-  private referencedColumn?: string
 
   constructor(
     tableName: string,
@@ -346,38 +374,16 @@ export class TableImplementation {
 
   // help reading query debug outputs
   [util.inspect.custom](depth: number, options: unknown) {
-    if (this.referencedColumn) {
-      return `#<TableImplementation "${this.tableName}" with referenced column: "${this.referencedColumn}">`
-    }
-
     const alias = this.tableAlias ? ` (alias: ${this.tableAlias})` : ''
 
-    return `#<TableImplementation "${this.tableName}"${alias} (${
-      Object.keys(this.tableColumns).length
-    } cols)>`
+    return `#<TableImplementation "${this.tableName}"${alias}>`
   }
 
   toString() {
     return `#<Table ${this.tableName}>`
   }
 
-  // debugInfo() {
-  //   const isSubQuery = this.tableQuery ? ' (subquery)' : ''
-  //
-  //   return `${this.tableName}${isSubQuery}`
-  // }
-
-  copy() {
-    const res = new TableImplementation(this.tableName, this.tableColumns)
-
-    res.referencedColumn = this.referencedColumn
-    // res.tableQuery = this.tableQuery
-    res.tableAlias = this.tableAlias
-
-    return res
-  }
-
-  createTableColumn(name: string): ExprImpl {
+  getColumnExpr(name: string): ExprImpl {
     if (this.tableColumns[name] === undefined) {
       throw new QueryBuilderAssertionError(
         `column ${name} does not exist on table ${this.tableName}`,
@@ -387,11 +393,11 @@ export class TableImplementation {
     return {
       sql: [
         {
+          type: 'sqlTableColumn',
           table: this,
           columnName: name,
         },
       ],
-      parameters: new Set(),
     }
   }
 
@@ -411,7 +417,7 @@ export class TableImplementation {
 
         // TableColumn
         if (typeof prop === 'string' && this.tableColumns[prop]) {
-          return this.createTableColumn(prop)
+          return this.getColumnExpr(prop)
         }
 
         // Access to this implementation (used to build the sql query)
@@ -445,147 +451,25 @@ export class TableImplementation {
     return column
   }
 
-  // getTableSql(ctx: BuildContext, params: QueryParams) {
-  //   const alias = ctx.getAlias(this.getTableIdentifier())
-  //
-  //   if (this.tableQuery) {
-  //     // sql (sub) query wrapped in a Table
-  //     return `(${this.tableQuery(ctx, params)}) ${alias}`
-  //   } else {
-  //     // plain table select
-  //     return `${this.tableName} ${alias}`
-  //   }
-  // }
-
-  getReferencedColumn(): ColumnImplementation {
-    if (!this.referencedColumn) {
-      throw new QueryBuilderAssertionError(
-        `'referencedColumn' in table ${this.tableName} is undefined`,
-      )
-    }
-
-    const refCol = this.tableColumns[this.referencedColumn]
-
-    if (!refCol) {
-      throw new QueryBuilderAssertionError(
-        `referenced column ${this.referencedColumn} does not exist in table ${this.tableName}`,
-      )
-    }
-
-    return refCol
-  }
-
-  // // shortcut so we can pass a table directly as a 'tableColumn' param type
-  // getReferencedColumnSql(ctx: BuildContext) {
-  //   const alias = ctx.getAlias(this.getTableIdentifier())
-  //
-  //   return this.getReferencedColumn().getColumnSql(alias)
-  // }
-
-  // Return a function that converts a flat row of column values according to
-  // each selected / renamed columns `fromJson` method.
-  // Used internally to build up subselect and projection aware result converters.
-  private getFromJsonRowConverter() {
-    //   // collect the `fromJson` method from each selected column
-    //   const keys: string[] = []
-    //   const fromJsons: ((v: unknown) => any)[] = []
-    //   const allSelectedCols = this.selected || Object.keys(this.tableColumns)
-    //
-    //   for (let i = 0; i < allSelectedCols.length; i++) {
-    //     const colKey = allSelectedCols[i]
-    //     const colImpl = this.tableColumns[colKey]
-    //
-    //     if (colImpl.fromJson) {
-    //       keys.push(this.getColumnResultKey(colKey)) // possibly renamed colKey
-    //       fromJsons.push(colImpl.fromJson)
-    //     }
-    //   }
-    //
-    //   // not a single column needs a result conversion
-    //   if (fromJsons.length === 0) {
-    //     return () => {}
-    //   }
-    //
-    //   return (row: any) => {
-    //     for (let i = 0; i < fromJsons.length; i++) {
-    //       const key = keys[i]
-    //       const fromJson = fromJsons[i]
-    //
-    //       if (row[key] === null) {
-    //         // possible null caused by a left join
-    //         // NOTE: actually, this check is only required if we're actually
-    //         // using this table in a left-join, but we don't know it here
-    //         return
-    //       }
-    //
-    //       row[key] = fromJson(row[key])
-    //     }
-    //   }
-
-    return () => {}
-  }
-
-  // turn any Date columns selected via pg json functions into into real dates
-  // (because while being selected as json, postgres converts them to strings
-  // first so they fit into the json column)
-  // so basically this is a custom datatype serialization on top of what
-  // node-postgres already provides
-  getResultConverter() {
-    // return a function that converts fields of a single row *in-place* (to
-    // save on memory allocations)
-    const rowConverter = this.getFromJsonRowConverter()
-
-    return () => {}
-    // if (this.projection === undefined) {
-    //   return rowConverter
-    // } else if (this.projection.type === 'jsonBuildObject') {
-    //   // plain json projection: all selected columns are grouped below `key`
-    //   const key = this.projection.name
-    //
-    //   return (row: any) => {
-    //     if (row[key] === null) {
-    //       // null caused by a left join and missing data
-    //       return
-    //     }
-    //
-    //     rowConverter(row[key])
-    //   }
-    // } else if (this.projection.type === 'jsonAgg') {
-    //   // json agg -> key is an array of the joined rows
-    //   const key = this.projection.name
-    //
-    //   return (row: any) => {
-    //     // row[key] is never null because with json-agg we use coalesce
-    //     // and json-agg where filter to create an empty array instead and
-    //     // remove all null values
-    //     const jsonAggValue: any[] = row[key]
-    //
-    //     for (let i = 0; i < jsonAggValue.length; i++) {
-    //       rowConverter(jsonAggValue[i])
-    //     }
-    //   }
-    // } else {
-    //   assert.fail(
-    //     `invalid projection in table ${this.tableName} - ${this.projection}`,
-    //   )
+  getTableSql(): SqlToken[] {
+    // TODO:
+    // if (this.tableQuery) {
+    //   // sql (sub) query wrapped in a Table
+    //   return `(${this.tableQuery(ctx, params)}) ${alias}`
     // }
-  }
 
-  // // return the names of all columns as they appear in the query result
-  // // use this to check shadowed columns in query.ts
-  // getResultingColumnNames() {
-  //   if (this.projection) {
-  //     return [this.projection.name]
-  //   }
-  //
-  //   const keys = this.selected || Object.keys(this.tableColumns)
-  //
-  //   return keys.map((k) => this.getColumnResultKey(k))
-  // }
+    // plain table select
+    return [
+      {
+        type: 'sqlTable',
+        table: this,
+      },
+    ]
+  }
 
   // column accessor, in case a column name clashes with a table method
   column(name: string) {
-    return this.createTableColumn(name)
+    return this.getColumnExpr(name)
   }
 
   /// Selection ctors

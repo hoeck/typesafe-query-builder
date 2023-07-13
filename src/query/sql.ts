@@ -1,32 +1,65 @@
 import { TableImplementation } from './table'
 
-export const sqlParenOpen = Symbol('sqlParenOpen')
-export const sqlParenClose = Symbol('sqlParenClose')
-export const sqlIndent = Symbol('sqlIndent')
-export const sqlDedent = Symbol('sqlDedent')
-export const sqlWhitespace = Symbol('sqlWhitespace')
+export const sqlParenOpen = { type: 'sqlParenOpen' } as const
+export const sqlParenClose = { type: 'sqlParenClose' } as const
+export const sqlIndent = { type: 'sqlIndent' } as const
+export const sqlDedent = { type: 'sqlDedent' } as const
+export const sqlWhitespace = { type: 'sqlWhitespace' } as const
+export const sqlNewline = { type: 'sqlNewline' } as const
 
 export interface SqlParameter {
+  type: 'sqlParameter'
   parameterName: string
 }
 
 export interface SqlLiteral {
-  literalValue: string | number | boolean | BigInt | Date | null
+  type: 'sqlLiteral'
+  value: string | number | boolean | BigInt | Date | null
 }
 
+export interface SqlIdentifier {
+  type: 'sqlIdentifier'
+  value: string
+}
+
+// `<tablename> <alias>`
+// tableAlias is resolved once the sql tokens are turned into an sql string
+export interface SqlTable {
+  type: 'sqlTable'
+  table: TableImplementation
+}
+
+export interface SqlTableAlias {
+  type: 'sqlTableAlias'
+  table: TableImplementation
+}
+
+// `<tableAlias>.<columnName>`
+// tableAlias is resolved once the sql tokens are turned into an sql string
 export interface SqlTableColumn {
+  type: 'sqlTableColumn'
   table: TableImplementation
   columnName: string
 }
 
+// Construct a query step by step out of sequences of sql tokens.
+// This allows us to:
+//  - delay parameter mapping until every parameter is known
+//  - delay table alias generation in the same way
+//  - apply crude formatting/indentation/prettifycation for inspecting
+//    generated sql queries
 export type SqlToken =
   | typeof sqlParenOpen
   | typeof sqlParenClose
   | typeof sqlIndent
   | typeof sqlDedent
   | typeof sqlWhitespace
+  | typeof sqlNewline
   | SqlParameter
   | SqlLiteral
+  | SqlIdentifier
+  | SqlTable
+  | SqlTableAlias
   | SqlTableColumn
   | string
 
@@ -51,20 +84,7 @@ export function wrapInParens(tokens: SqlToken[]): SqlToken[] {
   return [sqlParenOpen, ...tokens, sqlParenClose]
 }
 
-export function mergeParameters(...parameters: Set<string>[]): Set<string> {
-  const res = new Set<string>()
-
-  parameters.forEach((parameterSet) => {
-    parameterSet.forEach((item) => {
-      res.add(item)
-    })
-  })
-
-  return res
-}
-
 export interface ExprImpl {
   sql: SqlToken[]
   alias?: string
-  parameters: Set<string>
 }

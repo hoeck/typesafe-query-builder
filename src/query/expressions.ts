@@ -5,7 +5,6 @@ import {
   ExprImpl,
   SqlToken,
   joinTokens,
-  mergeParameters,
   sqlWhitespace,
   wrapInParens,
 } from './sql'
@@ -28,29 +27,25 @@ class ParamImpl {
 
   type(): ExprImpl {
     return {
-      sql: [{ parameterName: this.parameterName }],
-      parameters: new Set([this.parameterName]),
+      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 
   string(): ExprImpl {
     return {
-      sql: [{ parameterName: this.parameterName }],
-      parameters: new Set([this.parameterName]),
+      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 
   number(): ExprImpl {
     return {
-      sql: [{ parameterName: this.parameterName }],
-      parameters: new Set([this.parameterName]),
+      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 
   boolean(): ExprImpl {
     return {
-      sql: [{ parameterName: this.parameterName }],
-      parameters: new Set([this.parameterName]),
+      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 }
@@ -72,7 +67,6 @@ export class ExprFactImpl implements FactoryMethods {
           [sqlWhitespace, operator, sqlWhitespace],
         ),
       ),
-      parameters: mergeParameters(...expressions.map((e) => e.parameters)),
     }
   }
 
@@ -92,7 +86,6 @@ export class ExprFactImpl implements FactoryMethods {
         sqlWhitespace,
         ..._b.sql,
       ]),
-      parameters: mergeParameters(_a.parameters, _b.parameters),
     }
   }
 
@@ -111,7 +104,6 @@ export class ExprFactImpl implements FactoryMethods {
           operator,
           ...wrapInParens(p.sql),
         ]),
-        parameters: mergeParameters(a.parameters, p.parameters),
       }
     } else if (isQueryImplementation(b)) {
       const subqExpr = b.getExprImpl()
@@ -123,7 +115,6 @@ export class ExprFactImpl implements FactoryMethods {
           operator,
           ...wrapInParens(subqExpr.sql),
         ]),
-        parameters: mergeParameters(a.parameters, subqExpr.parameters),
       }
     } else {
       return {
@@ -135,7 +126,6 @@ export class ExprFactImpl implements FactoryMethods {
           // property to ExprImpl`?
           ...wrapInParens(b.sql),
         ]),
-        parameters: mergeParameters(a.parameters, b.parameters),
       }
     }
   }
@@ -153,7 +143,6 @@ export class ExprFactImpl implements FactoryMethods {
   not(a: ExprImpl) {
     return {
       sql: wrapInParens(['NOT', sqlWhitespace, ...a.sql]),
-      parameters: a.parameters,
     }
   }
 
@@ -167,18 +156,16 @@ export class ExprFactImpl implements FactoryMethods {
         'COALESCE',
         ...wrapInParens(joinTokens([a.sql, b.sql], [',', sqlWhitespace])),
       ],
-      parameters: mergeParameters(a.parameters, b.parameters),
     }
   }
 
   isNull(a: ExprImpl) {
     return {
       sql: wrapInParens([...a.sql, sqlWhitespace, 'IS NULL']),
-      parameters: a.parameters,
     }
   }
 
-  caseWhen(...cases: ([ExprImpl, ExprImpl] | ExprImpl)[]) {
+  caseWhen(...cases: ([ExprImpl, ExprImpl] | ExprImpl)[]): ExprImpl {
     const sql: SqlToken[] = ['CASE']
     const parameters: Set<string> = new Set()
 
@@ -196,14 +183,6 @@ export class ExprFactImpl implements FactoryMethods {
           sqlWhitespace,
           ...result.sql,
         )
-
-        condition.parameters.forEach((p) => {
-          parameters.add(p)
-        })
-
-        result.parameters.forEach((p) => {
-          parameters.add(p)
-        })
       } else {
         const isLastCase = i === cases.length - 1
 
@@ -214,10 +193,6 @@ export class ExprFactImpl implements FactoryMethods {
         }
 
         sql.push(sqlWhitespace, 'ELSE', sqlWhitespace, ...c.sql)
-
-        c.parameters.forEach((p) => {
-          parameters.add(p)
-        })
       }
     })
 
@@ -225,21 +200,18 @@ export class ExprFactImpl implements FactoryMethods {
 
     return {
       sql,
-      parameters,
     }
   }
 
   literal(value: string | number | BigInt | boolean | Date | null): ExprImpl {
     return {
-      sql: [{ literalValue: value }],
-      parameters: new Set(),
+      sql: [{ type: 'sqlLiteral', value: value }],
     }
   }
 
   literalString(value: string): ExprImpl {
     return {
-      sql: [{ literalValue: value }],
-      parameters: new Set(),
+      sql: [{ type: 'sqlLiteral', value: value }],
     }
   }
 
@@ -264,7 +236,6 @@ export class ExprFactImpl implements FactoryMethods {
 
     return {
       sql: wrapInParens(['EXISTS', sqlWhitespace, ...subqExpr.sql]),
-      parameters: subqExpr.parameters,
     }
   }
 }

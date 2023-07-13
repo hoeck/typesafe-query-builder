@@ -1,6 +1,7 @@
 import { QueryBuilderAssertionError } from '../errors'
 import {
   DatabaseClient,
+  DatabaseEscapeFunctions,
   Expression,
   LockMode,
   QueryBottom,
@@ -8,14 +9,15 @@ import {
   Selection,
   Table,
 } from '../types'
+import { createSql } from './build'
 import { ExprFactImpl } from './expressions'
+import { QueryItem, queryItemsToSqlTokens } from './queryItem'
 import { ExprImpl } from './sql'
 import {
   TableImplementation,
   getTableImplementation,
   isSelectionImplementation,
 } from './table'
-import { QueryItem } from './queryItem'
 
 type AnyQueryBottom = QueryBottom<any, any, any, any, any>
 type AnyTable = Table<any, any> & {
@@ -61,10 +63,13 @@ export class QueryImplementation {
 
   // internal methods
 
+  getSql() {
+    return queryItemsToSqlTokens(this.query)
+  }
+
   getExprImpl(): ExprImpl {
     return {
-      sql: [],
-      parameters: new Set(),
+      sql: this.getSql(),
     }
   }
 
@@ -189,8 +194,11 @@ export class QueryImplementation {
     return {} as AnyTable
   }
 
-  sql(params?: any) {
-    return ''
+  sql(client: DatabaseEscapeFunctions, params?: any) {
+    const tokens = this.getSql()
+    const { sql, parameters } = createSql(client, tokens)
+
+    return sql
   }
 
   sqlLog(params?: any) {
@@ -205,8 +213,32 @@ export class QueryImplementation {
     return ''
   }
 
-  fetch(client: DatabaseClient, params?: any) {
-    return ''
+  async fetch(client: DatabaseClient, params?: any) {
+    const tokens = this.getSql()
+    const { sql, parameters } = createSql(client, tokens)
+
+    if (parameters.length) {
+      const paramsLen = Object.keys(params || {}).length
+
+      if (paramsLen !== parameters.length) {
+        throw new QueryBuilderAssertionError(
+          `expected exactly ${parameters} for this query but got ${paramsLen}`,
+        )
+      }
+    } else {
+      if (params !== undefined) {
+        throw new QueryBuilderAssertionError(
+          `expected no parameters for this query`,
+        )
+      }
+    }
+
+    const result = await client.query(
+      sql,
+      parameters.map((p) => params[p]),
+    )
+
+    return result.rows
   }
 
   fetchOne(client: DatabaseClient, params?: any) {

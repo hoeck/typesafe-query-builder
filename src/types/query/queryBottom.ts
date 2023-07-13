@@ -3,7 +3,7 @@ import { ExpressionFactory } from '../expression/expressionFactory'
 import { ComparableTypes } from '../expression/helpers'
 import { SingleSelectionValue, SingleSelectionKey, Nullable } from '../helpers'
 import { Selection, Table } from '../table'
-import { DatabaseClient } from './databaseClient'
+import { DatabaseClient, DatabaseEscapeFunctions } from './databaseClient'
 
 /**
  * postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
@@ -207,14 +207,16 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
   /**
    * Return the generated sql string.
    */
-  sql: keyof P extends never ? () => string : (params: P) => string
+  sql: keyof P extends never
+    ? (client: DatabaseEscapeFunctions) => string
+    : (client: DatabaseEscapeFunctions, params: P) => string
 
   /**
    * Log the generated sql string to the console.
    */
   sqlLog: keyof P extends never
-    ? () => string
-    : (params: P) => QueryBottom<T, P, L, S, C>
+    ? (client: DatabaseEscapeFunctions) => string
+    : (client: DatabaseEscapeFunctions, params: P) => QueryBottom<T, P, L, S, C>
 
   /**
    * Run an SQL EXPLAIN on this query.
