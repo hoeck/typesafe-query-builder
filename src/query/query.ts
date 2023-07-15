@@ -9,9 +9,10 @@ import {
   Selection,
   Table,
 } from '../types'
-import { createSql } from './build'
+import { queryItemsToSqlTokens } from './buildQuery'
+import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
-import { QueryItem, queryItemsToSqlTokens } from './queryItem'
+import { QueryItem } from './queryItem'
 import { ExprImpl } from './sql'
 import {
   TableImplementation,

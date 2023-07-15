@@ -147,7 +147,7 @@ export class SelectionImplementation {
               sqlWhitespace,
               'AS',
               sqlWhitespace,
-              { type: 'sqlIdentifier', value: s },
+              { type: 'sqlIdentifier', value: this.getColumnAlias(s) },
             ]
           }),
           [',', sqlNewline],
@@ -430,14 +430,6 @@ export class TableImplementation {
     }) as any
   }
 
-  // to feed the AliasGenerator
-  getTableIdentifier(): {
-    readonly tableName: string
-    readonly tableAlias?: string
-  } {
-    return this as any
-  }
-
   // column accessor,  name is the schema col name (not the sql name)
   getColumn(columnName: string): ColumnImplementation {
     const column = this.tableColumns[columnName]
@@ -452,13 +444,7 @@ export class TableImplementation {
   }
 
   getTableSql(): SqlToken[] {
-    // TODO:
-    // if (this.tableQuery) {
-    //   // sql (sub) query wrapped in a Table
-    //   return `(${this.tableQuery(ctx, params)}) ${alias}`
-    // }
-
-    // plain table select
+    // TODO: subqueries
     return [
       {
         type: 'sqlTable',

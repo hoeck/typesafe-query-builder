@@ -30,7 +30,7 @@ export const column: ColumnConstructor = (
  * Implementation for Column
  */
 export class ColumnImplementation {
-  // column value type represented by its validation function
+  // column value type represented by its runtype (validation) function
   columnValue: (value: unknown) => any
 
   // name of the column in the database
