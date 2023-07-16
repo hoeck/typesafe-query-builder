@@ -215,7 +215,7 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
    * Log the generated sql string to the console.
    */
   sqlLog: keyof P extends never
-    ? (client: DatabaseEscapeFunctions) => string
+    ? (client: DatabaseEscapeFunctions) => QueryBottom<T, P, L, S, C>
     : (client: DatabaseEscapeFunctions, params: P) => QueryBottom<T, P, L, S, C>
 
   /**

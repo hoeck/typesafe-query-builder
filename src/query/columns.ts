@@ -1,29 +1,16 @@
 import { inspect } from 'util'
 import { QueryBuilderUsageError, QueryBuilderValidationError } from '../errors'
 import { Column, ColumnConstructor } from '../types'
+import { ExprFactImpl } from './expressions'
+import { ExprImpl, SqlToken, sqlWhitespace, wrapInParens } from './sql'
+import { TableImplementation } from './table'
 
 function identity(value: unknown): unknown {
   return value
 }
 
-export const column: ColumnConstructor = (
-  sqlName: string,
-  validator?: (v: unknown) => any,
-  fromJson?: (v: unknown) => any,
-) => {
-  if (!validator) {
-    return new ColumnImplementation({
-      name: sqlName,
-      columnValue: identity,
-      fromJson,
-    }) as any
-  }
-
-  return new ColumnImplementation({
-    name: sqlName,
-    columnValue: validator,
-    fromJson,
-  }) as any
+export const column: ColumnConstructor = (sqlName: string) => {
+  return new ColumnImplementation(sqlName) as any
 }
 
 /**
@@ -31,70 +18,54 @@ export const column: ColumnConstructor = (
  */
 export class ColumnImplementation {
   // column value type represented by its runtype (validation) function
-  columnValue: (value: unknown) => any
+  columnValue: (value: unknown) => any = identity
 
   // name of the column in the database
   name: string
 
   // whether this column can contain nulls (needed when creating the query as
   // the type information in T is gone at runtime)
-  isNullable?: true
+  isNullable?: boolean
 
-  // optional serialization from basic types - required for data types that
-  // are represented in the database but are just 'strings' when selected via
-  // json such as SQL timestamps
-  fromJson?: (value: unknown) => any // converts the selected value from json
+  // just for documentation right now
+  isPrimaryKey?: boolean
 
-  // TODO: also support a toJson but figure out how that works with non-json columns
-  // toJson?: (value: T) => string | number | null | undefined | boolean, // convert into json
+  // optional cast expression
+  castExpr?: ExprImpl
 
-  // When true, this column is a primary key.
-  // Required to compute group by clauses for json_agg aggregations.
-  isPrimaryKey?: true
+  // optional transformation (applied after fetching the result, before
+  // passing it to the user)
+  resultTransformation?: (value: any) => any
 
-  constructor(params: {
-    name: string
-    columnValue: (value: unknown) => any
-    fromJson?: (value: unknown) => any
-    isPrimaryKey?: true
-    isNullable?: true
-  }) {
-    this.name = params.name
-    this.columnValue = params.columnValue
-    this.fromJson = params.fromJson
-    this.isPrimaryKey = params.isPrimaryKey
-    this.isNullable = params.isNullable
+  constructor(name: string) {
+    this.name = name
   }
 
-  // ColumnImplementation methods
+  private copy() {
+    const res = new ColumnImplementation(this.name)
 
-  copy(params: { name: string }) {
-    return new ColumnImplementation({
-      name: params.name,
-      columnValue: this.columnValue,
-      fromJson: this.fromJson,
-      isPrimaryKey: this.isPrimaryKey,
-      isNullable: this.isNullable,
-    })
+    res.columnValue = this.columnValue
+    res.isNullable = this.isNullable
+    res.isPrimaryKey = this.isPrimaryKey
+    res.castExpr = this.castExpr
+    res.resultTransformation = this.resultTransformation
+
+    return res
   }
 
-  getColumnSql(tableAlias: string): string {
-    return `${tableAlias}.${this.name}`
-  }
-
-  getColumnSelectSql(tableAlias: string, columnAlias: string): string {
-    const colSql = this.getColumnSql(tableAlias)
-
-    if (columnAlias.includes('"')) {
-      throw new QueryBuilderUsageError(
-        `column alias ${columnAlias} in table ${tableAlias} must not contain quotes`,
-      )
+  wrapColumnTokenInCast(columnToken: SqlToken): SqlToken[] {
+    if (!this.castExpr) {
+      return [columnToken]
     }
 
-    return `${colSql} AS "${columnAlias}"`
-  }
+    return this.castExpr.sql.map((t) => {
+      if (this.isReferencedTableColumn(t)) {
+        return columnToken
+      }
 
-  /// column sql attributes
+      return t
+    })
+  }
 
   /**
    * Mark this column as being the sole or part of the tables primary key.
@@ -102,9 +73,11 @@ export class ColumnImplementation {
    * Has no meaning right now and is just to document the schema
    */
   primary() {
-    this.isPrimaryKey = true
+    const res = this.copy()
 
-    return this
+    res.isPrimaryKey = true
+
+    return res
   }
 
   /**
@@ -114,9 +87,16 @@ export class ColumnImplementation {
    * `nullable` values always have null as the default.
    */
   default() {
+    const res = this.copy()
     const columnValue = this.columnValue
 
-    this.columnValue = (value: unknown) => {
+    if (!columnValue) {
+      throw new QueryBuilderUsageError(
+        'column ${this.name} - invalid method order, call `default()` after defining the columns type with e.g. `type`, `integer`, `string`, ...',
+      )
+    }
+
+    res.columnValue = (value: unknown) => {
       if (value === undefined) {
         // insert filters any undefined columns but the validations runs
         // before that step and is the only part of the column that knowns
@@ -127,7 +107,7 @@ export class ColumnImplementation {
       return columnValue(value)
     }
 
-    return this
+    return res
   }
 
   /**
@@ -136,35 +116,35 @@ export class ColumnImplementation {
    * That means it can hold `null` and also uses null as its default.
    */
   null() {
-    const fromJson = this.fromJson
+    const res = this.copy()
     const columnValue = this.columnValue
+    const resultTransformation = this.resultTransformation
 
-    this.columnValue = (value: unknown) => {
-      // check for both null and undefined as the default value for nullable
-      // columns is always null and undefined in inserts means `use the
-      // default`
-      if (value === null || value === undefined) {
+    if (!columnValue) {
+      throw new QueryBuilderUsageError(
+        'column ${this.name} - invalid method order, call `null()` after defining the columns type with e.g. `type`, `integer`, `string`, ...',
+      )
+    }
+
+    res.columnValue = (value: unknown) => {
+      if (value === null) {
         return null
       }
 
       return columnValue(value)
     }
-
-    // explicit tag that this may be null, required to generate `IS NULL`
-    // where expressions
-    this.isNullable = true
-
-    this.fromJson = fromJson
+    res.isNullable = true
+    res.resultTransformation = resultTransformation
       ? (value: any) => {
           if (value === null) {
             return null
           }
 
-          return fromJson(value)
+          return resultTransformation(value)
         }
       : undefined
 
-    return this
+    return res
   }
 
   /// built-in column types
@@ -186,10 +166,12 @@ export class ColumnImplementation {
   integer(): ColumnImplementation {
     this.checkThatColumnValueIsIdentity()
 
-    this.columnValue = (value: unknown) => {
+    const res = this.copy()
+
+    res.columnValue = (value: unknown) => {
       if (typeof value !== 'number') {
         throw new QueryBuilderValidationError(
-          `column ${this.name} - expected an integer but got: ${inspect(
+          `column ${res.name} - expected an integer but got: ${inspect(
             value,
           ).slice(0, 128)}`,
         )
@@ -198,7 +180,7 @@ export class ColumnImplementation {
       if (!Number.isInteger(value) || !Number.isSafeInteger(value)) {
         throw new QueryBuilderValidationError(
           `column ${
-            this.name
+            res.name
           } - expected an integer but got a number with fractions or a non safe integer: ${inspect(
             value,
           )}`,
@@ -208,7 +190,7 @@ export class ColumnImplementation {
       return value
     }
 
-    return this
+    return res
   }
 
   /**
@@ -219,10 +201,12 @@ export class ColumnImplementation {
   string() {
     this.checkThatColumnValueIsIdentity()
 
-    this.columnValue = (value: unknown) => {
+    const res = this.copy()
+
+    res.columnValue = (value: unknown) => {
       if (typeof value !== 'string') {
         throw new QueryBuilderValidationError(
-          `column ${this.name} - expected a string but got: ${inspect(
+          `column ${res.name} - expected a string but got: ${inspect(
             value,
           ).slice(0, 128)}`,
         )
@@ -231,7 +215,7 @@ export class ColumnImplementation {
       return value
     }
 
-    return this
+    return res
   }
 
   /**
@@ -242,10 +226,12 @@ export class ColumnImplementation {
   boolean() {
     this.checkThatColumnValueIsIdentity()
 
-    this.columnValue = (value: unknown) => {
+    const res = this.copy()
+
+    res.columnValue = (value: unknown) => {
       if (typeof value !== 'boolean') {
         throw new QueryBuilderValidationError(
-          `column ${this.name} - expected a boolean but got: ${inspect(
+          `column ${res.name} - expected a boolean but got: ${inspect(
             value,
           ).slice(0, 128)}`,
         )
@@ -254,7 +240,7 @@ export class ColumnImplementation {
       return value
     }
 
-    return this
+    return res
   }
 
   /**
@@ -265,7 +251,9 @@ export class ColumnImplementation {
   date() {
     this.checkThatColumnValueIsIdentity()
 
-    this.columnValue = (value: unknown) => {
+    const res = this.copy()
+
+    res.columnValue = (value: unknown) => {
       if (!(value instanceof Date)) {
         throw new QueryBuilderValidationError(
           `column {this.name} - expected a Date but got: ${inspect(value).slice(
@@ -278,50 +266,92 @@ export class ColumnImplementation {
       return value
     }
 
-    this.fromJson = (value: unknown) => {
-      if (value instanceof Date) {
-        return value
-      }
-
-      // postgres serializes timestamps into strings when selected via json functions
-      if (typeof value === 'string') {
-        return new Date(value)
-      }
-
-      throw new QueryBuilderValidationError(
-        `column ${this.name} - cannot read Date from ${inspect(value).slice(
-          0,
-          128,
-        )}`,
-      )
+    // cast columns to timestamps (js number) and read them later back in
+    // using the date constructor
+    res.castExpr = {
+      sql: wrapInParens([
+        'CASE',
+        sqlWhitespace,
+        'WHEN',
+        sqlWhitespace,
+        {
+          type: 'sqlTableColumn',
+          columnName: 'value',
+          table: null as any,
+        },
+        sqlWhitespace,
+        'IS NOT NULL',
+        sqlWhitespace,
+        'THEN',
+        sqlWhitespace,
+        ...wrapInParens([
+          'EXTRACT',
+          ...wrapInParens([
+            'EPOCH FROM',
+            sqlWhitespace,
+            {
+              type: 'sqlTableColumn',
+              columnName: 'value',
+              table: null as any,
+            },
+          ]),
+          sqlWhitespace,
+          '*',
+          sqlWhitespace,
+          { type: 'sqlLiteral', value: 1000 },
+        ]),
+        sqlWhitespace,
+        'ELSE',
+        sqlWhitespace,
+        { type: 'sqlLiteral', value: null },
+        sqlWhitespace,
+        'END',
+      ]),
     }
 
-    return this
+    res.resultTransformation = (value: unknown) => {
+      if (typeof value !== 'number') {
+        throw new QueryBuilderValidationError(
+          `column ${res.name} - cannot read Date from ${inspect(value).slice(
+            0,
+            128,
+          )} - expected an integer`,
+        )
+      }
+
+      // we cast dates to unix timestamp
+      return new Date(value)
+    }
+
+    return res
   }
 
   /**
    * Map this column to an json object.
    *
-   * Validator should be function that validates the type of the incoming
-   * data. Validator is called before inserting or updating and stringifies
-   * any data before passing it to postgres.
+   * Runtype is called before inserting or updating and stringifies any data
+   * before passing it to postgres.
+   * Runtype should be function that checks or parses the type or structure of
+   * the incoming data and return it. It may perform transformations
+   * (e.g. removing surrounding spaces from strings). It must throw an
+   * exception if the passed data is invalid.
    *
    * postgres types: JSON, JSONB
    */
-  json(validator: (data: unknown) => any) {
+  json(runtype: (data: unknown) => any) {
     this.checkThatColumnValueIsIdentity()
 
-    const anyThis: any = this
+    const res = this.copy()
 
-    anyThis.columnValue = (value: unknown) => {
+    res.columnValue = (value: unknown) => {
       // stringify before insert / update because node-pg does not know when
       // we're inserting / updating json data so we have to pass it as a string
       // (node-pg only stringifies js objects but not arrays or strings)
       // see https://github.com/brianc/node-postgres/issues/442
-      return JSON.stringify(validator(value))
+      return JSON.stringify(runtype(value))
     }
 
-    return anyThis
+    return res
   }
 
   /**
@@ -332,10 +362,10 @@ export class ColumnImplementation {
   literal(...elements: any[]) {
     this.checkThatColumnValueIsIdentity()
 
+    const res = this.copy()
     const index: Set<string | number | boolean | BigInt> = new Set(elements)
-    const anyThis: any = this
 
-    anyThis.columnValue = (value: unknown) => {
+    res.columnValue = (value: unknown) => {
       if (
         !(
           typeof value === 'string' ||
@@ -346,7 +376,7 @@ export class ColumnImplementation {
         !index.has(value)
       ) {
         throw new QueryBuilderValidationError(
-          `column ${this.name} - expected one of ${elements} but got: ${inspect(
+          `column ${res.name} - expected one of ${elements} but got: ${inspect(
             value,
           ).slice(0, 128)}`,
         )
@@ -355,11 +385,13 @@ export class ColumnImplementation {
       return value
     }
 
-    return anyThis
+    return res
   }
 
   enum(enumObject: any) {
     this.checkThatColumnValueIsIdentity()
+
+    const res = this.copy()
 
     const valueIndex = new Set(
       Object.entries(enumObject)
@@ -378,7 +410,7 @@ export class ColumnImplementation {
         }),
     )
 
-    this.columnValue = (value: unknown) => {
+    res.columnValue = (value: unknown) => {
       // reverse lookup for number enums
       if (typeof value === 'number' && enumObject[value] !== undefined) {
         return value
@@ -386,7 +418,7 @@ export class ColumnImplementation {
 
       if (typeof value !== 'string' || !valueIndex.has(value)) {
         throw new QueryBuilderValidationError(
-          `column ${this.name} - expected a member of the enum ${inspect(
+          `column ${res.name} - expected a member of the enum ${inspect(
             enumObject,
             {
               compact: true,
@@ -399,7 +431,52 @@ export class ColumnImplementation {
       return value
     }
 
-    return this
+    return res
+  }
+
+  /**
+   * Custom column type.
+   */
+  type(runtype: (value: unknown) => any) {
+    this.checkThatColumnValueIsIdentity()
+
+    const res = this.copy()
+
+    res.columnValue = runtype
+
+    return res
+  }
+
+  // check whether a token of a cast expression is the column
+  private isReferencedTableColumn(t: SqlToken) {
+    return typeof t !== 'string' && t.type === 'sqlTableColumn'
+  }
+
+  /**
+   * Apply a custom cast
+   */
+  cast(
+    cast: (f: ExprFactImpl, t: TableImplementation) => ExprImpl,
+    resultTransformation: (value: any) => any,
+  ) {
+    const res = this.copy()
+    const valueTable = new TableImplementation('value', { value: this })
+
+    res.castExpr = cast(new ExprFactImpl([valueTable]), valueTable)
+
+    const castExprUsesValueTable = res.castExpr.sql.some((t) =>
+      this.isReferencedTableColumn(t),
+    )
+
+    if (!castExprUsesValueTable) {
+      throw new QueryBuilderUsageError(
+        `column ${res.name} - expected cast expression to reference the column value at least once`,
+      )
+    }
+
+    res.resultTransformation = resultTransformation
+
+    return res
   }
 }
 

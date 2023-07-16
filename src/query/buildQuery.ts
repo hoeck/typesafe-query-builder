@@ -11,7 +11,8 @@ import {
   sqlWhitespace,
 } from './sql'
 
-export function queryItemsToSqlTokens(queryItems: QueryItem[]) {
+// turns query items into sql tokens that can be later turned into a string
+export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
   const result: {
     select: SqlToken[][] // array of `<expr> AS alias, <expr> AS alias` selections
     from?: SqlToken[]
@@ -113,4 +114,32 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]) {
   ]
 }
 
-export function queryItemsToResultTransformer() {}
+// Returns a function that transforms query results in-place, e.g. converting
+// numeric timestamps from sql date columns back into JS Date objects.
+export function queryItemsToResultTransformer(queryItems: QueryItem[]) {
+  const transformers = queryItems.flatMap((item) => {
+    if (item.type === 'selectColumns') {
+      const t = item.selection.getResultTransformer()
+
+      if (t) {
+        return t
+      }
+
+      return []
+    }
+
+    return []
+  })
+
+  if (!transformers.length) {
+    return (rows: any[]) => undefined
+  }
+
+  return (rows: any[]) => {
+    for (let i = 0; i < transformers.length; i++) {
+      for (let k = 0; k < rows.length; k++) {
+        transformers[i](rows[k])
+      }
+    }
+  }
+}

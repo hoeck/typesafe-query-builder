@@ -32,6 +32,5 @@ export type {
   TableRowInsert,
   TableRowInsertOptional,
   TableType,
-  TableTypeWithDefaults,
   TableUnionConstructor,
 } from './table'

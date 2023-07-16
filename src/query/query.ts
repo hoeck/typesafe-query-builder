@@ -9,7 +9,10 @@ import {
   Selection,
   Table,
 } from '../types'
-import { queryItemsToSqlTokens } from './buildQuery'
+import {
+  queryItemsToResultTransformer,
+  queryItemsToSqlTokens,
+} from './buildQuery'
 import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
 import { QueryItem } from './queryItem'
@@ -202,8 +205,10 @@ export class QueryImplementation {
     return sql
   }
 
-  sqlLog(params?: any) {
-    return new QueryImplementation(this.tables, this.query)
+  sqlLog(client: DatabaseEscapeFunctions, params?: any) {
+    console.log(this.sql(client, params))
+
+    return this
   }
 
   explain(client: DatabaseClient, params?: any) {
@@ -217,6 +222,7 @@ export class QueryImplementation {
   async fetch(client: DatabaseClient, params?: any) {
     const tokens = this.getSql()
     const { sql, parameters } = createSql(client, tokens)
+    const resultTransformer = queryItemsToResultTransformer(this.query)
 
     if (parameters.length) {
       const paramsLen = Object.keys(params || {}).length
@@ -238,6 +244,9 @@ export class QueryImplementation {
       sql,
       parameters.map((p) => params[p]),
     )
+
+    // modify result in-place bc it is more efficient
+    resultTransformer(result.rows)
 
     return result.rows
   }

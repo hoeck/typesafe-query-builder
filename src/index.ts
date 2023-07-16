@@ -18,6 +18,5 @@ export type {
   TableRowInsert,
   TableRowInsertOptional,
   TableType,
-  TableTypeWithDefaults,
 } from './types'
 export { omit, pick } from './utils'

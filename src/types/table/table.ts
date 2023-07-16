@@ -151,15 +151,6 @@ export type TableRowInsertOptional<X> = X extends DatabaseTable<
 //     : never
 // }[keyof T]
 
-// /**
-//  * The row type of a table suitable for inserts.
-//  */
-// export type TableTypeWithDefaults<T> = Partial<
-//   Pick<TableType<T>, TableColumnsWithDefaults<TableType<T>>>
-// > &
-//   Omit<TableType<T>, TableColumnsWithDefaults<TableType<T>>>
-export type TableTypeWithDefaults = any
-
 /**
  * T .. available columns
  * P .. params
@@ -211,7 +202,6 @@ export declare class Selection<T, P, S> {
    * A combination of `json_agg` and `json_build_object`
    */
   jsonObjectArray<K extends string, O extends keyof T>(
-    this: Selection<T, P, S>,
     key: K,
     orderBy?: O,
     direction?: 'ASC' | 'DESC',

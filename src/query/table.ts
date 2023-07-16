@@ -66,10 +66,10 @@ export class SelectionImplementation {
             { type: 'sqlLiteral', value: this.getColumnAlias(s) },
             ',',
             sqlWhitespace,
-            { type: 'sqlTableColumn', table: this.table, columnName: s },
+            ...this.table.getColumnExprWithCast(s).sql,
           ]
         }),
-        [','],
+        [',', sqlWhitespace],
       ),
       sqlParenClose,
     ]
@@ -139,11 +139,7 @@ export class SelectionImplementation {
             const col = this.table.getColumn(s)
 
             return [
-              {
-                type: 'sqlTableColumn',
-                table: this.table,
-                columnName: s,
-              },
+              ...this.table.getColumnExprWithCast(s).sql,
               sqlWhitespace,
               'AS',
               sqlWhitespace,
@@ -174,13 +170,7 @@ export class SelectionImplementation {
         }
 
         return this.getJsonAggSql(
-          [
-            {
-              type: 'sqlTableColumn',
-              columnName: this.selectedColumns[0],
-              table: this.table,
-            },
-          ],
+          this.table.getColumnExprWithCast(this.selectedColumns[0]).sql,
           this.projection,
         )
       }
@@ -189,6 +179,104 @@ export class SelectionImplementation {
         const objectSql = this.getJsonBuildObjectExpression()
 
         return this.getJsonAggSql(objectSql, this.projection)
+
+      default:
+        return assertNever(this.projection)
+    }
+  }
+
+  // returns a function that applies any result transformations from
+  // `column.cast` to a queried result
+  getResultTransformer(): ((row: any) => void) | undefined {
+    switch (this.projection?.type) {
+      case null:
+      case undefined: {
+        // plain select
+        const transformers = this.selectedColumns.flatMap((s) => {
+          const t = this.table.getColumn(s).resultTransformation
+          const key = this.getColumnAlias(s)
+
+          if (t) {
+            return (row: any) => {
+              row[key] = t(row[key])
+            }
+          }
+
+          return []
+        })
+
+        return transformers.length
+          ? (row: any) => {
+              for (let i = 0; i < transformers.length; i++) {
+                transformers[i](row)
+              }
+            }
+          : undefined
+      }
+
+      case 'jsonObject': {
+        const jsonKey = this.projection.key
+        const transformers = this.selectedColumns.flatMap((s) => {
+          const t = this.table.getColumn(s).resultTransformation
+          const key = this.getColumnAlias(s)
+
+          if (t) {
+            return (row: any) => {
+              row[jsonKey][key] = t(row[jsonKey][key])
+            }
+          }
+
+          return []
+        })
+
+        return transformers.length
+          ? (row: any) => {
+              for (let i = 0; i < transformers.length; i++) {
+                transformers[i](row)
+              }
+            }
+          : undefined
+      }
+
+      case 'jsonArray': {
+        const jsonKey = this.projection.key
+        const s = this.selectedColumns[0]
+        const t = this.table.getColumn(s).resultTransformation
+
+        return t
+          ? (row: any) => {
+              for (let i = 0; i < row[jsonKey].length; i++) {
+                t(row[jsonKey][i])
+              }
+            }
+          : undefined
+      }
+
+      case 'jsonObjectArray': {
+        const jsonKey = this.projection.key
+        const transformers = this.selectedColumns.flatMap((s) => {
+          const t = this.table.getColumn(s).resultTransformation
+          const key = this.getColumnAlias(s)
+
+          if (t) {
+            return (row: any) => {
+              row[jsonKey][key] = t(row[jsonKey][key])
+            }
+          }
+
+          return []
+        })
+
+        return transformers.length
+          ? (row: any) => {
+              for (let i = 0; i < row[jsonKey].length; i++) {
+                for (let k = 0; k < transformers.length; k++) {
+                  transformers[k](row[jsonKey])
+                }
+              }
+            }
+          : undefined
+      }
 
       default:
         return assertNever(this.projection)
@@ -383,8 +471,11 @@ export class TableImplementation {
     return `#<Table ${this.tableName}>`
   }
 
+  // the expression for use in where clauses and other expressions
   getColumnExpr(name: string): ExprImpl {
-    if (this.tableColumns[name] === undefined) {
+    const col = this.tableColumns[name]
+
+    if (col === undefined) {
       throw new QueryBuilderAssertionError(
         `column ${name} does not exist on table ${this.tableName}`,
       )
@@ -398,6 +489,25 @@ export class TableImplementation {
           columnName: name,
         },
       ],
+    }
+  }
+
+  // column with optional cast for use in selections
+  getColumnExprWithCast(name: string): ExprImpl {
+    const col = this.tableColumns[name]
+
+    if (col === undefined) {
+      throw new QueryBuilderAssertionError(
+        `column ${name} does not exist on table ${this.tableName}`,
+      )
+    }
+
+    return {
+      sql: col.wrapColumnTokenInCast({
+        type: 'sqlTableColumn',
+        table: this,
+        columnName: name,
+      }),
     }
   }
 
