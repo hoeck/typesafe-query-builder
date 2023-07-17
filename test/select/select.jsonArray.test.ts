@@ -1,5 +1,10 @@
 import { query } from '../../src'
-import { client, expectValuesUnsorted, Manufacturers } from '../helpers'
+import {
+  GamesSystems,
+  Manufacturers,
+  client,
+  expectValuesUnsorted,
+} from '../helpers'
 
 describe('select.jsonArray', () => {
   test('plain array', async () => {
@@ -34,6 +39,16 @@ describe('select.jsonArray', () => {
       .fetch(client)
 
     expectValuesUnsorted(resultDesc, [{ names: ['Sega', 'Nintendo', 'Atari'] }])
+  })
+
+  test('preserve Date objects in json through cast and result transformation', async () => {
+    const res = await query(GamesSystems)
+      .select(GamesSystems.include('releaseDate').jsonArray('dates'))
+      .fetch(client)
+
+    expect(res).toEqual([expect.any(Object)])
+    expect(res[0].dates).toContainEqual(new Date('1991-10-25T00:00:00.000Z'))
+    expect(res[0].dates).toContainEqual(null)
   })
 
   describe('errors', () => {

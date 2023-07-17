@@ -33,8 +33,10 @@ export class ColumnImplementation {
   // optional cast expression
   castExpr?: ExprImpl
 
-  // optional transformation (applied after fetching the result, before
-  // passing it to the user)
+  // Optional transformation (applied after fetching the result, before
+  // passing it to the user).
+  // Works on the columns casted value to produce the value as defined in its
+  // type.
   resultTransformation?: (value: any) => any
 
   constructor(name: string) {

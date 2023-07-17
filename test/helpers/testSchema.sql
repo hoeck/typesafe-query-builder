@@ -115,7 +115,7 @@ VALUES
   -- sonic
   (1, 1, '1991-10-25', true), -- sms
   (1, 2, '1991-07-26', true), -- genesis
-  (1, 3, '1991-12-28', true), -- gg
+  (1, 3, null        , true), -- gg
   -- mario land
   (2, 6, '1989-04-21', true), -- gb
   -- mario bros

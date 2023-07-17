@@ -129,6 +129,7 @@ export class SelectionImplementation {
     ]
   }
 
+  // turn the selection into sql
   getSelectSql(): SqlToken[] {
     switch (this.projection?.type) {
       case null:
@@ -221,8 +222,8 @@ export class SelectionImplementation {
           const key = this.getColumnAlias(s)
 
           if (t) {
-            return (row: any) => {
-              row[jsonKey][key] = t(row[jsonKey][key])
+            return (o: any) => {
+              o[key] = t(o[key])
             }
           }
 
@@ -232,7 +233,7 @@ export class SelectionImplementation {
         return transformers.length
           ? (row: any) => {
               for (let i = 0; i < transformers.length; i++) {
-                transformers[i](row)
+                transformers[i](row[jsonKey])
               }
             }
           : undefined
@@ -246,7 +247,7 @@ export class SelectionImplementation {
         return t
           ? (row: any) => {
               for (let i = 0; i < row[jsonKey].length; i++) {
-                t(row[jsonKey][i])
+                row[jsonKey][i] = t(row[jsonKey][i])
               }
             }
           : undefined
@@ -259,8 +260,8 @@ export class SelectionImplementation {
           const key = this.getColumnAlias(s)
 
           if (t) {
-            return (row: any) => {
-              row[jsonKey][key] = t(row[jsonKey][key])
+            return (o: any) => {
+              o[key] = t(o[key])
             }
           }
 
@@ -271,7 +272,7 @@ export class SelectionImplementation {
           ? (row: any) => {
               for (let i = 0; i < row[jsonKey].length; i++) {
                 for (let k = 0; k < transformers.length; k++) {
-                  transformers[k](row[jsonKey])
+                  transformers[k](row[jsonKey][i])
                 }
               }
             }
