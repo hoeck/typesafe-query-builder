@@ -66,7 +66,7 @@ export class SelectionImplementation {
             { type: 'sqlLiteral', value: this.getColumnAlias(s) },
             ',',
             sqlWhitespace,
-            ...this.table.getColumnExprWithCast(s).sql,
+            ...this.table.getColumnExprWithCast(s).exprTokens,
           ]
         }),
         [',', sqlWhitespace],
@@ -140,7 +140,7 @@ export class SelectionImplementation {
             const col = this.table.getColumn(s)
 
             return [
-              ...this.table.getColumnExprWithCast(s).sql,
+              ...this.table.getColumnExprWithCast(s).exprTokens,
               sqlWhitespace,
               'AS',
               sqlWhitespace,
@@ -171,7 +171,7 @@ export class SelectionImplementation {
         }
 
         return this.getJsonAggSql(
-          this.table.getColumnExprWithCast(this.selectedColumns[0]).sql,
+          this.table.getColumnExprWithCast(this.selectedColumns[0]).exprTokens,
           this.projection,
         )
       }
@@ -483,7 +483,7 @@ export class TableImplementation {
     }
 
     return {
-      sql: [
+      exprTokens: [
         {
           type: 'sqlTableColumn',
           table: this,
@@ -504,7 +504,7 @@ export class TableImplementation {
     }
 
     return {
-      sql: col.wrapColumnTokenInCast({
+      exprTokens: col.wrapColumnTokenInCast({
         type: 'sqlTableColumn',
         table: this,
         columnName: name,

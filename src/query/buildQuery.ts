@@ -62,22 +62,22 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         result.select.push(item.selection.getSelectSql())
         break
       case 'selectExpr':
-        if (item.expr.alias === undefined) {
+        if (item.expr.exprAlias === undefined) {
           throw new QueryBuilderAssertionError(
             'expected expression to contain an alias',
           )
         }
 
         result.select.push([
-          ...item.expr.sql,
+          ...item.expr.exprTokens,
           sqlWhitespace,
           'AS',
           sqlWhitespace,
-          { type: 'sqlIdentifier', value: item.expr.alias },
+          { type: 'sqlIdentifier', value: item.expr.exprAlias },
         ])
         break
       case 'where':
-        result.where.push(item.expr.sql)
+        result.where.push(item.expr.exprTokens)
         break
       default:
         assertNever(item)
@@ -100,8 +100,8 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
               'WHERE',
               sqlWhitespace,
               ...new ExprFactImpl([]).and(
-                ...result.where.map((w) => ({ sql: w })),
-              ).sql,
+                ...result.where.map((w) => ({ exprTokens: w })),
+              ).exprTokens,
             ]
           : [],
         result.orderBy || [],

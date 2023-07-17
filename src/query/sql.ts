@@ -85,6 +85,6 @@ export function wrapInParens(tokens: SqlToken[]): SqlToken[] {
 }
 
 export interface ExprImpl {
-  sql: SqlToken[]
-  alias?: string
+  exprTokens: SqlToken[]
+  exprAlias?: string
 }

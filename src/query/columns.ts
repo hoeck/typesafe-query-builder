@@ -60,7 +60,7 @@ export class ColumnImplementation {
       return [columnToken]
     }
 
-    return this.castExpr.sql.map((t) => {
+    return this.castExpr.exprTokens.map((t) => {
       if (this.isReferencedTableColumn(t)) {
         return columnToken
       }
@@ -271,7 +271,7 @@ export class ColumnImplementation {
     // cast columns to timestamps (js number) and read them later back in
     // using the date constructor
     res.castExpr = {
-      sql: wrapInParens([
+      exprTokens: wrapInParens([
         'CASE',
         sqlWhitespace,
         'WHEN',
@@ -466,7 +466,7 @@ export class ColumnImplementation {
 
     res.castExpr = cast(new ExprFactImpl([valueTable]), valueTable)
 
-    const castExprUsesValueTable = res.castExpr.sql.some((t) =>
+    const castExprUsesValueTable = res.castExpr.exprTokens.some((t) =>
       this.isReferencedTableColumn(t),
     )
 

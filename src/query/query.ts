@@ -71,10 +71,14 @@ export class QueryImplementation {
     return queryItemsToSqlTokens(this.query)
   }
 
-  getExprImpl(): ExprImpl {
-    return {
-      sql: wrapInParens(this.getSql()),
-    }
+  // ExprImpl
+
+  get exprTokens() {
+    return wrapInParens(this.getSql())
+  }
+
+  get exprAlias() {
+    return undefined
   }
 
   // query methods

@@ -28,25 +28,25 @@ class ParamImpl {
 
   type(): ExprImpl {
     return {
-      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
+      exprTokens: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 
   string(): ExprImpl {
     return {
-      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
+      exprTokens: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 
   number(): ExprImpl {
     return {
-      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
+      exprTokens: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 
   boolean(): ExprImpl {
     return {
-      sql: [{ type: 'sqlParameter', parameterName: this.parameterName }],
+      exprTokens: [{ type: 'sqlParameter', parameterName: this.parameterName }],
     }
   }
 }
@@ -60,15 +60,15 @@ export class ExprFactImpl implements FactoryMethods {
 
   // private expression helpers (many expressions are of similar shape)
 
-  _andOrOp(operator: 'AND' | 'OR', expressions: ExprImpl[]) {
+  _andOrOp(operator: 'AND' | 'OR', expressions: ExprImpl[]): ExprImpl {
     if (expressions.length === 1) {
       return expressions[0]
     }
 
     return {
-      sql: wrapInParens(
+      exprTokens: wrapInParens(
         joinTokens(
-          expressions.map((e) => e.sql),
+          expressions.map((e) => e.exprTokens),
           //[sqlWhitespace, operator, sqlWhitespace],
           [sqlNewline, operator, sqlNewline],
         ),
@@ -76,7 +76,8 @@ export class ExprFactImpl implements FactoryMethods {
     }
   }
 
-  _twoParamOp(
+  // `a = ANY(b)`
+  _arrayOpExpr(
     operator: string,
     a: ExprImpl | string,
     b: ExprImpl | string,
@@ -85,54 +86,32 @@ export class ExprFactImpl implements FactoryMethods {
     const _b = typeof b === 'string' ? this.param(b).type() : b
 
     return {
-      sql: wrapInParens([
-        ..._a.sql,
+      exprTokens: wrapInParens([
+        ..._a.exprTokens,
         sqlWhitespace,
         operator,
-        sqlWhitespace,
-        ..._b.sql,
+        ...wrapInParens(_b.exprTokens),
       ]),
     }
   }
 
-  _subqueryExpression(
+  // `a = b`
+  _binaryOpExpr(
     operator: string,
-    a: ExprImpl,
-    b: ExprImpl | QueryImplementation | string,
+    a: ExprImpl | string,
+    b: ExprImpl | string,
   ): ExprImpl {
-    if (typeof b === 'string') {
-      const p = this.param(b).type()
+    const _a = typeof a === 'string' ? this.param(a).type() : a
+    const _b = typeof b === 'string' ? this.param(b).type() : b
 
-      return {
-        sql: wrapInParens([
-          ...a.sql,
-          sqlWhitespace,
-          operator,
-          ...wrapInParens(p.sql),
-        ]),
-      }
-    } else if (isQueryImplementation(b)) {
-      const subqExpr = b.getExprImpl()
-
-      return {
-        sql: wrapInParens([
-          ...a.sql,
-          sqlWhitespace,
-          operator,
-          ...wrapInParens(subqExpr.sql),
-        ]),
-      }
-    } else {
-      return {
-        sql: wrapInParens([
-          ...a.sql,
-          sqlWhitespace,
-          operator,
-          // TODO: do not wrap in parens twice, maybe add a `isWrapped`
-          // property to ExprImpl`?
-          ...wrapInParens(b.sql),
-        ]),
-      }
+    return {
+      exprTokens: wrapInParens([
+        ..._a.exprTokens,
+        sqlWhitespace,
+        operator,
+        sqlWhitespace,
+        ..._b.exprTokens,
+      ]),
     }
   }
 
@@ -146,48 +125,50 @@ export class ExprFactImpl implements FactoryMethods {
     return this._andOrOp('OR', expressions)
   }
 
-  not = (a: ExprImpl) => {
+  not = (a: ExprImpl): ExprImpl => {
     return {
-      sql: wrapInParens(['NOT', sqlWhitespace, ...a.sql]),
+      exprTokens: wrapInParens(['NOT', sqlWhitespace, ...a.exprTokens]),
     }
   }
 
   eq = (a: ExprImpl | string, b: ExprImpl | string) => {
-    return this._twoParamOp('=', a, b)
+    return this._binaryOpExpr('=', a, b)
   }
 
-  coalesce = (a: ExprImpl, b: ExprImpl) => {
+  coalesce = (a: ExprImpl, b: ExprImpl): ExprImpl => {
     return {
-      sql: [
+      exprTokens: [
         'COALESCE',
-        ...wrapInParens(joinTokens([a.sql, b.sql], [',', sqlWhitespace])),
+        ...wrapInParens(
+          joinTokens([a.exprTokens, b.exprTokens], [',', sqlWhitespace]),
+        ),
       ],
     }
   }
 
-  isNull = (a: ExprImpl) => {
+  isNull = (a: ExprImpl): ExprImpl => {
     return {
-      sql: wrapInParens([...a.sql, sqlWhitespace, 'IS NULL']),
+      exprTokens: wrapInParens([...a.exprTokens, sqlWhitespace, 'IS NULL']),
     }
   }
 
   caseWhen = (...cases: ([ExprImpl, ExprImpl] | ExprImpl)[]): ExprImpl => {
-    const sql: SqlToken[] = ['CASE']
+    const exprTokens: SqlToken[] = ['CASE']
     const parameters: Set<string> = new Set()
 
     cases.forEach((c, i) => {
       if (Array.isArray(c)) {
         const [condition, result] = c
 
-        sql.push(
+        exprTokens.push(
           sqlWhitespace,
           'WHEN',
           sqlWhitespace,
-          ...condition.sql,
+          ...condition.exprTokens,
           sqlWhitespace,
           'THEN',
           sqlWhitespace,
-          ...result.sql,
+          ...result.exprTokens,
         )
       } else {
         const isLastCase = i === cases.length - 1
@@ -198,14 +179,14 @@ export class ExprFactImpl implements FactoryMethods {
           )
         }
 
-        sql.push(sqlWhitespace, 'ELSE', sqlWhitespace, ...c.sql)
+        exprTokens.push(sqlWhitespace, 'ELSE', sqlWhitespace, ...c.exprTokens)
       }
     })
 
-    sql.push(sqlWhitespace, 'END')
+    exprTokens.push(sqlWhitespace, 'END')
 
     return {
-      sql,
+      exprTokens,
     }
   }
 
@@ -213,13 +194,13 @@ export class ExprFactImpl implements FactoryMethods {
     value: string | number | BigInt | boolean | Date | null,
   ): ExprImpl => {
     return {
-      sql: [{ type: 'sqlLiteral', value: value }],
+      exprTokens: [{ type: 'sqlLiteral', value: value }],
     }
   }
 
   literalString = (value: string): ExprImpl => {
     return {
-      sql: [{ type: 'sqlLiteral', value: value }],
+      exprTokens: [{ type: 'sqlLiteral', value: value }],
     }
   }
 
@@ -231,19 +212,17 @@ export class ExprFactImpl implements FactoryMethods {
     return query(t)
   }
 
-  isIn = (a: ExprImpl, b: ExprImpl | QueryImplementation | string) => {
-    return this._subqueryExpression('= ANY', a, b)
+  isIn = (a: ExprImpl, b: ExprImpl | string) => {
+    return this._arrayOpExpr('= ANY', a, b)
   }
 
-  isNotIn = (a: ExprImpl, b: ExprImpl | QueryImplementation | string) => {
-    return this._subqueryExpression('<> ALL', a, b)
+  isNotIn = (a: ExprImpl, b: ExprImpl | string) => {
+    return this._arrayOpExpr('<> ALL', a, b)
   }
 
-  exists = (a: QueryImplementation) => {
-    const subqExpr = a.getExprImpl()
-
+  exists = (a: QueryImplementation): ExprImpl => {
     return {
-      sql: wrapInParens(['EXISTS', sqlWhitespace, ...subqExpr.sql]),
+      exprTokens: wrapInParens(['EXISTS', sqlWhitespace, ...a.exprTokens]),
     }
   }
 }
