@@ -16,7 +16,7 @@ import {
 import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
 import { QueryItem } from './queryItem'
-import { ExprImpl } from './sql'
+import { ExprImpl, wrapInParens } from './sql'
 import {
   TableImplementation,
   getTableImplementation,
@@ -51,7 +51,7 @@ function validateRowData(
 let uniqueTableNameCounter = 0
 
 export function isQueryImplementation(x: unknown): x is QueryImplementation {
-  return typeof x === 'object' && x !== null && '_getExprImpl' in x
+  return typeof x === 'object' && x !== null && 'getExprImpl' in x
 }
 
 export class QueryImplementation {
@@ -73,7 +73,7 @@ export class QueryImplementation {
 
   getExprImpl(): ExprImpl {
     return {
-      sql: this.getSql(),
+      sql: wrapInParens(this.getSql()),
     }
   }
 
@@ -229,7 +229,7 @@ export class QueryImplementation {
 
       if (paramsLen !== parameters.length) {
         throw new QueryBuilderAssertionError(
-          `expected exactly ${parameters} for this query but got ${paramsLen}`,
+          `expected exactly ${parameters.length} parameters for this query but got ${paramsLen}`,
         )
       }
     } else {

@@ -40,8 +40,8 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
 
           result.from = [
             'FROM',
-            sqlNewline,
             sqlIndent,
+            sqlNewline,
             ...item.table.getTableSql(),
             sqlWhitespace,
             { type: 'sqlTableAlias', table: item.table },
@@ -86,8 +86,8 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
 
   return [
     'SELECT',
-    sqlNewline,
     sqlIndent,
+    sqlNewline,
     ...joinTokens(result.select, [',', sqlWhitespace]),
     sqlDedent,
     sqlNewline,
@@ -108,7 +108,7 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         result.limit || [],
         result.offset || [],
         result.lock || [],
-      ],
+      ].filter((t) => t.length),
       [sqlNewline],
     ),
   ]

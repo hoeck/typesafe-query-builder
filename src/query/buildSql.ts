@@ -4,7 +4,7 @@ import { SqlToken } from './sql'
 import { TableImplementation } from './table'
 
 class Parameters {
-  counter = 0
+  counter = 1 // postgres query parameters start at $1
   mapping: Map<string, number> = new Map()
 
   getPosition(name: string): number {
@@ -29,7 +29,7 @@ class Parameters {
     const res: string[] = new Array(this.mapping.size)
 
     this.mapping.forEach((value, key) => {
-      res[value] = key
+      res[value - 1] = key
     })
 
     return res
@@ -65,29 +65,38 @@ export function createSql(
   const parameters = new Parameters()
   const aliases = new TableAliases()
 
+  // simple indentation to be able to debug sql statements without
+  // passing them into an sql formatter
+  const indent = '  '
+  const indentation: string[] = []
+
   for (const token of sqlTokens) {
     if (typeof token === 'string') {
       res.push(token)
     } else {
       switch (token.type) {
         case 'sqlParenOpen':
-          res.push('(')
+          indentation.push(indent)
+          res.push('(', '\n', indentation.join(''))
           break
         case 'sqlParenClose':
-          res.push(')')
+          indentation.pop()
+          res.push('\n', indentation.join(''), ')')
           break
         case 'sqlIndent':
+          indentation.push(indent)
           break
         case 'sqlDedent':
+          indentation.pop()
+          break
+        case 'sqlNewline':
+          res.push('\n', indentation.join(''))
           break
         case 'sqlWhitespace':
           res.push(' ')
           break
-        case 'sqlNewline':
-          res.push('\n')
-          break
         case 'sqlParameter':
-          parameters.getSql(token.parameterName)
+          res.push(parameters.getSql(token.parameterName))
           break
         case 'sqlLiteral':
           if (typeof token.value === 'string') {

@@ -5,6 +5,7 @@ import {
   ExprImpl,
   SqlToken,
   joinTokens,
+  sqlNewline,
   sqlWhitespace,
   wrapInParens,
 } from './sql'
@@ -60,11 +61,16 @@ export class ExprFactImpl implements FactoryMethods {
   // private expression helpers (many expressions are of similar shape)
 
   _andOrOp(operator: 'AND' | 'OR', expressions: ExprImpl[]) {
+    if (expressions.length === 1) {
+      return expressions[0]
+    }
+
     return {
       sql: wrapInParens(
         joinTokens(
           expressions.map((e) => e.sql),
-          [sqlWhitespace, operator, sqlWhitespace],
+          //[sqlWhitespace, operator, sqlWhitespace],
+          [sqlNewline, operator, sqlNewline],
         ),
       ),
     }
@@ -132,25 +138,25 @@ export class ExprFactImpl implements FactoryMethods {
 
   // public factory methods
 
-  and(...expressions: ExprImpl[]) {
+  and = (...expressions: ExprImpl[]) => {
     return this._andOrOp('AND', expressions)
   }
 
-  or(...expressions: ExprImpl[]) {
+  or = (...expressions: ExprImpl[]) => {
     return this._andOrOp('OR', expressions)
   }
 
-  not(a: ExprImpl) {
+  not = (a: ExprImpl) => {
     return {
       sql: wrapInParens(['NOT', sqlWhitespace, ...a.sql]),
     }
   }
 
-  eq(a: ExprImpl | string, b: ExprImpl | string) {
+  eq = (a: ExprImpl | string, b: ExprImpl | string) => {
     return this._twoParamOp('=', a, b)
   }
 
-  coalesce(a: ExprImpl, b: ExprImpl) {
+  coalesce = (a: ExprImpl, b: ExprImpl) => {
     return {
       sql: [
         'COALESCE',
@@ -159,13 +165,13 @@ export class ExprFactImpl implements FactoryMethods {
     }
   }
 
-  isNull(a: ExprImpl) {
+  isNull = (a: ExprImpl) => {
     return {
       sql: wrapInParens([...a.sql, sqlWhitespace, 'IS NULL']),
     }
   }
 
-  caseWhen(...cases: ([ExprImpl, ExprImpl] | ExprImpl)[]): ExprImpl {
+  caseWhen = (...cases: ([ExprImpl, ExprImpl] | ExprImpl)[]): ExprImpl => {
     const sql: SqlToken[] = ['CASE']
     const parameters: Set<string> = new Set()
 
@@ -203,35 +209,37 @@ export class ExprFactImpl implements FactoryMethods {
     }
   }
 
-  literal(value: string | number | BigInt | boolean | Date | null): ExprImpl {
+  literal = (
+    value: string | number | BigInt | boolean | Date | null,
+  ): ExprImpl => {
     return {
       sql: [{ type: 'sqlLiteral', value: value }],
     }
   }
 
-  literalString(value: string): ExprImpl {
+  literalString = (value: string): ExprImpl => {
     return {
       sql: [{ type: 'sqlLiteral', value: value }],
     }
   }
 
-  param(name: string) {
+  param = (name: string) => {
     return new ParamImpl(name)
   }
 
-  subquery(t: Table<any, any>) {
+  subquery = (t: Table<any, any>) => {
     return query(t)
   }
 
-  isIn(a: ExprImpl, b: ExprImpl | QueryImplementation | string) {
+  isIn = (a: ExprImpl, b: ExprImpl | QueryImplementation | string) => {
     return this._subqueryExpression('= ANY', a, b)
   }
 
-  isNotIn(a: ExprImpl, b: ExprImpl | QueryImplementation | string) {
+  isNotIn = (a: ExprImpl, b: ExprImpl | QueryImplementation | string) => {
     return this._subqueryExpression('<> ALL', a, b)
   }
 
-  exists(a: QueryImplementation) {
+  exists = (a: QueryImplementation) => {
     const subqExpr = a.getExprImpl()
 
     return {

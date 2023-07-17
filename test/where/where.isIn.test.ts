@@ -1,11 +1,11 @@
 import { query } from '../../src'
 import { client, expectValuesUnsorted, Games, GamesSystems } from '../helpers'
 
-describe('whereIn', () => {
+describe('where + isIn', () => {
   test('ids', async () => {
     const result = await query(Games)
       .select(Games.include('id', 'title'))
-      .whereIn(Games.id, 'ids')
+      .where(({ isIn }) => isIn(Games.id, 'ids'))
       .fetch(client, {
         ids: [5, 1],
       })
@@ -19,7 +19,7 @@ describe('whereIn', () => {
   test('strings', async () => {
     const result = await query(Games)
       .select(Games.include('id', 'title'))
-      .whereIn(Games.title, 'titles')
+      .where(({ isIn }) => isIn(Games.title, 'titles'))
       .fetch(client, {
         titles: ['Super Mario Land', 'Sonic the Hedgehog'],
       })
@@ -33,7 +33,7 @@ describe('whereIn', () => {
   test('empty', async () => {
     const result = await query(Games)
       .select(Games.include('id', 'title'))
-      .whereIn(Games.id, 'ids')
+      .where(({ isIn }) => isIn(Games.id, 'ids'))
       .fetch(client, {
         ids: [],
       })
@@ -41,32 +41,16 @@ describe('whereIn', () => {
     expectValuesUnsorted(result, [])
   })
 
-  test('anyParam', async () => {
-    const result = await query(Games)
-      .select(Games.include('id'))
-      .whereIn(Games.id, 'ids')
-      .fetch(client, {
-        ids: query.anyParam,
-      })
-
-    expectValuesUnsorted(result, [
-      { id: 1 },
-      { id: 2 },
-      { id: 3 },
-      { id: 4 },
-      { id: 5 },
-      { id: 6 },
-    ])
-  })
-
   test('subselect', async () => {
     const result = await query(Games)
       .select(Games.include('title'))
-      .whereIn(
-        Games.id,
-        query(GamesSystems)
-          .select(GamesSystems.include('gameId'))
-          .whereEq(GamesSystems.systemId, 'systemId'),
+      .where(({ isIn, subquery }) =>
+        isIn(
+          Games.id,
+          subquery(GamesSystems)
+            .select(GamesSystems.include('gameId'))
+            .where(({ eq }) => eq(GamesSystems.systemId, 'systemId')),
+        ),
       )
       .fetch(client, { systemId: 1 })
 
