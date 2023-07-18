@@ -186,9 +186,32 @@ export class SelectionImplementation {
     }
   }
 
+  // if this selection only has 1 column, return its name
+  // required to implement the exprAlias part of ExprImpl
+  getSingleColumnAlias(): string | undefined {
+    switch (this.projection?.type) {
+      case null:
+      case undefined:
+        // plain select
+        if (this.selectedColumns.length !== 1) {
+          return undefined
+        }
+
+        return this.getColumnAlias(this.selectedColumns[0])
+
+      case 'jsonObject':
+      case 'jsonArray':
+      case 'jsonObjectArray':
+        return this.projection.key
+
+      default:
+        assertNever(this.projection)
+    }
+  }
+
   // returns a function that applies any result transformations from
   // `column.cast` to a queried result
-  getResultTransformer(): ((row: any) => void) | undefined {
+  getRowTransformer(): ((row: any) => void) | undefined {
     switch (this.projection?.type) {
       case null:
       case undefined: {

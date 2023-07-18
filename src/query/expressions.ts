@@ -1,6 +1,6 @@
 import { QueryBuilderAssertionError } from '../errors'
 import { ExpressionFactory, Table, TableType } from '../types'
-import { QueryImplementation, isQueryImplementation, query } from './query'
+import { QueryImplementation, query } from './query'
 import {
   ExprImpl,
   SqlToken,

@@ -10,8 +10,9 @@ import {
   Table,
 } from '../types'
 import {
-  queryItemsToResultTransformer,
+  queryItemsToRowTransformer,
   queryItemsToSqlTokens,
+  queryItemsToExpressionAlias,
 } from './buildQuery'
 import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
@@ -50,10 +51,6 @@ function validateRowData(
 // global counter to create unique table names in `Query.table()` calls
 let uniqueTableNameCounter = 0
 
-export function isQueryImplementation(x: unknown): x is QueryImplementation {
-  return typeof x === 'object' && x !== null && 'getExprImpl' in x
-}
-
 export class QueryImplementation {
   constructor(
     private tables: TableImplementation[],
@@ -71,6 +68,21 @@ export class QueryImplementation {
     return queryItemsToSqlTokens(this.query)
   }
 
+  // called in queryItemsToRowTransformer for subqueries
+  getRowTransformer() {
+    return queryItemsToRowTransformer(this.query)
+  }
+
+  getResultTransformer() {
+    const t = this.getRowTransformer()
+
+    return (rows: any[]) => {
+      for (let i = 0; i < rows.length; i++) {
+        t(rows[i])
+      }
+    }
+  }
+
   // ExprImpl
 
   get exprTokens() {
@@ -78,7 +90,7 @@ export class QueryImplementation {
   }
 
   get exprAlias() {
-    return undefined
+    return queryItemsToExpressionAlias(this.query)
   }
 
   // query methods
@@ -226,7 +238,7 @@ export class QueryImplementation {
   async fetch(client: DatabaseClient, params?: any) {
     const tokens = this.getSql()
     const { sql, parameters } = createSql(client, tokens)
-    const resultTransformer = queryItemsToResultTransformer(this.query)
+    const resultTransformer = this.getResultTransformer()
 
     if (parameters.length) {
       const paramsLen = Object.keys(params || {}).length

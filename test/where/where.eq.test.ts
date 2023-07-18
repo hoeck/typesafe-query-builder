@@ -47,7 +47,25 @@ describe('where + eq', () => {
             .where(({ eq }) => eq(Manufacturers.name, 'name')),
         ),
       )
-      .sqlLog(client, { name: 'Sega' })
+
+    expectValuesUnsorted(await q.fetch(client, { name: 'Sega' }), [
+      { name: 'Master System' },
+      { name: 'Game Gear' },
+      { name: 'Genesis' },
+    ])
+  })
+
+  test('subquery + column', async () => {
+    const q = query(Systems)
+      .select(Systems.include('name'))
+      .where(({ eq, subquery }) =>
+        eq(
+          subquery(Manufacturers)
+            .select(Manufacturers.include('id'))
+            .where(({ eq }) => eq(Manufacturers.name, 'name')),
+          Systems.manufacturerId,
+        ),
+      )
 
     expectValuesUnsorted(await q.fetch(client, { name: 'Sega' }), [
       { name: 'Master System' },

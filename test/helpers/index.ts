@@ -59,7 +59,13 @@ function sortByJsonComparator(a: any, b: any) {
  * Sort order is only ignored in the top level array so we can compare db
  * query results which do not use order by.
  */
-export function expectValuesUnsorted<T>(values: T[], expected: T[]) {
+export function expectValuesUnsorted<T>(values: T[] | null, expected: T[]) {
+  expect(values).not.toBeNull()
+
+  if (values === null) {
+    return
+  }
+
   const valueSorted = [...values].sort(sortByJsonComparator)
   const expectedSorted = [...expected].sort(sortByJsonComparator)
 

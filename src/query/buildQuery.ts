@@ -50,10 +50,54 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         }
         break
       case 'join':
+        break
+
       case 'limit':
+        if (result.limit) {
+          throw new QueryBuilderAssertionError(
+            'only a single limit clause is allowed in queryItems',
+          )
+        }
+
+        result.limit = [
+          'LIMIT',
+          sqlWhitespace,
+          typeof item.count === 'number'
+            ? { type: 'sqlLiteral', value: item.count }
+            : typeof item.count === 'string'
+            ? { type: 'sqlParameter', parameterName: item.count }
+            : assertNever(item.count),
+        ]
+        break
+
       case 'lock':
       case 'lockParam':
+        break
+
       case 'offset':
+        if (result.offset) {
+          throw new QueryBuilderAssertionError(
+            'only a single offset clause is allowed in queryItems',
+          )
+        }
+
+        if (!result.limit) {
+          throw new QueryBuilderAssertionError(
+            'offset requires a limit to be present',
+          )
+        }
+
+        result.limit = [
+          'OFFSET',
+          sqlWhitespace,
+          typeof item.offset === 'number'
+            ? { type: 'sqlLiteral', value: item.offset }
+            : typeof item.offset === 'string'
+            ? { type: 'sqlParameter', parameterName: item.offset }
+            : assertNever(item.offset),
+        ]
+
+        break
       case 'orderBy':
         break
       case 'selectColumns':
@@ -114,18 +158,25 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
   ]
 }
 
-// Returns a function that transforms query results in-place, e.g. converting
-// numeric timestamps from sql date columns back into JS Date objects.
-export function queryItemsToResultTransformer(queryItems: QueryItem[]) {
+// Returns a function that transforms a single row of a query result in-place,
+// e.g. converting numeric timestamps from sql date columns back into JS Date
+// objects.
+export function queryItemsToRowTransformer(queryItems: QueryItem[]) {
   const transformers = queryItems.flatMap((item) => {
     if (item.type === 'selectColumns') {
-      const t = item.selection.getResultTransformer()
+      const t = item.selection.getRowTransformer()
 
-      if (t) {
-        return t
-      }
+      return t || []
+    }
 
-      return []
+    if (item.type === 'selectExpr') {
+      // ducktyping
+      const t = (item.expr as any)?.getRowTransformer()
+
+      // subqueries result transformers already work on the alias defined in
+      // the subquery - which is the same as in the parent query so there is
+      // no need to translate anything here
+      return t || []
     }
 
     return []
@@ -135,11 +186,34 @@ export function queryItemsToResultTransformer(queryItems: QueryItem[]) {
     return (rows: any[]) => undefined
   }
 
-  return (rows: any[]) => {
+  return (row: any) => {
     for (let i = 0; i < transformers.length; i++) {
-      for (let k = 0; k < rows.length; k++) {
-        transformers[i](rows[k])
-      }
+      transformers[i](row)
     }
   }
+}
+
+export function queryItemsToExpressionAlias(
+  queryItems: QueryItem[],
+): string | undefined {
+  const selectItems: QueryItem[] = queryItems.filter(
+    (q) => q.type === 'selectColumns' || q.type === 'selectExpr',
+  )
+
+  if (selectItems.length > 1) {
+    // more than 1 selected item
+    return undefined
+  }
+
+  const firstItem = selectItems[0]
+
+  if (firstItem.type === 'selectExpr') {
+    return firstItem.expr.exprAlias
+  }
+
+  if (firstItem.type === 'selectColumns') {
+    return firstItem.selection.getSingleColumnAlias()
+  }
+
+  throw new QueryBuilderAssertionError('expected to not reach this')
 }

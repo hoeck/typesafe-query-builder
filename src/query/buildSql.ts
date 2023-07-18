@@ -17,8 +17,9 @@ class Parameters {
     const cnt = this.counter
 
     this.mapping.set(name, cnt)
+    this.counter++
 
-    return this.counter
+    return cnt
   }
 
   getSql(name: string) {

@@ -46,7 +46,7 @@ export interface LockParamItem {
 
 export interface OffsetItem {
   type: 'offset'
-  offset: string
+  offset: number | string
 }
 
 export interface OrderByItem {

@@ -165,21 +165,17 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
    * Append an SQL OFFSET clause to the query.
    */
   offset(offset: number): QueryBottom<T, P, L, S, C>
-
-  /**
-   * Append an SQL OFFSET clause to the query.
-   */
   offset<K extends string>(
     offsetParam: K,
   ): QueryBottom<T, P & { [KK in K]: number }, L, S, C>
 
   /**
-   * Add a row lock statement to the query (e.g. 'FOR UPDATE')
+   * Add a row lock statement to the query (e.g. 'FOR UPDATE').
    */
   lock(lockMode: LockMode): QueryBottom<T, P, L, S, C>
 
   /**
-   * Add a row lock statement depending on a parameter
+   * Add a row lock statement depending on a parameter.
    *
    * Use this to delay the decision which lock mode (or not locking at all) to
    * use until executing the query.

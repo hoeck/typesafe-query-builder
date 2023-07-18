@@ -4,6 +4,7 @@ import {
   Manufacturers,
   client,
   expectValuesUnsorted,
+  Systems,
 } from '../helpers'
 
 describe('select.jsonArray', () => {
@@ -46,6 +47,7 @@ describe('select.jsonArray', () => {
       .select(GamesSystems.include('releaseDate').jsonArray('dates'))
       .fetch(client)
 
+    // json_agg is an aggregate function
     expect(res).toEqual([expect.any(Object)])
     expect(res[0].dates).toContainEqual(new Date('1991-10-25T00:00:00.000Z'))
     expect(res[0].dates).toContainEqual(null)
