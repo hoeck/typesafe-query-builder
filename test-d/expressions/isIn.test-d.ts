@@ -7,7 +7,7 @@ const f = expressionFactory(Franchises)
 
 {
   // subselect
-  expectType<[boolean, {}]>(
+  expectType<[boolean | null, {}]>(
     expressionType(
       f.isIn(f.literal(1), f.subquery(Systems).select(Systems.include('id'))),
     ),

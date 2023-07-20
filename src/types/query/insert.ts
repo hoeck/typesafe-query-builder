@@ -39,7 +39,7 @@ export declare class InsertInto<T, D extends string> {
 export declare class InsertIntoSingle<T> {
   protected __table: T
 
-  returning<S>(selection: Selection<T, {}, S>): InsertIntoExecute<S>
+  returning<S>(selection: Selection<T, S>): InsertIntoExecute<S>
 
   execute(client: DatabaseClient): Promise<void>
 }
@@ -47,7 +47,7 @@ export declare class InsertIntoSingle<T> {
 export declare class InsertIntoMany<T> {
   protected __table: T
 
-  returning<S>(selection: Selection<T, {}, S>): InsertIntoExecute<S[]>
+  returning<S>(selection: Selection<T, S>): InsertIntoExecute<S[]>
 
   execute(client: DatabaseClient): Promise<void>
 }

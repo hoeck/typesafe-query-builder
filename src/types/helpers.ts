@@ -47,3 +47,14 @@ export type SingleSelectionKey<T> = keyof T extends never
  * Like Partial<T> but with null instead of optional.
  */
 export type Nullable<T> = { [K in keyof T]: T[K] | null }
+
+/**
+ * Merge two types.
+ */
+export type Merge<A, B> = {
+  [K in keyof A | keyof B]: K extends keyof A
+    ? A[K]
+    : K extends keyof B
+    ? B[K]
+    : never
+}

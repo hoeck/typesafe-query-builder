@@ -34,7 +34,7 @@ export declare class Delete<T, P = {}, S = {}> {
   /**
    * Specify a RETURNING clause.
    */
-  returning<S>(selection: Selection<T, {}, S>): Delete<T, P, S>
+  returning<S>(selection: Selection<T, S>): Delete<T, P, S>
 
   /**
    * Perform the delete.

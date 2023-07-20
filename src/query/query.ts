@@ -30,7 +30,7 @@ type AnyTable = Table<any, any> & {
 }
 type AnyExpression = Expression<any, any, any, any>
 type AnyExpressionCallback = (e: ExprFactImpl) => ExprImpl
-type AnySelection = Selection<any, any, any>
+type AnySelection = Selection<any, any>
 
 // call each columns validation function for the given data and assign the
 // validated value

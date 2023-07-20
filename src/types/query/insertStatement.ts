@@ -105,7 +105,7 @@ export interface InsertStatementInsertInto<T, D extends string> {
  * Insert statement awaiting an optional returning clause.
  */
 export interface InsertStatementInsertIntoValue<T> {
-  returning<S>(selection: Selection<T, {}, S>): {
+  returning<S>(selection: Selection<T, S>): {
     [Key in keyof S]: InsertStatementColumnReference<S[Key]>
   }
 }

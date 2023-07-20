@@ -1,7 +1,12 @@
 import { Expression } from '../expression/expression'
 import { ExpressionFactory } from '../expression/expressionFactory'
 import { ComparableTypes } from '../expression/helpers'
-import { SingleSelectionValue, SingleSelectionKey, Nullable } from '../helpers'
+import {
+  AssertHasSingleKey,
+  SingleSelectionValue,
+  SingleSelectionKey,
+  Nullable,
+} from '../helpers'
 import { Selection, Table } from '../table'
 import { DatabaseClient, DatabaseEscapeFunctions } from './databaseClient'
 
@@ -19,11 +24,23 @@ export type ResultType<T> = T extends QueryBottom<any, any, any, infer S, any>
   : never
 
 /**
- * Helper type for selected column / subqueries
+ * Determine nullability of left joined selections.
  */
-type JoinedSelection<T, L, S> = T extends L
-  ? Nullable<S> // left joined columns may be null
+type JoinedSelection<T, L, S extends {}> = T extends L
+  ? // left joined columns may be null
+    Nullable<S>
   : S
+
+/**
+ * Determine nullability of subqueries.
+ */
+type SubquerySelection<C, S extends {}> =
+  // use bracket notation to avoid distributing conditionals that resolve to never:
+  // [X] extends [Y]
+  [C] extends [never]
+    ? S
+    : // C being not never means that this query is a subquery and thus the selected column may be null
+      Nullable<S>
 
 /**
  * Narrow discriminated union to a specific subtype.
@@ -44,6 +61,17 @@ export type NarrowDiscriminatedUnion<
   ? U
   : never
 
+export type SelectionOrSubquery<
+  T,
+  T1 extends T,
+  P1 extends {},
+  S1 extends {},
+> =
+  | Selection<T1, S1>
+  | ((
+      subquery: ExpressionFactory<T>['subquery'],
+    ) => QueryBottom<any, P1, any, AssertHasSingleKey<S1>, any>)
+
 /**
  * Building that part of a query which comes after the joins.
  *
@@ -56,7 +84,13 @@ export type NarrowDiscriminatedUnion<
  */
 export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
   // allows subqueries to be used in place of expressions in selections and where conditions
-  extends Expression<SingleSelectionValue<S>, C, P, SingleSelectionKey<S>>
+  // empty subqueries will always result in null
+  extends Expression<
+    SingleSelectionValue<S> | null,
+    C,
+    P,
+    SingleSelectionKey<S>
+  >
 {
   protected __queryTables: T
   protected __parameters: P // same as expression-parameters
@@ -64,7 +98,7 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
   protected __querySelection: S
 
   // expression
-  protected __expressionResult: SingleSelectionValue<S>
+  protected __expressionResult: SingleSelectionValue<S> | null
   protected __expressionTables: C
   protected __expressionAlias: SingleSelectionKey<S>
 
@@ -80,28 +114,520 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
   // SELECT
 
   /**
-   * SQL SELECT.
+   * Flat SQL SELECT.
    *
    * Choose which and how columns should appear in the result
    *
-   * It contains either a selection on a joined table or an expression. The latter may
-   * contain table columns or arbitrary subqueries.
-   *
-   * Use Multiple selects to select from multiple tables.
+   * It contains either a selection on a joined table or a subquery.
    */
-  select<T1 extends T, P1 extends {}, S1>(
-    s1: Selection<T1, P1, S1>,
-  ): QueryBottom<T, P & P1, L, S & JoinedSelection<T1, L, S1>, C>
+  select<T1 extends T | C, P1 extends {}, S1 extends {}>(
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+  ): QueryBottom<
+    T,
+    P & P1,
+    L,
+    // only single selections are valid as subqueries
+    S & JoinedSelection<T1, L, SubquerySelection<C, S1>>,
+    C
+  >
   select<
-    T1 extends T,
+    T1 extends T | C,
+    T2 extends T | C,
     P1 extends {},
-    S1Value,
-    // by forcing key to be string, we won't allow unknown to be passed,
-    // effectively only allowing single key: value subqueries
-    S1Key extends string,
+    P2 extends {},
+    S1 extends {},
+    S2 extends {},
   >(
-    s1: (f: ExpressionFactory<T | C>) => Expression<S1Value, T | C, P1, S1Key>,
-  ): QueryBottom<T, P & P1, L, S & { [KK in S1Key]: S1Value | null }, C>
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2,
+    L,
+    S & JoinedSelection<T1, L, S1> & JoinedSelection<T2, L, S2>,
+    C
+  >
+  select<
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+  >(
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3,
+    L,
+    S &
+      JoinedSelection<T1, L, S1> &
+      JoinedSelection<T2, L, S2> &
+      JoinedSelection<T3, L, S3>,
+    C
+  >
+  select<
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    T4 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    P4 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+    S4 extends {},
+  >(
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+    s4: SelectionOrSubquery<T | C, T4, P4, S4>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4,
+    L,
+    S &
+      JoinedSelection<T1, L, S1> &
+      JoinedSelection<T2, L, S2> &
+      JoinedSelection<T3, L, S3> &
+      JoinedSelection<T4, L, S4>,
+    C
+  >
+  select<
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    T4 extends T | C,
+    T5 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    P4 extends {},
+    P5 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+    S4 extends {},
+    S5 extends {},
+  >(
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+    s4: SelectionOrSubquery<T | C, T4, P4, S4>,
+    s5: SelectionOrSubquery<T | C, T5, P5, S5>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4 & P5,
+    L,
+    S &
+      JoinedSelection<T1, L, S1> &
+      JoinedSelection<T2, L, S2> &
+      JoinedSelection<T3, L, S3> &
+      JoinedSelection<T4, L, S4> &
+      JoinedSelection<T5, L, S5>,
+    C
+  >
+  select<
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    T4 extends T | C,
+    T5 extends T | C,
+    T6 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    P4 extends {},
+    P5 extends {},
+    P6 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+    S4 extends {},
+    S5 extends {},
+    S6 extends {},
+  >(
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+    s4: SelectionOrSubquery<T | C, T4, P4, S4>,
+    s5: SelectionOrSubquery<T | C, T5, P5, S5>,
+    s6: SelectionOrSubquery<T | C, T6, P6, S6>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4 & P5 & P6,
+    L,
+    S &
+      JoinedSelection<T1, L, S1> &
+      JoinedSelection<T2, L, S2> &
+      JoinedSelection<T3, L, S3> &
+      JoinedSelection<T4, L, S4> &
+      JoinedSelection<T5, L, S5> &
+      JoinedSelection<T6, L, S6>,
+    C
+  >
+
+  /**
+   * Select and aggregate a single column into a json array.
+   */
+  selectJsonArray<
+    K extends string,
+    O extends ComparableTypes,
+    T1 extends T | C,
+    S1 extends {},
+  >(
+    p: {
+      key: K
+      orderBy?: Expression<O, T | C, {}>
+      direction?: 'asc' | 'desc'
+    },
+    s: Selection<T1, S1>,
+  ): QueryBottom<
+    T,
+    P,
+    L,
+    S &
+      JoinedSelection<
+        T1,
+        L,
+        SubquerySelection<C, { [X in K]: SingleSelectionValue<S1>[] }>
+      >,
+    C
+  >
+
+  /**
+   * Select multiple columns into a json object.
+   */
+  selectJsonObject<
+    K extends string,
+    T1 extends T | C,
+    S1 extends {},
+    P1 extends {},
+  >(
+    p: { key: K },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+  ): QueryBottom<
+    T,
+    P & P1,
+    L,
+    S & SubquerySelection<C, { [X in K]: JoinedSelection<T1, L, S1> }>,
+    C
+  >
+  selectJsonObject<
+    K extends string,
+    T1 extends T | C,
+    T2 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    S1 extends {},
+    S2 extends {},
+  >(
+    p: { key: K },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        { [X in K]: JoinedSelection<T1, L, S1> & JoinedSelection<T2, L, S2> }
+      >,
+    C
+  >
+  selectJsonObject<
+    K extends string,
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+  >(
+    p: { key: K },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        {
+          [X in K]: JoinedSelection<T1, L, S1> &
+            JoinedSelection<T2, L, S2> &
+            JoinedSelection<T3, L, S3>
+        }
+      >,
+    C
+  >
+  selectJsonObject<
+    K extends string,
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    T4 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    P4 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+    S4 extends {},
+  >(
+    p: { key: K },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+    s4: SelectionOrSubquery<T | C, T4, P4, S4>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        {
+          [X in K]: JoinedSelection<T1, L, S1> &
+            JoinedSelection<T2, L, S2> &
+            JoinedSelection<T3, L, S3> &
+            JoinedSelection<T4, L, S4>
+        }
+      >,
+    C
+  >
+  selectJsonObject<
+    K extends string,
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    T4 extends T | C,
+    T5 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    P4 extends {},
+    P5 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+    S4 extends {},
+    S5 extends {},
+  >(
+    p: { key: K },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+    s4: SelectionOrSubquery<T | C, T4, P4, S4>,
+    s5: SelectionOrSubquery<T | C, T5, P5, S5>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4 & P5,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        {
+          [X in K]: JoinedSelection<T1, L, S1> &
+            JoinedSelection<T2, L, S2> &
+            JoinedSelection<T3, L, S3> &
+            JoinedSelection<T4, L, S4> &
+            JoinedSelection<T5, L, S5>
+        }
+      >,
+    C
+  >
+
+  /**
+   * Select and aggregate multiple columns into an array of json objects.
+   */
+  selectJsonObjectArray<
+    K extends string,
+    O extends ComparableTypes,
+    T1 extends T | C,
+    S1 extends {},
+    P1 extends {},
+  >(
+    p: {
+      key: K
+      orderBy?: Expression<O, T | C, {}>
+      direction?: 'asc' | 'desc'
+    },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+  ): QueryBottom<
+    T,
+    P & P1,
+    L,
+    S & SubquerySelection<C, { [X in K]: JoinedSelection<T1, L, S1>[] }>,
+    C
+  >
+  selectJsonObjectArray<
+    K extends string,
+    O extends ComparableTypes,
+    T1 extends T | C,
+    T2 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    S1 extends {},
+    S2 extends {},
+  >(
+    p: {
+      key: K
+      orderBy?: Expression<O, T | C, {}>
+      direction?: 'asc' | 'desc'
+    },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        {
+          [X in K]: (JoinedSelection<T1, L, S1> & JoinedSelection<T2, L, S2>)[]
+        }
+      >,
+    C
+  >
+  selectJsonObjectArray<
+    K extends string,
+    O extends ComparableTypes,
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+  >(
+    p: {
+      key: K
+      orderBy?: Expression<O, T | C, {}>
+      direction?: 'asc' | 'desc'
+    },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        {
+          [X in K]: (JoinedSelection<T1, L, S1> &
+            JoinedSelection<T2, L, S2> &
+            JoinedSelection<T3, L, S3>)[]
+        }
+      >,
+    C
+  >
+  selectJsonObjectArray<
+    K extends string,
+    O extends ComparableTypes,
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    T4 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    P4 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+    S4 extends {},
+  >(
+    p: {
+      key: K
+      orderBy?: Expression<O, T | C, {}>
+      direction?: 'asc' | 'desc'
+    },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+    s4: SelectionOrSubquery<T | C, T4, P4, S4>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        {
+          [X in K]: (JoinedSelection<T1, L, S1> &
+            JoinedSelection<T2, L, S2> &
+            JoinedSelection<T3, L, S3> &
+            JoinedSelection<T4, L, S4>)[]
+        }
+      >,
+    C
+  >
+  selectJsonObjectArray<
+    K extends string,
+    O extends ComparableTypes,
+    T1 extends T | C,
+    T2 extends T | C,
+    T3 extends T | C,
+    T4 extends T | C,
+    T5 extends T | C,
+    P1 extends {},
+    P2 extends {},
+    P3 extends {},
+    P4 extends {},
+    P5 extends {},
+    S1 extends {},
+    S2 extends {},
+    S3 extends {},
+    S4 extends {},
+    S5 extends {},
+  >(
+    p: {
+      key: K
+      orderBy?: Expression<O, T | C, {}>
+      direction?: 'asc' | 'desc'
+    },
+    s1: SelectionOrSubquery<T | C, T1, P1, S1>,
+    s2: SelectionOrSubquery<T | C, T2, P2, S2>,
+    s3: SelectionOrSubquery<T | C, T3, P3, S3>,
+    s4: SelectionOrSubquery<T | C, T4, P4, S4>,
+    s5: SelectionOrSubquery<T | C, T5, P5, S5>,
+  ): QueryBottom<
+    T,
+    P & P1 & P2 & P3 & P4 & P5,
+    L,
+    S &
+      SubquerySelection<
+        C,
+        {
+          [X in K]: (JoinedSelection<T1, L, S1> &
+            JoinedSelection<T2, L, S2> &
+            JoinedSelection<T3, L, S3> &
+            JoinedSelection<T4, L, S4> &
+            JoinedSelection<T5, L, S5>)[]
+        }
+      >,
+    C
+  >
 
   /**
    * Append and ORDER BY clause to the query.

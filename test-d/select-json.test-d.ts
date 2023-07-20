@@ -1,4 +1,4 @@
-import { expectAssignable, expectType } from 'tsd'
+import { expectAssignable, expectType, expectError } from 'tsd'
 import { DatabaseClient, query } from '../src'
 import { resultType } from './helpers'
 import {
@@ -8,13 +8,14 @@ import {
   Systems,
 } from './helpers/classicGames'
 
-const client: DatabaseClient = {} as DatabaseClient
-
 {
   // selecting columns into a json object
   expectType<{ system: { id: number; name: string } }>(
     resultType(
-      query(Systems).select(Systems.include('id', 'name').jsonObject('system')),
+      query(Systems).selectJsonObject(
+        { key: 'system' },
+        Systems.include('id', 'name'),
+      ),
     ),
   )
 }
@@ -22,14 +23,14 @@ const client: DatabaseClient = {} as DatabaseClient
 {
   expectType<{ system: { system_id: number; system_name: string } }>(
     resultType(
-      query(Systems).select(
+      query(Systems).selectJsonObject(
+        { key: 'system' },
         Systems.include('id', 'name')
           // renaming columns of a json object
           .rename({
             id: 'system_id',
             name: 'system_name',
-          })
-          .jsonObject('system'),
+          }),
       ),
     ),
   )
@@ -37,26 +38,48 @@ const client: DatabaseClient = {} as DatabaseClient
 
 {
   // selecting a single column into a json array
-  // TODO: only allowed for subselects ... mhh
   expectType<{ systemNames: string[] }>(
     resultType(
-      query(Systems).select(Systems.include('name').jsonArray('systemNames')),
+      query(Systems).selectJsonArray(
+        { key: 'systemNames' },
+        Systems.include('name'),
+      ),
     ),
   )
 
-  expectType<{ systemNames: never[] }>(
+  // order
+  expectType<{ systemNames: string[] }>(
+    resultType(
+      query(Systems).selectJsonArray(
+        { key: 'systemNames', orderBy: Systems.name, direction: 'desc' },
+        Systems.include('name'),
+      ),
+    ),
+  )
+
+  expectType<{ systems: unknown[] }>(
     resultType(
       query(Systems)
         // its an error if the selection contains more than 1 col
-        .select(Systems.include('id', 'name').jsonArray('systemNames')),
+        .selectJsonArray({ key: 'systems' }, Systems.include('id', 'name')),
     ),
   )
 
-  expectType<{ systemNames: never[] }>(
+  expectType<{ systemNames: unknown[] }>(
     resultType(
       query(Systems)
         // its an error if the selection contains no column
-        .select(Systems.include().jsonArray('systemNames')),
+        .selectJsonArray({ key: 'systemNames' }, Systems.include()),
+    ),
+  )
+
+  expectError(
+    resultType(
+      query(Systems).selectJsonArray(
+        // invalid order column
+        { key: 'systemNames', orderBy: GamesSystems.gameId, direction: 'desc' },
+        Systems.include('name'),
+      ),
     ),
   )
 }
@@ -66,18 +89,18 @@ const client: DatabaseClient = {} as DatabaseClient
 
   expectType<{ systems: { year: number; name: string }[] }>(
     resultType(
-      query(Systems).select(
-        Systems.include('year', 'name').jsonObjectArray('systems'),
+      query(Systems).selectJsonObjectArray(
+        { key: 'systems' },
+        Systems.include('year', 'name'),
       ),
     ),
   )
 
   expectType<{ systems: { systems_year: number; name: string }[] }>(
     resultType(
-      query(Systems).select(
-        Systems.include('year', 'name')
-          .rename({ year: 'systems_year' })
-          .jsonObjectArray('systems'),
+      query(Systems).selectJsonObjectArray(
+        { key: 'systems' },
+        Systems.include('year', 'name').rename({ year: 'systems_year' }),
       ),
     ),
   )
@@ -90,15 +113,14 @@ const client: DatabaseClient = {} as DatabaseClient
     franchises: { id: number; name: string }[] | null
   }>(
     resultType(
-      query(Manufacturers)
-        .select(Manufacturers.include('name'))
-        .select(({ subquery }) =>
-          subquery(Franchises)
-            .select(
-              Franchises.include('id', 'name').jsonObjectArray('franchises'),
-            )
-            .where(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id)),
-        ),
+      query(Manufacturers).select(Manufacturers.include('name'), (subquery) =>
+        subquery(Franchises)
+          .selectJsonObjectArray(
+            { key: 'franchises' },
+            Franchises.include('id', 'name'),
+          )
+          .where(({ eq }) => eq(Franchises.manufacturerId, Manufacturers.id)),
+      ),
     ),
   )
 }
@@ -108,8 +130,9 @@ const client: DatabaseClient = {} as DatabaseClient
   // casts
   expectType<{ nested: { gameId: number; releaseDate: Date | null } }>(
     resultType(
-      query(GamesSystems).select(
-        GamesSystems.include('gameId', 'releaseDate').jsonObject('nested'),
+      query(GamesSystems).selectJsonObject(
+        { key: 'nested' },
+        GamesSystems.include('gameId', 'releaseDate'),
       ),
     ),
   )

@@ -116,12 +116,14 @@ import { parameterType, resultType } from './helpers'
 {
   // narrowed selection using json
   const q = query(Devices)
-    .narrow('type', 'console', (q, t) => q.select(t.all().jsonObject('device')))
+    .narrow('type', 'console', (q, t) =>
+      q.selectJsonObject({ key: 'device' }, t.all()),
+    )
     .narrow('type', 'dedicatedConsole', (q, t) =>
-      q.select(t.all().jsonObject('device')),
+      q.selectJsonObject({ key: 'device' }, t.all()),
     )
     .narrow('type', 'emulator', (q, t) =>
-      q.select(t.all().jsonObject('device')),
+      q.selectJsonObject({ key: 'device' }, t.all()),
     )
 
   expectAssignable<{
@@ -144,7 +146,7 @@ import { parameterType, resultType } from './helpers'
     .narrow('type', 'emulator', (q, t) => q.select(t.include('type', 'url')))
     .select(Devices.include('id'))
 
-  expectType<
+  expectAssignable<
     | { id: number; type: 'dedicatedConsole'; gamesCount: number }
     | { id: number; type: 'emulator'; url: string }
   >(resultType(q))

@@ -15,7 +15,7 @@ export function parameterType<T, P extends {}, L, S, C>(
 
 export function resultType<T, P extends {}, L, S, C>(
   q: QueryBottom<T, P, L, S, C>,
-): Simplify<S> {
+): S {
   return q as any
 }
 

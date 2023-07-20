@@ -17,11 +17,11 @@ import {
     .join(Systems, ({ eq }) => eq(Manufacturers.id, Systems.manufacturerId))
     .select(
       Manufacturers.include('id', 'name').rename({ name: 'manufacturer' }),
+      Systems.include('name').rename({ name: 'system' }),
     )
-    .select(Systems.include('name').rename({ name: 'system' }))
 
   expectType<{}>(parameterType(q))
-  expectType<{ id: number; manufacturer: string; system: string }>(
+  expectType<{ id: number; manufacturer: string } & { system: string }>(
     resultType(q),
   )
 
@@ -40,14 +40,16 @@ import {
     .join(Franchises, ({ eq }) =>
       eq(Manufacturers.id, Franchises.manufacturerId),
     )
-    .select(Manufacturers.include('name').rename({ name: 'manufacturer' }))
-    .select(Systems.include('name').rename({ name: 'system' }))
-    .select(Franchises.include('name').rename({ name: 'franchise' }))
+    .select(
+      Manufacturers.include('name').rename({ name: 'manufacturer' }),
+      Systems.include('name').rename({ name: 'system' }),
+      Franchises.include('name').rename({ name: 'franchise' }),
+    )
 
   expectType<{}>(parameterType(q))
-  expectType<{ manufacturer: string; system: string; franchise: string }>(
-    resultType(q),
-  )
+  expectType<
+    { manufacturer: string } & { system: string } & { franchise: string }
+  >(resultType(q))
 
   expectError(
     query(Manufacturers)
@@ -55,9 +57,9 @@ import {
       .join(Franchises, ({ eq }) =>
         eq(Manufacturers.id, Franchises.manufacturerId),
       )
-      .select(Manufacturers.include('name').rename({ name: 'manufacturer' }))
-      .select(Systems.include('name').rename({ name: 'system' }))
       .select(
+        Manufacturers.include('name').rename({ name: 'manufacturer' }),
+        Systems.include('name').rename({ name: 'system' }),
         // non joined table
         Games.include('title'),
       ),
@@ -71,15 +73,48 @@ import {
     .leftJoin(Franchises, ({ eq }) =>
       eq(Manufacturers.id, Franchises.manufacturerId),
     )
-    .select(Manufacturers.include('name').rename({ name: 'manufacturer' }))
-    .select(Systems.include('name').rename({ name: 'system' }))
-    .select(Franchises.include('name').rename({ name: 'franchise' }))
+    .select(
+      Manufacturers.include('name').rename({ name: 'manufacturer' }),
+      Systems.include('name').rename({ name: 'system' }),
+      Franchises.include('name').rename({ name: 'franchise' }),
+    )
 
   expectType<{}>(parameterType(q))
+  expectType<
+    {
+      manufacturer: string
+    } & {
+      system: string | null
+    } & {
+      franchise: string | null
+    }
+  >(resultType(q))
+}
+
+{
+  // left join and json object select
+  const q = query(Manufacturers)
+    .leftJoin(Systems, ({ eq }) => eq(Manufacturers.id, Systems.manufacturerId))
+    .leftJoin(Franchises, ({ eq }) =>
+      eq(Manufacturers.id, Franchises.manufacturerId),
+    )
+    .selectJsonObject(
+      { key: 'object' },
+      Manufacturers.include('name').rename({ name: 'manufacturer' }),
+      Systems.include('name').rename({ name: 'system' }),
+      Franchises.include('name').rename({ name: 'franchise' }),
+    )
+
+  expectType<{}>(parameterType(q))
+
   expectType<{
-    manufacturer: string
-    system: string | null
-    franchise: string | null
+    object: {
+      manufacturer: string
+    } & {
+      system: string | null
+    } & {
+      franchise: string | null
+    }
   }>(resultType(q))
 }
 
@@ -92,18 +127,26 @@ import {
     )
     .join(GamesSystems, ({ eq }) => eq(Systems.id, GamesSystems.systemId))
     .join(Games, ({ eq }) => eq(GamesSystems.gameId, Games.id))
-    .select(Manufacturers.include('name').rename({ name: 'manufacturer' }))
-    .select(Systems.include('name').rename({ name: 'system' }))
-    .select(Franchises.include('name').rename({ name: 'franchise' }))
-    .select(GamesSystems.include('releaseDate'))
-    .select(Games.include('title'))
+    .select(
+      Manufacturers.include('name').rename({ name: 'manufacturer' }),
+      Systems.include('name').rename({ name: 'system' }),
+      Franchises.include('name').rename({ name: 'franchise' }),
+      GamesSystems.include('releaseDate'),
+      Games.include('title'),
+    )
 
   expectType<{}>(parameterType(q))
-  expectType<{
-    manufacturer: string
-    system: string
-    franchise: string
-    releaseDate: Date | null
-    title: string
-  }>(resultType(q))
+  expectType<
+    {
+      manufacturer: string
+    } & {
+      system: string
+    } & {
+      franchise: string
+    } & {
+      releaseDate: Date | null
+    } & {
+      title: string
+    }
+  >(resultType(q))
 }

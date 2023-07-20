@@ -106,7 +106,7 @@ const f = expressionFactory(Franchises)
 
 // expression + correlated subquery
 {
-  expectType<[boolean, { name: string }]>(
+  expectType<[boolean | null, { name: string }]>(
     expressionType(
       f.eq(
         f.param('name').string(),

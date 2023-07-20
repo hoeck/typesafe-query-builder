@@ -70,7 +70,7 @@ export declare class Update<T, P = {}, S = {}> {
   /**
    * Specify a RETURNING clause.
    */
-  returning<S>(selection: Selection<T, {}, S>): Update<T, P, S>
+  returning<S>(selection: Selection<T, S>): Update<T, P, S>
 
   /**
    * Perform the update.

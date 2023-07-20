@@ -44,7 +44,7 @@ export type Table<T, P extends {} = {}> = {
     {},
     K // alias
   >
-} & TableProjectionMethods<T, P>
+} & TableProjectionMethods<T>
 
 /**
  * The shape of a table
@@ -153,59 +153,11 @@ export type TableRowInsertOptional<X> = X extends DatabaseTable<
 
 /**
  * T .. available columns
- * P .. params
  * S .. mapping selected columns: {[name]: type}
  */
-export declare class Selection<T, P, S> {
-  protected t: T
-  protected p: P
-  protected s: S
-
-  /**
-   * Project all columns into a JSON object.
-   *
-   * Uses the Postgres `json_build_object` function under the hood.
-   */
-  jsonObject<K extends string>(
-    this: Selection<T, P, S>,
-    key: K,
-  ): // TODO: Omit all other selection methods so that autocomplete shows only
-  // methods which can be used on a selection (e.g. flagging
-  // `.jsonObect().jsonObject()` as false
-  Selection<T, P, { [Key in K]: S }>
-
-  /**
-   * Project a single selected column into a JSON array
-   *
-   * Needs either a group-by or a subselect.
-   * Uses the Postgres `json_agg` function under the hood.
-   */
-  jsonArray<K extends string, O extends keyof T, SS = AssertHasSingleKey<S>>(
-    key: K,
-    // TODO: orderBy -> {orderBy: O, direction: dir} OR as an extra method
-    //       .orderBy(name, dir) bc. the current way of passing the column as
-    //       a positional parameter hard to read!
-    // TODO: to all subselects (jsonObject etc), add an option to assert on nulls
-    //       The fancy way would be to make the typesystem aware of foreign
-    //       keys but that sounds like a complexity nightmare to me.
-    //       Adding an .assertNotNull() seems to be easier to implement &
-    //       understand & use.
-    //       In the same way, a .nullToEmptyArray() could be built to get a
-    //       nicer behaviour for json array aggregates.
-    orderBy?: O,
-    direction?: 'ASC' | 'DESC',
-  ): Selection<T, P, { [Key in K]: SS[keyof SS][] }>
-
-  /**
-   * Project all columns into a JSON array of JSON objects.
-   *
-   * A combination of `json_agg` and `json_build_object`
-   */
-  jsonObjectArray<K extends string, O extends keyof T>(
-    key: K,
-    orderBy?: O,
-    direction?: 'ASC' | 'DESC',
-  ): Selection<T, P, { [Key in K]: S[] }>
+export declare class Selection<T, S> {
+  protected __selectedTables: T
+  protected __selectionType: S
 
   /**
    * Rename selected columns.
@@ -215,9 +167,9 @@ export declare class Selection<T, P, S> {
     N extends string | undefined,
     M extends { [KK in K]?: N },
   >(
-    this: Selection<T, P, S>,
+    this: Selection<T, S>,
     mapping: M,
-  ): Selection<T, P, { [P in K as M[P] extends string ? M[P] : P]: S[P] }>
+  ): Selection<T, { [P in K as M[P] extends string ? M[P] : P]: S[P] }>
 
   // TODO: prefix + suffix mappings (camelcase by default,  prefix_ and suffix_ mappings for snake case)
   // prefix('foo') -> `SELECT id AS fooId, name AS fooName
@@ -231,7 +183,7 @@ export declare class Selection<T, P, S> {
 /**
  * Selecting and Aggregation over tables
  */
-export interface TableProjectionMethods<T, P extends {} = {}> {
+export interface TableProjectionMethods<T> {
   /**
    * Choose columns to appear in the result.
    *
@@ -241,7 +193,6 @@ export interface TableProjectionMethods<T, P extends {} = {}> {
     ...keys: K[]
   ): Selection<
     T,
-    P,
     // Pick also removes the TableName nominal type
     Pick<T, K>
   >
@@ -251,7 +202,6 @@ export interface TableProjectionMethods<T, P extends {} = {}> {
    */
   all(): Selection<
     T,
-    P,
     // TableName nominal type is removed as we don't need it in the result type any more.
     RemoveTableName<T>
   >
@@ -263,7 +213,6 @@ export interface TableProjectionMethods<T, P extends {} = {}> {
     ...keys: K[]
   ): Selection<
     T,
-    P,
     // Omit also removes the TableName nominal type
     Omit<T, K>
   >
@@ -271,7 +220,7 @@ export interface TableProjectionMethods<T, P extends {} = {}> {
   /**
    * Get a reference to a column in case it clashes with one of the table methods.
    */
-  column<K extends keyof T>(columnName: K): Expression<T[K], T, P, K>
+  column<K extends keyof T>(columnName: K): Expression<T[K], T, {}, K>
 
   /**
    * Return the same table but with another name.
