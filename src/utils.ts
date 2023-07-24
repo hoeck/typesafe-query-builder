@@ -55,3 +55,24 @@ export function assertFail(msg?: string): never {
 export function assertNever(x: never): never {
   nodeAssert.fail('Unexpected value. Should have been never.')
 }
+
+/**
+ * Return duplicate strings in the array or undefined.
+ */
+export function findDuplicates(src: string[]): string[] | undefined {
+  const s = new Set(src)
+
+  if (s.size === src.length) {
+    return
+  }
+
+  return src.filter((x) => {
+    if (s.has(x)) {
+      s.delete(x)
+
+      return false
+    }
+
+    return true
+  })
+}

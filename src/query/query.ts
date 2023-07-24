@@ -10,19 +10,20 @@ import {
   Table,
 } from '../types'
 import {
+  queryItemsSelectionCheck,
+  queryItemsToExpressionAlias,
   queryItemsToRowTransformer,
   queryItemsToSqlTokens,
-  queryItemsToExpressionAlias,
 } from './buildQuery'
 import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
 import { QueryItem } from './queryItem'
 import { ExprImpl, wrapInParens } from './sql'
 import {
+  SelectionImplementation,
   TableImplementation,
   getTableImplementation,
   isSelectionImplementation,
-  SelectionImplementation,
 } from './table'
 
 type AnyQueryBottom = QueryBottom<any, any, any, any, any>
@@ -63,8 +64,6 @@ export class QueryImplementation {
   ) {
     this.tables = tables
     this.query = query
-
-    // this.checkDuplicateSelectedColumns()
   }
 
   // internal methods
@@ -132,7 +131,7 @@ export class QueryImplementation {
   }
 
   select(...selections: (SelectionImplementation | AnySubqueryCallback)[]) {
-    return new QueryImplementation(this.tables, [
+    const queryItems: QueryItem[] = [
       ...this.query,
       {
         type: 'select',
@@ -141,14 +140,18 @@ export class QueryImplementation {
           selections: resolveSelections(this.tables, selections),
         },
       },
-    ])
+    ]
+
+    queryItemsSelectionCheck(queryItems)
+
+    return new QueryImplementation(this.tables, queryItems)
   }
 
   selectJsonObject(
     params: { key: string },
     ...selections: (SelectionImplementation | AnySubqueryCallback)[]
   ) {
-    return new QueryImplementation(this.tables, [
+    const queryItems: QueryItem[] = [
       ...this.query,
       {
         type: 'select',
@@ -158,7 +161,11 @@ export class QueryImplementation {
           selections: resolveSelections(this.tables, selections),
         },
       },
-    ])
+    ]
+
+    queryItemsSelectionCheck(queryItems)
+
+    return new QueryImplementation(this.tables, queryItems)
   }
 
   selectJsonArray(
@@ -172,17 +179,17 @@ export class QueryImplementation {
       resolvedSelection.selectedColumns.length !== 1
     ) {
       throw new QueryBuilderAssertionError(
-        '`jsonArray` needs exactly 1 selected column',
+        '`selectJsonArray` needs exactly 1 selected column',
       )
     }
 
     if (!params.orderBy && params.direction) {
       throw new QueryBuilderUsageError(
-        '`jsonArray` direction argument must be supplied along orderBy',
+        '`selectJsonArray` direction argument must be supplied along orderBy',
       )
     }
 
-    return new QueryImplementation(this.tables, [
+    const queryItems: QueryItem[] = [
       ...this.query,
       {
         type: 'select',
@@ -194,7 +201,11 @@ export class QueryImplementation {
           selection: resolvedSelection,
         },
       },
-    ])
+    ]
+
+    queryItemsSelectionCheck(queryItems)
+
+    return new QueryImplementation(this.tables, queryItems)
   }
 
   selectJsonObjectArray(
@@ -207,7 +218,7 @@ export class QueryImplementation {
       )
     }
 
-    return new QueryImplementation(this.tables, [
+    const queryItems: QueryItem[] = [
       ...this.query,
       {
         type: 'select',
@@ -219,7 +230,11 @@ export class QueryImplementation {
           selections: resolveSelections(this.tables, selections),
         },
       },
-    ])
+    ]
+
+    queryItemsSelectionCheck(queryItems)
+
+    return new QueryImplementation(this.tables, queryItems)
   }
 
   orderBy(

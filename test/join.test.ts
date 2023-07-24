@@ -1,11 +1,11 @@
 import { query } from '../src'
 import {
-  client,
-  Manufacturers,
-  Systems,
+  Franchises,
   Games,
   GamesSystems,
-  Franchises,
+  Manufacturers,
+  Systems,
+  client,
   expectValuesUnsorted,
 } from './helpers'
 

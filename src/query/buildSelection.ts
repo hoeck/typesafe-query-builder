@@ -1,5 +1,5 @@
-import { QueryBuilderAssertionError } from '../errors'
-import { assertNever } from '../utils'
+import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
+import { assertNever, findDuplicates } from '../utils'
 import { QueryImplementation } from './query'
 import { SelectItem } from './queryItem'
 import {
@@ -306,6 +306,42 @@ export function projectionToRowTransformer(
             }
           }
         : undefined
+    }
+
+    default:
+      return assertNever(projection)
+  }
+}
+
+// check that projected names inside json object projections are unique and
+// return the array of projected names
+export function getAndCheckProjectedNames(
+  projection: SelectItem['projection'],
+): string[] {
+  switch (projection.type) {
+    case 'plain':
+      return resolveSelectionExpressions(projection.selections).map(
+        ({ exprAlias }) => exprAlias,
+      )
+
+    case 'jsonArray':
+      return [projection.key]
+
+    case 'jsonObject':
+    case 'jsonObjectArray': {
+      const duplicates = findDuplicates(
+        resolveSelectionExpressions(projection.selections).map(
+          ({ exprAlias }) => exprAlias,
+        ),
+      )
+
+      if (duplicates) {
+        throw new QueryBuilderUsageError(
+          `duplicate keys in select json object: ${duplicates.join(', ')}`,
+        )
+      }
+
+      return [projection.key]
     }
 
     default:

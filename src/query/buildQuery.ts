@@ -1,5 +1,11 @@
-import { QueryBuilderAssertionError } from '../errors'
-import { assertNever } from '../utils'
+import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
+import { assertNever, findDuplicates } from '../utils'
+import {
+  getAndCheckProjectedNames,
+  projectionToRowTransformer,
+  projectionToSqlTokens,
+  resolveSelectionExpressions,
+} from './buildSelection'
 import { ExprFactImpl } from './expressions'
 import { QueryItem, SelectItem } from './queryItem'
 import {
@@ -10,11 +16,6 @@ import {
   sqlNewline,
   sqlWhitespace,
 } from './sql'
-import {
-  projectionToSqlTokens,
-  projectionToRowTransformer,
-  resolveSelectionExpressions,
-} from './buildSelection'
 
 // turns query items into sql tokens that can be later turned into a string
 export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
@@ -236,5 +237,25 @@ export function queryItemsToExpressionAlias(
 
     default:
       assertNever(firstItem.projection)
+  }
+}
+
+// check for duplicate columns
+// call whenever a new selection item is added
+export function queryItemsSelectionCheck(queryItems: QueryItem[]): void {
+  const selectedKeys: string[] = []
+
+  for (const item of queryItems) {
+    if (item.type === 'select') {
+      selectedKeys.push(...getAndCheckProjectedNames(item.projection))
+    }
+  }
+
+  const duplicates = findDuplicates(selectedKeys)
+
+  if (duplicates) {
+    throw new QueryBuilderUsageError(
+      `duplicate keys in selection: ${duplicates.join(', ')}`,
+    )
   }
 }
