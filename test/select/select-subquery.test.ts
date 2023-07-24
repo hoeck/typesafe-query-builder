@@ -10,9 +10,8 @@ import {
 
 describe('select: subselect', () => {
   test('correlated subselect', async () => {
-    const q = await query(Manufacturers)
-      .select(Manufacturers.include('name'))
-      .select(({ subquery }) =>
+    const res = await query(Manufacturers)
+      .select(Manufacturers.include('name'), (subquery) =>
         subquery(Systems)
           .select(Systems.include('name').rename({ name: 'firstConsole' }))
           .where(({ eq, and, literal, param, not }) =>
@@ -24,8 +23,7 @@ describe('select: subselect', () => {
           .orderBy(Systems.year, 'asc')
           .limit(1),
       )
-
-    const res = await q.fetch(client, { blocker: false })
+      .fetch(client, { blocker: false })
 
     expectValuesUnsorted(res, [
       { name: 'Sega', firstConsole: 'Master System' },
@@ -36,9 +34,9 @@ describe('select: subselect', () => {
 
   test('correlated aggregated subselect', async () => {
     const q = await query(Manufacturers)
-      .select(({ subquery }) =>
+      .select((subquery) =>
         subquery(Systems)
-          .select(Systems.include('name').jsonArray('systems'))
+          .selectJsonArray({ key: 'systems' }, Systems.include('name'))
           .where(({ eq, and, literal, param, not }) =>
             and(
               eq(Systems.manufacturerId, Manufacturers.id),
@@ -78,16 +76,25 @@ describe('select: subselect', () => {
   test('preserving Date objects in jsonArray', async () => {
     const q = await query(Games)
       .select(Games.include('title'))
-      .select(({ subquery }) =>
+      .select((subquery) =>
         subquery(GamesSystems)
-          .select(GamesSystems.include('releaseDate').jsonArray('releaseDates'))
+          .selectJsonArray(
+            { key: 'releaseDates' },
+            GamesSystems.include('releaseDate'),
+          )
           .where(({ eq, and, literal, param, not }) =>
-            eq(GamesSystems.gameId, Games.id),
+            and(
+              eq(GamesSystems.gameId, Games.id),
+              // make the subquery return `null` for a specific game so that
+              // we check that the result transformer deals with that case
+              // correctly
+              not(eq(GamesSystems.gameId, 'blockedGameId')),
+            ),
           ),
       )
-      .where(({ eq }) => eq(Games.id, 'gameId'))
+      .where(({ isIn }) => isIn(Games.id, 'gameIds'))
 
-    const res = await q.fetch(client, { gameId: 1 })
+    const res = await q.fetch(client, { gameIds: [1, 2], blockedGameId: 2 })
 
     expectValuesUnsorted(res, [
       {
@@ -96,6 +103,79 @@ describe('select: subselect', () => {
           new Date('1991-10-25T00:00:00.000Z'),
           new Date('1991-07-26T00:00:00.000Z'),
           null,
+        ],
+      },
+      {
+        title: 'Super Mario Land',
+        releaseDates: null,
+      },
+    ])
+  })
+
+  test('nested query and Date objects', async () => {
+    // building nested json from subqueries
+    const res = await query(Manufacturers)
+      .select(
+        Manufacturers.include('name').rename({ name: 'company' }),
+        (subquery) =>
+          subquery(Systems)
+            .selectJsonObjectArray(
+              { key: 'systems', orderBy: Systems.year, direction: 'asc' },
+              Systems.include('name', 'id'),
+              (subquery) =>
+                subquery(Games)
+                  .join(GamesSystems, ({ eq }) =>
+                    eq(Games.id, GamesSystems.gameId),
+                  )
+                  .selectJsonObjectArray(
+                    { key: 'games', orderBy: Games.title, direction: 'asc' },
+                    Games.include('title'),
+                    GamesSystems.include('releaseDate'),
+                  )
+                  .where(({ eq }) => eq(Systems.id, GamesSystems.systemId)),
+            )
+            .where(({ eq }) => eq(Manufacturers.id, Systems.manufacturerId)),
+      )
+      .where(({ eq }) => eq(Manufacturers.name, 'company'))
+      .fetch(client, { company: 'Sega' })
+
+    expect(res).toEqual([
+      {
+        company: 'Sega',
+        systems: [
+          {
+            name: 'Master System',
+            id: 1,
+            games: [
+              {
+                title: 'Sonic the Hedgehog',
+                releaseDate: new Date('1991-10-25T00:00:00.000Z'),
+              },
+              {
+                title: 'Ultima IV',
+                releaseDate: new Date('1990-01-01T00:00:00.000Z'),
+              },
+            ],
+          },
+          {
+            name: 'Genesis',
+            id: 2,
+            games: [
+              {
+                title: 'Sonic the Hedgehog',
+                releaseDate: new Date('1991-07-26T00:00:00.000Z'),
+              },
+              {
+                title: 'Virtua Racing',
+                releaseDate: new Date('1994-08-18T00:00:00.000Z'),
+              },
+            ],
+          },
+          {
+            name: 'Game Gear',
+            id: 3,
+            games: [{ title: 'Sonic the Hedgehog', releaseDate: null }],
+          },
         ],
       },
     ])

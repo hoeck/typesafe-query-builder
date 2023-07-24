@@ -29,363 +29,16 @@ export class SelectionImplementation {
     public readonly columnNameMapping?: null | {
       [originalColumnName: string]: string
     },
-    public readonly projection?:
-      | null
-      | {
-          type: 'jsonObject'
-          key: string
-        }
-      | {
-          type: 'jsonArray'
-          key: string
-          orderBy?: string
-          direction?: 'ASC' | 'DESC'
-        }
-      | {
-          type: 'jsonObjectArray'
-          key: string
-          orderBy?: string
-          direction?: 'ASC' | 'DESC'
-        },
   ) {
     this.table = table
     this.selectedColumns = selectedColumns
   }
 
-  private getColumnAlias(columnName: string) {
+  getColumnAlias(columnName: string) {
     return this.columnNameMapping?.[columnName] ?? columnName
   }
 
-  private getJsonBuildObjectExpression(): SqlToken[] {
-    return [
-      'JSON_BUILD_OBJECT',
-      sqlParenOpen,
-      ...joinTokens(
-        this.selectedColumns.map((s): SqlToken[] => {
-          return [
-            { type: 'sqlLiteral', value: this.getColumnAlias(s) },
-            ',',
-            sqlWhitespace,
-            ...this.table.getColumnExprWithCast(s).exprTokens,
-          ]
-        }),
-        [',', sqlWhitespace],
-      ),
-      sqlParenClose,
-    ]
-  }
-
-  private getJsonAggSql(
-    expression: SqlToken[],
-    params: {
-      key: string
-      orderBy?: string
-      direction?: 'ASC' | 'DESC'
-    },
-  ): SqlToken[] {
-    let orderBySql: SqlToken[] = []
-
-    if (params.orderBy) {
-      const orderByColumn = this.table.getColumn(params.orderBy)
-
-      if (!orderByColumn) {
-        throw new QueryBuilderAssertionError(
-          'order by column ${params.orderBy} does not exist in table >${this.table}<',
-        )
-      }
-
-      orderBySql = [
-        sqlWhitespace,
-        'ORDER BY',
-        sqlWhitespace,
-        {
-          type: 'sqlTableColumn',
-          columnName: params.orderBy,
-          table: this.table,
-        },
-        ...(params.direction === 'ASC'
-          ? [sqlWhitespace, 'ASC']
-          : params.direction === 'DESC'
-          ? [sqlWhitespace, 'DESC']
-          : params.direction === undefined
-          ? []
-          : assertNever(params.direction)),
-      ]
-    } else {
-      if (params.direction) {
-        assertFail(
-          'direction set but not orderby - should have been checked in selection already',
-        )
-      }
-    }
-
-    return [
-      'JSON_AGG',
-      ...wrapInParens([...expression, ...orderBySql]),
-      sqlWhitespace,
-      'AS',
-      sqlWhitespace,
-      { type: 'sqlIdentifier', value: params.key },
-    ]
-  }
-
-  // turn the selection into sql
-  getSelectSql(): SqlToken[] {
-    switch (this.projection?.type) {
-      case null:
-      case undefined:
-        // plain select
-        return joinTokens(
-          this.selectedColumns.map((s): SqlToken[] => {
-            const col = this.table.getColumn(s)
-
-            return [
-              ...this.table.getColumnExprWithCast(s).exprTokens,
-              sqlWhitespace,
-              'AS',
-              sqlWhitespace,
-              { type: 'sqlIdentifier', value: this.getColumnAlias(s) },
-            ]
-          }),
-          [',', sqlNewline],
-        )
-
-      case 'jsonObject': {
-        // select columns into an object
-        const jsonBuildObjectSql = this.getJsonBuildObjectExpression()
-
-        return [
-          ...jsonBuildObjectSql,
-          sqlWhitespace,
-          'AS',
-          sqlWhitespace,
-          { type: 'sqlIdentifier', value: this.projection.key },
-        ]
-      }
-
-      case 'jsonArray': {
-        if (this.selectedColumns.length !== 1) {
-          throw new QueryBuilderAssertionError(
-            'jsonArray needs exactly 1 selected column (this should have been caught by the typechecker)',
-          )
-        }
-
-        return this.getJsonAggSql(
-          this.table.getColumnExprWithCast(this.selectedColumns[0]).exprTokens,
-          this.projection,
-        )
-      }
-
-      case 'jsonObjectArray':
-        const objectSql = this.getJsonBuildObjectExpression()
-
-        return this.getJsonAggSql(objectSql, this.projection)
-
-      default:
-        return assertNever(this.projection)
-    }
-  }
-
-  // if this selection only has 1 column, return its name
-  // required to implement the exprAlias part of ExprImpl
-  getSingleColumnAlias(): string | undefined {
-    switch (this.projection?.type) {
-      case null:
-      case undefined:
-        // plain select
-        if (this.selectedColumns.length !== 1) {
-          return undefined
-        }
-
-        return this.getColumnAlias(this.selectedColumns[0])
-
-      case 'jsonObject':
-      case 'jsonArray':
-      case 'jsonObjectArray':
-        return this.projection.key
-
-      default:
-        assertNever(this.projection)
-    }
-  }
-
-  // returns a function that applies any result transformations from
-  // `column.cast` to a queried result
-  getRowTransformer(): ((row: any) => void) | undefined {
-    switch (this.projection?.type) {
-      case null:
-      case undefined: {
-        // plain select
-        const transformers = this.selectedColumns.flatMap((s) => {
-          const t = this.table.getColumn(s).resultTransformation
-          const key = this.getColumnAlias(s)
-
-          if (t) {
-            return (row: any) => {
-              row[key] = t(row[key])
-            }
-          }
-
-          return []
-        })
-
-        return transformers.length
-          ? (row: any) => {
-              for (let i = 0; i < transformers.length; i++) {
-                transformers[i](row)
-              }
-            }
-          : undefined
-      }
-
-      case 'jsonObject': {
-        const jsonKey = this.projection.key
-        const transformers = this.selectedColumns.flatMap((s) => {
-          const t = this.table.getColumn(s).resultTransformation
-          const key = this.getColumnAlias(s)
-
-          if (t) {
-            return (o: any) => {
-              o[key] = t(o[key])
-            }
-          }
-
-          return []
-        })
-
-        return transformers.length
-          ? (row: any) => {
-              for (let i = 0; i < transformers.length; i++) {
-                transformers[i](row[jsonKey])
-              }
-            }
-          : undefined
-      }
-
-      case 'jsonArray': {
-        const jsonKey = this.projection.key
-        const s = this.selectedColumns[0]
-        const t = this.table.getColumn(s).resultTransformation
-
-        return t
-          ? (row: any) => {
-              for (let i = 0; i < row[jsonKey].length; i++) {
-                row[jsonKey][i] = t(row[jsonKey][i])
-              }
-            }
-          : undefined
-      }
-
-      case 'jsonObjectArray': {
-        const jsonKey = this.projection.key
-        const transformers = this.selectedColumns.flatMap((s) => {
-          const t = this.table.getColumn(s).resultTransformation
-          const key = this.getColumnAlias(s)
-
-          if (t) {
-            return (o: any) => {
-              o[key] = t(o[key])
-            }
-          }
-
-          return []
-        })
-
-        return transformers.length
-          ? (row: any) => {
-              for (let i = 0; i < row[jsonKey].length; i++) {
-                for (let k = 0; k < transformers.length; k++) {
-                  transformers[k](row[jsonKey][i])
-                }
-              }
-            }
-          : undefined
-      }
-
-      default:
-        return assertNever(this.projection)
-    }
-  }
-
-  // Selection interface
-
-  jsonArray(key: string, orderBy?: string, direction?: 'ASC' | 'DESC') {
-    if (this.projection) {
-      throw new QueryBuilderUsageError(
-        `Table ${this.table.tableName} is already projected. Make sure to call jsonArray, jsonObject and jsonObjectArray methods only once.`,
-      )
-    }
-
-    if (!orderBy && direction) {
-      throw new QueryBuilderUsageError(
-        '`jsonArray` direction argument must be supplied along orderBy',
-      )
-    }
-
-    if (this.selectedColumns.length !== 1) {
-      throw new QueryBuilderUsageError(
-        '`jsonArray` needs exactly 1 selected column',
-      )
-    }
-
-    return new SelectionImplementation(
-      this.table,
-      this.selectedColumns,
-      this.columnNameMapping,
-      {
-        type: 'jsonArray',
-        key,
-        orderBy,
-        direction,
-      },
-    )
-  }
-
-  jsonObject(key: string) {
-    if (this.projection) {
-      throw new QueryBuilderUsageError(
-        `Table ${this.table.tableName} is already projected. Make sure to call jsonArray, jsonObject and jsonObjectArray methods only once.`,
-      )
-    }
-
-    return new SelectionImplementation(
-      this.table,
-      this.selectedColumns,
-      this.columnNameMapping,
-      {
-        type: 'jsonObject',
-        key,
-      },
-    )
-  }
-
-  jsonObjectArray(key: string, orderBy?: string, direction?: 'ASC' | 'DESC') {
-    if (this.projection) {
-      throw new QueryBuilderUsageError(
-        `Table ${this.table.tableName} is already projected. Make sure to call jsonArray, jsonObject and jsonObjectArray methods only once.`,
-      )
-    }
-
-    return new SelectionImplementation(
-      this.table,
-      this.selectedColumns,
-      this.columnNameMapping,
-      {
-        type: 'jsonObjectArray',
-        key,
-        orderBy,
-        direction,
-      },
-    )
-  }
-
   rename(mapping: { [originalColumnName: string]: string }) {
-    if (this.projection) {
-      throw new QueryBuilderUsageError(
-        `table ${this.table} is already projected - \`rename\` must be called before the projection (all/include/exclude)`,
-      )
-    }
-
     if (this.columnNameMapping) {
       throw new QueryBuilderUsageError(
         `\`rename\` has already been called on this selection (${this.table})`,
@@ -420,7 +73,6 @@ export class SelectionImplementation {
       this.table,
       this.selectedColumns,
       mapping,
-      null,
     )
   }
 }
@@ -431,13 +83,7 @@ export class SelectionImplementation {
 export function isSelectionImplementation(
   x: unknown,
 ): x is SelectionImplementation {
-  if (
-    x &&
-    typeof x === 'object' &&
-    'table' in x &&
-    'selectedColumns' in x &&
-    'jsonObjectArray' in x
-  ) {
+  if (x && typeof x === 'object' && 'table' in x && 'selectedColumns' in x) {
     return true
   }
 
@@ -466,10 +112,6 @@ export class TableImplementation {
   // For subselects, this is a generated unique identifier.
   readonly tableName: string
 
-  // a (globally unique) alias to allow joins and subselects between the
-  // same table
-  private tableAlias?: string
-
   // all columns available in this table to use in selection, projection, where, etc.
   private tableColumns: { [key: string]: ColumnImplementation }
 
@@ -485,10 +127,8 @@ export class TableImplementation {
   }
 
   // help reading query debug outputs
-  [util.inspect.custom](depth: number, options: unknown) {
-    const alias = this.tableAlias ? ` (alias: ${this.tableAlias})` : ''
-
-    return `#<TableImplementation "${this.tableName}"${alias}>`
+  [util.inspect.custom] = (depth: number, options: unknown) => {
+    return `#<TableImplementation "${this.tableName}">`
   }
 
   toString() {

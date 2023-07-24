@@ -136,7 +136,7 @@ export declare class Column<T> {
    * unix timestamp via `EXTRACT(EPOCH FROM t.value) * 1000` and later creates
    * a Javascript Date object from the resulting timestamp. In contrast to the
    * plain node-postgres type mapping, this works when selecting date columns
-   * with `jsonObject` (which uses json_build_object under the hood) too.
+   * with `selectJsonObject` (which uses json_build_object under the hood) too.
    */
   cast<I, R, V = Table<{ value: T }, {}>>(
     cast: (e: ExpressionFactory<V>, t: V) => Expression<I, V, {}>,

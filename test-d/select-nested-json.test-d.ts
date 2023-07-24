@@ -8,9 +8,6 @@ import {
   Systems,
 } from './helpers/classicGames'
 
-import { Nullable } from '../src/types/helpers'
-import { TableName } from '../src/types/table'
-
 {
   // building nested json from subqueries
   const q = query(Manufacturers).select(

@@ -1,4 +1,4 @@
-import { QueryBuilderAssertionError } from '../errors'
+import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
 import {
   DatabaseClient,
   DatabaseEscapeFunctions,
@@ -22,6 +22,7 @@ import {
   TableImplementation,
   getTableImplementation,
   isSelectionImplementation,
+  SelectionImplementation,
 } from './table'
 
 type AnyQueryBottom = QueryBottom<any, any, any, any, any>
@@ -30,26 +31,30 @@ type AnyTable = Table<any, any> & {
 }
 type AnyExpression = Expression<any, any, any, any>
 type AnyExpressionCallback = (e: ExprFactImpl) => ExprImpl
+type AnySubqueryCallback = (e: ExprFactImpl['subquery']) => QueryImplementation
 type AnySelection = Selection<any, any>
 
-// call each columns validation function for the given data and assign the
-// validated value
-function validateRowData(
-  table: TableImplementation,
-  keys: string[],
-  data: any,
+function resolveSelections(
+  tables: TableImplementation[],
+  selections: (SelectionImplementation | AnySubqueryCallback)[],
 ) {
-  keys.forEach((k) => {
-    const value = data[k]
-    const column = table.getColumn(k)
+  const resolvedSelections: (SelectionImplementation | QueryImplementation)[] =
+    []
 
-    // throws on invalid data
-    data[k] = column.columnValue(value)
-  })
+  for (let i = 0; i < selections.length; i++) {
+    const s = selections[i]
+
+    if (typeof s === 'function') {
+      resolvedSelections.push(s(new ExprFactImpl(tables).subquery))
+    } else if (isSelectionImplementation(s)) {
+      resolvedSelections.push(s)
+    } else {
+      throw new QueryBuilderAssertionError('invalid argument to select')
+    }
+  }
+
+  return resolvedSelections
 }
-
-// global counter to create unique table names in `Query.table()` calls
-let uniqueTableNameCounter = 0
 
 export class QueryImplementation {
   constructor(
@@ -96,7 +101,7 @@ export class QueryImplementation {
   // query methods
 
   join(t: AnyTable, on: AnyExpressionCallback) {
-    const tableImpl = t.getTableImplementation()
+    const tableImpl = getTableImplementation(t)
     const tables = [...this.tables, tableImpl]
     const expr = on(new ExprFactImpl(tables))
 
@@ -107,7 +112,7 @@ export class QueryImplementation {
   }
 
   leftJoin(t: AnyTable, on: AnyExpressionCallback) {
-    const tableImpl = t.getTableImplementation()
+    const tableImpl = getTableImplementation(t)
     const tables = [...this.tables, tableImpl]
     const expr = on(new ExprFactImpl(tables))
 
@@ -126,22 +131,95 @@ export class QueryImplementation {
     ])
   }
 
-  select(s: AnySelection | AnyExpressionCallback) {
-    if (typeof s === 'function') {
-      const expr = s(new ExprFactImpl(this.tables))
+  select(...selections: (SelectionImplementation | AnySubqueryCallback)[]) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'plain',
+          selections: resolveSelections(this.tables, selections),
+        },
+      },
+    ])
+  }
 
-      return new QueryImplementation(this.tables, [
-        ...this.query,
-        { type: 'selectExpr', expr },
-      ])
-    } else if (isSelectionImplementation(s)) {
-      return new QueryImplementation(this.tables, [
-        ...this.query,
-        { type: 'selectColumns', selection: s },
-      ])
-    } else {
-      throw new QueryBuilderAssertionError('invalid argument to select')
+  selectJsonObject(
+    params: { key: string },
+    ...selections: (SelectionImplementation | AnySubqueryCallback)[]
+  ) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'jsonObject',
+          key: params.key,
+          selections: resolveSelections(this.tables, selections),
+        },
+      },
+    ])
+  }
+
+  selectJsonArray(
+    params: { key: string; orderBy?: ExprImpl; direction?: 'asc' | 'desc' },
+    selection: SelectionImplementation | AnySubqueryCallback,
+  ) {
+    const [resolvedSelection] = resolveSelections(this.tables, [selection])
+
+    if (
+      isSelectionImplementation(resolvedSelection) &&
+      resolvedSelection.selectedColumns.length !== 1
+    ) {
+      throw new QueryBuilderAssertionError(
+        '`jsonArray` needs exactly 1 selected column',
+      )
     }
+
+    if (!params.orderBy && params.direction) {
+      throw new QueryBuilderUsageError(
+        '`jsonArray` direction argument must be supplied along orderBy',
+      )
+    }
+
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'jsonArray',
+          key: params.key,
+          orderBy: params.orderBy,
+          direction: params.direction,
+          selection: resolvedSelection,
+        },
+      },
+    ])
+  }
+
+  selectJsonObjectArray(
+    params: { key: string; orderBy?: ExprImpl; direction?: 'asc' | 'desc' },
+    ...selections: (SelectionImplementation | AnySubqueryCallback)[]
+  ) {
+    if (!params.orderBy && params.direction) {
+      throw new QueryBuilderUsageError(
+        '`jsonArray` direction argument must be supplied along orderBy',
+      )
+    }
+
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'jsonObjectArray',
+          key: params.key,
+          orderBy: params.orderBy,
+          direction: params.direction,
+          selections: resolveSelections(this.tables, selections),
+        },
+      },
+    ])
   }
 
   orderBy(
@@ -216,9 +294,20 @@ export class QueryImplementation {
 
   sql(client: DatabaseEscapeFunctions, params?: any) {
     const tokens = this.getSql()
-    const { sql, parameters } = createSql(client, tokens)
 
-    return sql
+    if (!params) {
+      return createSql(client, tokens).sql
+    }
+
+    const tokensWithParameterValues = tokens.map((t): typeof t => {
+      if (typeof t !== 'string' && t.type === 'sqlParameter') {
+        return { type: 'sqlLiteral', value: params[t.parameterName] }
+      }
+
+      return t
+    })
+
+    return createSql(client, tokensWithParameterValues).sql
   }
 
   sqlLog(client: DatabaseEscapeFunctions, params?: any) {

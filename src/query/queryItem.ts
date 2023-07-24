@@ -1,6 +1,7 @@
 import { LockMode } from '../types'
 import { ExprImpl } from './sql'
 import { SelectionImplementation, TableImplementation } from './table'
+import { QueryImplementation } from './query'
 
 /**
  * Recording parts of a query to be able to generate sql from
@@ -13,8 +14,7 @@ export type QueryItem =
   | LockParamItem
   | OffsetItem
   | OrderByItem
-  | SelectColumnsItem
-  | SelectExpressionItem
+  | SelectItem
   | WhereItem
 
 export interface FromItem {
@@ -56,14 +56,32 @@ export interface OrderByItem {
   nulls: 'nullsFirst' | 'nullsLast' | undefined
 }
 
-export interface SelectColumnsItem {
-  type: 'selectColumns'
-  selection: SelectionImplementation
-}
-
-export interface SelectExpressionItem {
-  type: 'selectExpr'
-  expr: ExprImpl
+export interface SelectItem {
+  type: 'select'
+  projection:
+    | {
+        type: 'plain'
+        selections: (SelectionImplementation | QueryImplementation)[]
+      }
+    | {
+        type: 'jsonObject'
+        key: string
+        selections: (SelectionImplementation | QueryImplementation)[]
+      }
+    | {
+        type: 'jsonArray'
+        key: string
+        orderBy?: ExprImpl // a table column
+        direction?: 'asc' | 'desc'
+        selection: SelectionImplementation | QueryImplementation
+      }
+    | {
+        type: 'jsonObjectArray'
+        key: string
+        orderBy?: ExprImpl // a table column
+        direction?: 'asc' | 'desc'
+        selections: (SelectionImplementation | QueryImplementation)[]
+      }
 }
 
 export interface WhereItem {

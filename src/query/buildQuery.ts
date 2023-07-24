@@ -1,7 +1,7 @@
 import { QueryBuilderAssertionError } from '../errors'
 import { assertNever } from '../utils'
 import { ExprFactImpl } from './expressions'
-import { QueryItem } from './queryItem'
+import { QueryItem, SelectItem } from './queryItem'
 import {
   SqlToken,
   joinTokens,
@@ -10,13 +10,18 @@ import {
   sqlNewline,
   sqlWhitespace,
 } from './sql'
+import {
+  projectionToSqlTokens,
+  projectionToRowTransformer,
+  resolveSelectionExpressions,
+} from './buildSelection'
 
 // turns query items into sql tokens that can be later turned into a string
 export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
   const result: {
     select: SqlToken[][] // array of `<expr> AS alias, <expr> AS alias` selections
     from?: SqlToken[]
-    joins: SqlToken[]
+    joins: SqlToken[][]
     where: SqlToken[][]
     orderBy?: SqlToken[]
     limit?: SqlToken[]
@@ -49,7 +54,25 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
           ]
         }
         break
+
       case 'join':
+        result.joins.push([
+          item.joinType === 'join'
+            ? 'JOIN'
+            : item.joinType === 'leftJoin'
+            ? 'LEFT JOIN'
+            : assertNever(item.joinType),
+          sqlIndent,
+          sqlNewline,
+          ...item.table.getTableSql(),
+          sqlWhitespace,
+          { type: 'sqlTableAlias', table: item.table },
+          sqlNewline,
+          'ON',
+          sqlWhitespace,
+          ...item.expr.exprTokens,
+          sqlDedent,
+        ])
         break
 
       case 'limit':
@@ -96,33 +119,19 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
             ? { type: 'sqlParameter', parameterName: item.offset }
             : assertNever(item.offset),
         ]
-
         break
+
       case 'orderBy':
         break
-      case 'selectColumns':
-        // selections are just groups of columns from already included
-        // (via from or join) tables so they need not parameters
-        result.select.push(item.selection.getSelectSql())
-        break
-      case 'selectExpr':
-        if (item.expr.exprAlias === undefined) {
-          throw new QueryBuilderAssertionError(
-            'expected expression to contain an alias',
-          )
-        }
 
-        result.select.push([
-          ...item.expr.exprTokens,
-          sqlWhitespace,
-          'AS',
-          sqlWhitespace,
-          { type: 'sqlIdentifier', value: item.expr.exprAlias },
-        ])
+      case 'select':
+        result.select.push(projectionToSqlTokens(item.projection))
         break
+
       case 'where':
         result.where.push(item.expr.exprTokens)
         break
+
       default:
         assertNever(item)
     }
@@ -138,7 +147,7 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
     ...joinTokens(
       [
         result.from || [],
-        result.joins || [],
+        ...(result.joins || []),
         result.where.length
           ? [
               'WHERE',
@@ -161,21 +170,13 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
 // Returns a function that transforms a single row of a query result in-place,
 // e.g. converting numeric timestamps from sql date columns back into JS Date
 // objects.
-export function queryItemsToRowTransformer(queryItems: QueryItem[]) {
+export function queryItemsToRowTransformer(
+  queryItems: QueryItem[],
+): (row: any) => void {
   const transformers = queryItems.flatMap((item) => {
-    if (item.type === 'selectColumns') {
-      const t = item.selection.getRowTransformer()
+    if (item.type === 'select') {
+      const t = projectionToRowTransformer(item.projection)
 
-      return t || []
-    }
-
-    if (item.type === 'selectExpr') {
-      // ducktyping
-      const t = (item.expr as any)?.getRowTransformer()
-
-      // subqueries result transformers already work on the alias defined in
-      // the subquery - which is the same as in the parent query so there is
-      // no need to translate anything here
       return t || []
     }
 
@@ -196,9 +197,13 @@ export function queryItemsToRowTransformer(queryItems: QueryItem[]) {
 export function queryItemsToExpressionAlias(
   queryItems: QueryItem[],
 ): string | undefined {
-  const selectItems: QueryItem[] = queryItems.filter(
-    (q) => q.type === 'selectColumns' || q.type === 'selectExpr',
+  const selectItems = queryItems.filter(
+    (q): q is SelectItem => q.type === 'select',
   )
+
+  if (!selectItems.length) {
+    throw new QueryBuilderAssertionError('query has no selections')
+  }
 
   if (selectItems.length > 1) {
     // more than 1 selected item
@@ -207,13 +212,29 @@ export function queryItemsToExpressionAlias(
 
   const firstItem = selectItems[0]
 
-  if (firstItem.type === 'selectExpr') {
-    return firstItem.expr.exprAlias
-  }
+  switch (firstItem.projection.type) {
+    case 'plain':
+      const selectionExprs = resolveSelectionExpressions(
+        firstItem.projection.selections,
+      )
 
-  if (firstItem.type === 'selectColumns') {
-    return firstItem.selection.getSingleColumnAlias()
-  }
+      if (!selectionExprs.length) {
+        throw new QueryBuilderAssertionError('select item has no selections')
+      }
 
-  throw new QueryBuilderAssertionError('expected to not reach this')
+      if (selectionExprs.length > 1) {
+        // more than  1 selected item
+        return undefined
+      }
+
+      return selectionExprs[0].exprAlias
+
+    case 'jsonObject':
+    case 'jsonArray':
+    case 'jsonObjectArray':
+      return firstItem.projection.key
+
+    default:
+      assertNever(firstItem.projection)
+  }
 }

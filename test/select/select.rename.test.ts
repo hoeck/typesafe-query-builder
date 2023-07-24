@@ -67,15 +67,5 @@ describe('select.rename', () => {
         ),
       ).toThrow('`rename` has already been called on this selection')
     })
-
-    test('projection methods must be called before renaming', async () => {
-      expect(() =>
-        query(Manufacturers).select(
-          Manufacturers.all().jsonObject('foo').rename({
-            foo: 'M',
-          }),
-        ),
-      ).toThrow('`rename` must be called before the projection')
-    })
   })
 })

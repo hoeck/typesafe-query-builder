@@ -728,17 +728,28 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
 
   /**
    * Return the generated sql string.
+   *
+   * If required params are ommited, return the query with parameter
+   * placeholders ($1, $2 ...).
+   *
+   * If required params are passed, they are escaped and put into the query so
+   * you can go and debug it in a regular sql client.
    */
   sql: keyof P extends never
     ? (client: DatabaseEscapeFunctions) => string
-    : (client: DatabaseEscapeFunctions, params: P) => string
+    : (client: DatabaseEscapeFunctions, params?: P) => string
 
   /**
    * Log the generated sql string to the console.
+   *
+   * Same parameter handling as `.sql()`.
    */
   sqlLog: keyof P extends never
     ? (client: DatabaseEscapeFunctions) => QueryBottom<T, P, L, S, C>
-    : (client: DatabaseEscapeFunctions, params: P) => QueryBottom<T, P, L, S, C>
+    : (
+        client: DatabaseEscapeFunctions,
+        params?: P,
+      ) => QueryBottom<T, P, L, S, C>
 
   /**
    * Run an SQL EXPLAIN on this query.

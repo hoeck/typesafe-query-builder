@@ -7,44 +7,51 @@ import {
   Systems,
 } from '../helpers'
 
-describe('select.jsonArray', () => {
+describe('selectJsonArray', () => {
   test('plain array', async () => {
     const result = await query(Manufacturers)
-      .select(Manufacturers.include('id').jsonArray('ids'))
+      .selectJsonArray({ key: 'ids' }, Manufacturers.include('id'))
       .fetch(client)
 
     expectValuesUnsorted(result, [{ ids: [1, 2, 3] }])
   })
 
   test('ordered default', async () => {
-    const resultDefault = await query(Manufacturers)
-      .select(Manufacturers.include('name').jsonArray('names', 'name'))
+    const res = await query(Manufacturers)
+      .selectJsonArray(
+        { key: 'names', orderBy: Manufacturers.name },
+        Manufacturers.include('name'),
+      )
       .fetch(client)
 
-    expectValuesUnsorted(resultDefault, [
-      { names: ['Atari', 'Nintendo', 'Sega'] },
-    ])
+    expect(res).toEqual([{ names: ['Atari', 'Nintendo', 'Sega'] }])
   })
 
   test('ordered ASC', async () => {
-    const resultAsc = await query(Manufacturers)
-      .select(Manufacturers.include('name').jsonArray('names', 'name', 'ASC'))
+    const res = await query(Manufacturers)
+      .selectJsonArray(
+        { key: 'names', orderBy: Manufacturers.name, direction: 'asc' },
+        Manufacturers.include('name'),
+      )
       .fetch(client)
 
-    expectValuesUnsorted(resultAsc, [{ names: ['Atari', 'Nintendo', 'Sega'] }])
+    expect(res).toEqual([{ names: ['Atari', 'Nintendo', 'Sega'] }])
   })
 
   test('ordered DESC', async () => {
-    const resultDesc = await query(Manufacturers)
-      .select(Manufacturers.include('name').jsonArray('names', 'name', 'DESC'))
+    const res = await query(Manufacturers)
+      .selectJsonArray(
+        { key: 'names', orderBy: Manufacturers.name, direction: 'desc' },
+        Manufacturers.include('name'),
+      )
       .fetch(client)
 
-    expectValuesUnsorted(resultDesc, [{ names: ['Sega', 'Nintendo', 'Atari'] }])
+    expect(res).toEqual([{ names: ['Sega', 'Nintendo', 'Atari'] }])
   })
 
   test('preserve Date objects in json through cast and result transformation', async () => {
     const res = await query(GamesSystems)
-      .select(GamesSystems.include('releaseDate').jsonArray('dates'))
+      .selectJsonArray({ key: 'dates' }, GamesSystems.include('releaseDate'))
       .fetch(client)
 
     // json_agg is an aggregate function
@@ -56,14 +63,18 @@ describe('select.jsonArray', () => {
   describe('errors', () => {
     test('single selected column required ', async () => {
       expect(() =>
-        query(Manufacturers).select(Manufacturers.all().jsonArray('foo')),
+        query(Manufacturers).selectJsonArray(
+          { key: 'foo' },
+          Manufacturers.all(),
+        ),
       ).toThrow('`jsonArray` needs exactly 1 selected column')
     })
 
     test('direction without order by ', async () => {
       expect(() =>
-        query(Manufacturers).select(
-          Manufacturers.include('id').jsonArray('foo', undefined, 'ASC'),
+        query(Manufacturers).selectJsonArray(
+          { key: 'foo', direction: 'asc' },
+          Manufacturers.include('id'),
         ),
       ).toThrow('`jsonArray` direction argument must be supplied along orderBy')
     })

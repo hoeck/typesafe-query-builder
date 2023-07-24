@@ -9,7 +9,7 @@ import {
 describe('select.jsonObject', () => {
   test('all', async () => {
     const result = await query(Manufacturers)
-      .select(Manufacturers.all().jsonObject('company'))
+      .selectJsonObject({ key: 'company' }, Manufacturers.all())
       .fetch(client)
 
     expectValuesUnsorted(result, [
@@ -21,8 +21,9 @@ describe('select.jsonObject', () => {
 
   test('exclude + rename', async () => {
     const result = await query(Manufacturers)
-      .select(
-        Manufacturers.exclude('country').rename({ id: '#' }).jsonObject('x'),
+      .selectJsonObject(
+        { key: 'x' },
+        Manufacturers.exclude('country').rename({ id: '#' }),
       )
       .fetch(client)
 
@@ -36,10 +37,11 @@ describe('select.jsonObject', () => {
   describe('cast & result transformation', () => {
     test('preserve the type of a date when selecting it through json', async () => {
       const result = await query(GamesSystems)
-        .select(
-          GamesSystems.include('gameId', 'systemId', 'releaseDate')
-            .rename({ releaseDate: 'rd' })
-            .jsonObject('game'),
+        .selectJsonObject(
+          { key: 'game' },
+          GamesSystems.include('gameId', 'systemId', 'releaseDate').rename({
+            releaseDate: 'rd',
+          }),
         )
         .fetch(client)
 

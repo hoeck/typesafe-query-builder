@@ -9,7 +9,7 @@ import {
 describe('select.jsonObjectArray', () => {
   test('all', async () => {
     const result = await query(Manufacturers)
-      .select(Manufacturers.all().jsonObjectArray('companies'))
+      .selectJsonObjectArray({ key: 'companies' }, Manufacturers.all())
       .fetch(client)
 
     expectValuesUnsorted(result, [
@@ -25,10 +25,11 @@ describe('select.jsonObjectArray', () => {
 
   test('preserve Date objects in json through cast and result transformation', async () => {
     const res = await query(GamesSystems)
-      .select(
-        GamesSystems.include('gameId', 'systemId', 'releaseDate')
-          .rename({ releaseDate: 'd' })
-          .jsonObjectArray('releases'),
+      .selectJsonObjectArray(
+        { key: 'releases' },
+        GamesSystems.include('gameId', 'systemId', 'releaseDate').rename({
+          releaseDate: 'd',
+        }),
       )
       .fetch(client)
 
