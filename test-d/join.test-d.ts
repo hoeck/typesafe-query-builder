@@ -78,7 +78,6 @@ import {
       Systems.include('name').rename({ name: 'system' }),
       Franchises.include('name').rename({ name: 'franchise' }),
     )
-
   expectType<{}>(parameterType(q))
   expectType<
     {
@@ -126,7 +125,12 @@ import {
       eq(Manufacturers.id, Franchises.manufacturerId),
     )
     .join(GamesSystems, ({ eq }) => eq(Systems.id, GamesSystems.systemId))
-    .join(Games, ({ eq }) => eq(GamesSystems.gameId, Games.id))
+    .join(Games, ({ and, eq }) =>
+      and(
+        eq(GamesSystems.gameId, Games.id),
+        eq(Games.franchiseId, Franchises.id),
+      ),
+    )
     .select(
       Manufacturers.include('name').rename({ name: 'manufacturer' }),
       Systems.include('name').rename({ name: 'system' }),

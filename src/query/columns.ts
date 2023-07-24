@@ -302,6 +302,9 @@ export class ColumnImplementation {
           sqlWhitespace,
           { type: 'sqlLiteral', value: 1000 },
         ]),
+        // cast to integer to not loose precision and because our date
+        // constructor expects it
+        '::INT8',
         sqlWhitespace,
         'ELSE',
         sqlWhitespace,
@@ -312,17 +315,31 @@ export class ColumnImplementation {
     }
 
     res.resultTransformation = (value: unknown) => {
-      if (typeof value !== 'number') {
+      // we cast dates to unix timestamp ::int8 when selecting the date
+      if (typeof value === 'number') {
+        // we cast dates to unix timestamp
+        return new Date(value)
+      } else if (typeof value === 'string') {
+        const timestamp = parseInt(value)
+
+        if (!Number.isSafeInteger(timestamp)) {
+          throw new QueryBuilderValidationError(
+            `column ${res.name} - cannot read Date from ${inspect(value).slice(
+              0,
+              128,
+            )} - expected a string that contains a safe integer `,
+          )
+        }
+
+        return new Date(timestamp)
+      } else {
         throw new QueryBuilderValidationError(
           `column ${res.name} - cannot read Date from ${inspect(value).slice(
             0,
             128,
-          )} - expected an integer`,
+          )} - expected an number or stringified number`,
         )
       }
-
-      // we cast dates to unix timestamp
-      return new Date(value)
     }
 
     return res
