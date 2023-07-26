@@ -4,7 +4,6 @@ import {
   Manufacturers,
   client,
   expectValuesUnsorted,
-  Systems,
 } from '../helpers'
 
 describe('selectJsonArray', () => {
@@ -67,7 +66,7 @@ describe('selectJsonArray', () => {
           { key: 'foo' },
           Manufacturers.all(),
         ),
-      ).toThrow('`jsonArray` needs exactly 1 selected column')
+      ).toThrow('`selectJsonArray` needs exactly 1 selected column')
     })
 
     test('direction without order by ', async () => {
@@ -76,7 +75,9 @@ describe('selectJsonArray', () => {
           { key: 'foo', direction: 'asc' },
           Manufacturers.include('id'),
         ),
-      ).toThrow('`jsonArray` direction argument must be supplied along orderBy')
+      ).toThrow(
+        '`selectJsonArray` direction argument must be supplied along orderBy',
+      )
     })
   })
 })

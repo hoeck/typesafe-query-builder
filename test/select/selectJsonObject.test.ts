@@ -19,18 +19,18 @@ describe('select.jsonObject', () => {
     ])
   })
 
-  test('exclude + rename', async () => {
+  test('exclude + rename + escaping', async () => {
     const result = await query(Manufacturers)
       .selectJsonObject(
-        { key: 'x' },
-        Manufacturers.exclude('country').rename({ id: '#' }),
+        { key: ' x ' },
+        Manufacturers.exclude('country').rename({ id: '# 😂😂😂 #' }),
       )
       .fetch(client)
 
     expectValuesUnsorted(result, [
-      { x: { '#': 1, name: 'Sega' } },
-      { x: { '#': 2, name: 'Nintendo' } },
-      { x: { '#': 3, name: 'Atari' } },
+      { ' x ': { '# 😂😂😂 #': 1, name: 'Sega' } },
+      { ' x ': { '# 😂😂😂 #': 2, name: 'Nintendo' } },
+      { ' x ': { '# 😂😂😂 #': 3, name: 'Atari' } },
     ])
   })
 

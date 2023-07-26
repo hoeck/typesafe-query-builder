@@ -18,6 +18,24 @@ describe('select.rename', () => {
     ])
   })
 
+  test('escaping complex names', async () => {
+    const result = await query(Manufacturers)
+      .select(
+        // escaping also works on schema column aliases but it's easier to
+        // test with rename
+        Manufacturers.include('id', 'name').rename({
+          name: `m A"'\\ \n u f ac 😅`,
+        }),
+      )
+      .fetch(client)
+
+    expectValuesUnsorted(result, [
+      { id: 1, [`m A"'\\ \n u f ac 😅`]: 'Sega' },
+      { id: 2, [`m A"'\\ \n u f ac 😅`]: 'Nintendo' },
+      { id: 3, [`m A"'\\ \n u f ac 😅`]: 'Atari' },
+    ])
+  })
+
   // error conditions that are not catched by the typesystem (either because
   // it is technically not possible or too complex)
   describe('rename errors', () => {
