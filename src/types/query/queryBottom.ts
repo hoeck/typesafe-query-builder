@@ -750,16 +750,6 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
       ) => QueryBottom<T, P, L, S, C>
 
   /**
-   * Run an SQL EXPLAIN on this query.
-   */
-  explain: (client: DatabaseClient, params?: P) => Promise<string>
-
-  /**
-   * Run an SQL EXPLAIN ANALYZE on this query.
-   */
-  explainAnalyze: (client: DatabaseClient, params?: P) => Promise<string>
-
-  /**
    * Execute the query and return all rows.
    */
   fetch: {} extends P

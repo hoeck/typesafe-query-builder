@@ -328,14 +328,6 @@ export class QueryImplementation {
     return this
   }
 
-  explain(client: DatabaseClient, params?: any) {
-    return ''
-  }
-
-  explainAnalyze(client: DatabaseClient, params?: any) {
-    return ''
-  }
-
   async fetch(client: DatabaseClient, params?: any) {
     const tokens = this.getSql()
     const { sql, parameters } = createSql(client, tokens)
