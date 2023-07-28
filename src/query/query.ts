@@ -1,4 +1,8 @@
-import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
+import {
+  QueryBuilderAssertionError,
+  QueryBuilderUsageError,
+  QueryBuilderResultError,
+} from '../errors'
 import {
   DatabaseClient,
   DatabaseEscapeFunctions,
@@ -371,12 +375,34 @@ export class QueryImplementation {
     return result.rows
   }
 
-  fetchOne(client: DatabaseClient, params?: any) {
-    return ''
+  async fetchOne(client: DatabaseClient, params?: any) {
+    const result = await this.fetch(client, params)
+
+    if (result.length > 1) {
+      throw new QueryBuilderResultError(
+        `fetchOne: query returned more than 1 row (it returned ${result.length} rows)`,
+      )
+    }
+
+    return result
   }
 
-  fetchExactlyOne(client: DatabaseClient, params?: any) {
-    return ''
+  async fetchExactlyOne(client: DatabaseClient, params?: any) {
+    const result = await this.fetch(client, params)
+
+    if (result.length === 0) {
+      throw new QueryBuilderResultError(
+        'fetchExactlyOne: query returned 0 rows',
+      )
+    }
+
+    if (result.length > 1) {
+      throw new QueryBuilderResultError(
+        `fetchExactlyOne: query returned more than 1 row (it returned ${result.length} rows)`,
+      )
+    }
+
+    return result
   }
 }
 
