@@ -1,14 +1,4 @@
-import { query } from '../src'
-
-import {
-  EventTypeEnum,
-  client,
-  eventTypes,
-  eventTypesWithEnum,
-  events,
-  jsonAnyTable,
-  users,
-} from './helpers'
+import { client } from './helpers'
 
 describe.skip('insert', () => {
   test('placeholder', () => {})

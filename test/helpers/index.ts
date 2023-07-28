@@ -20,7 +20,6 @@ afterAll(async () => {
   await client.end()
 })
 
-export * from './testSchema'
 export * from './classicGames'
 export * from './pcComponents'
 
