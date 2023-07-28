@@ -105,13 +105,7 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
           )
         }
 
-        if (!result.limit) {
-          throw new QueryBuilderAssertionError(
-            'offset requires a limit to be present',
-          )
-        }
-
-        result.limit = [
+        result.offset = [
           'OFFSET',
           sqlWhitespace,
           typeof item.offset === 'number'
