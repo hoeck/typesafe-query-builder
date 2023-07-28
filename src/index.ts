@@ -4,15 +4,15 @@ export {
   QueryBuilderUsageError,
   QueryBuilderValidationError,
 } from './errors'
-export { expressionFactory, query, column, table } from './query'
+export { column, expressionFactory, query, table } from './query'
 export type {
   Column,
   DatabaseClient,
   DefaultValue,
   Expression,
   ExpressionFactory,
-  LockMode,
   ResultType,
+  RowLockMode,
   Table,
   TableRow,
   TableRowInsert,

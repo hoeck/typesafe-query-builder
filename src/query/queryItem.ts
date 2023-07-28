@@ -1,4 +1,4 @@
-import { LockMode } from '../types'
+import { RowLockMode } from '../types'
 import { ExprImpl } from './sql'
 import { SelectionImplementation, TableImplementation } from './table'
 import { QueryImplementation } from './query'
@@ -11,7 +11,6 @@ export type QueryItem =
   | JoinItem
   | LimitItem
   | LockItem
-  | LockParamItem
   | OffsetItem
   | OrderByItem
   | SelectItem
@@ -36,12 +35,7 @@ export interface LimitItem {
 
 export interface LockItem {
   type: 'lock'
-  lockMode: LockMode
-}
-
-export interface LockParamItem {
-  type: 'lockParam'
-  param: string
+  rowLockMode: RowLockMode
 }
 
 export interface OffsetItem {

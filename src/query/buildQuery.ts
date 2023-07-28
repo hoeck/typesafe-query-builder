@@ -95,7 +95,29 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         break
 
       case 'lock':
-      case 'lockParam':
+        if (result.lock) {
+          throw new QueryBuilderAssertionError(
+            'only a single lock clause is allowed in queryItems',
+          )
+        }
+
+        switch (item.rowLockMode) {
+          case 'forUpdate':
+            result.lock = ['FOR UPDATE']
+            break
+          case 'forNoKeyUpdate':
+            result.lock = ['FOR NO KEY UPDATE']
+            break
+          case 'forShare':
+            result.lock = ['FOR SHARE']
+            break
+          case 'forKeyShare':
+            result.lock = ['FOR KEY SHARE']
+            break
+          default:
+            assertNever(item.rowLockMode)
+        }
+
         break
 
       case 'offset':

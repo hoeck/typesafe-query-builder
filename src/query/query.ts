@@ -1,15 +1,15 @@
 import {
   QueryBuilderAssertionError,
-  QueryBuilderUsageError,
   QueryBuilderResultError,
+  QueryBuilderUsageError,
 } from '../errors'
 import {
   DatabaseClient,
   DatabaseEscapeFunctions,
   Expression,
-  LockMode,
   QueryBottom,
   QueryRoot,
+  RowLockMode,
   Selection,
   Table,
 } from '../types'
@@ -277,17 +277,10 @@ export class QueryImplementation {
     ])
   }
 
-  lock(lockMode: LockMode) {
+  lock(rowLockMode: RowLockMode) {
     return new QueryImplementation(this.tables, [
       ...this.query,
-      { type: 'lock', lockMode },
-    ])
-  }
-
-  lockParam(param: string) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      { type: 'lockParam', param },
+      { type: 'lock', rowLockMode },
     ])
   }
 

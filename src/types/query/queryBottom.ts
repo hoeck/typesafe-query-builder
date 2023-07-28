@@ -11,10 +11,16 @@ import { Selection, Table } from '../table'
 import { DatabaseClient, DatabaseEscapeFunctions } from './databaseClient'
 
 /**
- * postgres row level lock modes: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
- * for now only implementing those which I have used myself, there are more locking modes
+ * postgres row level lock modes
+ *
+ * See https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
+ * and https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS
  */
-export type LockMode = 'update' | 'share' | 'none'
+export type RowLockMode =
+  | 'forUpdate'
+  | 'forNoKeyUpdate'
+  | 'forShare'
+  | 'forKeyShare'
 
 /**
  * Access the row type of a query for use e.g. in data consuming functions.
@@ -697,18 +703,10 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
 
   /**
    * Add a row lock statement to the query (e.g. 'FOR UPDATE').
-   */
-  lock(lockMode: LockMode): QueryBottom<T, P, L, S, C>
-
-  /**
-   * Add a row lock statement depending on a parameter.
    *
-   * Use this to delay the decision which lock mode (or not locking at all) to
-   * use until executing the query.
+   * See `RowLockMode` for available lockmodes
    */
-  lockParam<K extends string>(
-    paramKey: K,
-  ): QueryBottom<T, P & { [KK in K]: LockMode }, L, S, C>
+  lock(rowLockMode: RowLockMode): QueryBottom<T, P, L, S, C>
 
   /**
    * Call a factory function with this query.

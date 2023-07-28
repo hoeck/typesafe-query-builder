@@ -12,11 +12,11 @@ export type {
   Delete,
   InsertIntoConstructor,
   InsertStatementConstructor,
-  LockMode,
   Query,
   QueryBottom,
   QueryRoot,
   ResultType,
+  RowLockMode,
   Update,
 } from './query'
 export type {
