@@ -40,23 +40,13 @@ describe('limit and offset', () => {
   describe('limit and offset together', () => {
     test('limit + offset (+ order by)', async () => {
       expect(
-        await q
-          .orderBy(Systems.id)
-          .limit(2)
-          .offset(3)
-          .sqlLog(client)
-          .fetch(client),
+        await q.orderBy(Systems.id).limit(2).offset(3).fetch(client),
       ).toEqual([{ id: 4 }, { id: 5 }])
     })
 
     test('offset + limit (+ order by)', async () => {
       expect(
-        await q
-          .orderBy(Systems.id)
-          .offset(3)
-          .limit(2)
-          .sqlLog(client)
-          .fetch(client),
+        await q.orderBy(Systems.id).offset(3).limit(2).fetch(client),
       ).toEqual([{ id: 4 }, { id: 5 }])
     })
   })

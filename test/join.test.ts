@@ -150,7 +150,6 @@ describe('join', () => {
         GamesSystems.include('releaseDate'),
         Games.include('title'),
       )
-      .sqlLog(client)
       .fetch(client)
 
     expectValuesUnsorted(res, [

@@ -24,7 +24,7 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
     from?: SqlToken[]
     joins: SqlToken[][]
     where: SqlToken[][]
-    orderBy?: SqlToken[]
+    orderBy: SqlToken[][]
     limit?: SqlToken[]
     offset?: SqlToken[]
     lock?: SqlToken[]
@@ -32,6 +32,7 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
     select: [],
     joins: [],
     where: [],
+    orderBy: [],
   }
 
   for (const item of queryItems) {
@@ -139,6 +140,29 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         break
 
       case 'orderBy':
+        result.orderBy.push([
+          ...item.expr.exprTokens,
+          ...(item.direction
+            ? [
+                sqlWhitespace,
+                item.direction === 'asc'
+                  ? 'ASC'
+                  : item.direction === 'desc'
+                  ? 'DESC'
+                  : assertNever(item.direction),
+              ]
+            : []),
+          ...(item.nulls
+            ? [
+                sqlWhitespace,
+                item.nulls === 'nullsFirst'
+                  ? 'NULLS FIRST'
+                  : item.nulls === 'nullsLast'
+                  ? 'NULLS LAST'
+                  : assertNever(item.nulls),
+              ]
+            : []),
+        ])
         break
 
       case 'select':
@@ -174,7 +198,15 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
               ).exprTokens,
             ]
           : [],
-        result.orderBy || [],
+        result.orderBy.length
+          ? [
+              'ORDER BY',
+              sqlIndent,
+              sqlNewline,
+              ...joinTokens(result.orderBy, [',', sqlNewline]),
+              sqlDedent,
+            ]
+          : [],
         result.limit || [],
         result.offset || [],
         result.lock || [],

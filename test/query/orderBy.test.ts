@@ -1,108 +1,89 @@
 import { query } from '../../src'
-import { UserRow, client, items, users, events } from '../helpers'
+import { client, Games } from '../helpers'
 
-describe.skip('orderBy', () => {
-  test('placeholder', () => {})
-  // test('single orderBy with default direction', async () => {
-  //   const result = await query(users)
-  //     .orderBy(users.userName)
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => r.userName)).toEqual(['user-a', 'user-b', 'user-c'])
-  // })
-  //
-  // test('single orderBy ASC', async () => {
-  //   const result = await query(users)
-  //     .orderBy(users.userName, 'asc')
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => r.userName)).toEqual(['user-a', 'user-b', 'user-c'])
-  // })
-  //
-  // test('single orderBy DESC', async () => {
-  //   const result = await query(users)
-  //     .orderBy(users.userName, 'desc')
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => r.userName)).toEqual(['user-c', 'user-b', 'user-a'])
-  // })
-  //
-  // test('multiple orderBy', async () => {
-  //   const result = await query(items)
-  //     .orderBy(items.itemUserId)
-  //     .orderBy(items.itemId, 'desc')
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => ({ user: r.itemUserId, item: r.itemId }))).toEqual([
-  //     { user: 1, item: 2 },
-  //     { user: 1, item: 1 },
-  //     { user: 2, item: 5 },
-  //     { user: 2, item: 4 },
-  //     { user: 2, item: 3 },
-  //   ])
-  // })
-  //
-  // test('orderBy and joins', async () => {
-  //   const result = await query(items)
-  //     .join(items.itemUserId, users.userId)
-  //     .orderBy(users.userName)
-  //     .orderBy(items.itemId, 'desc')
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => ({ user: r.userName, item: r.itemId }))).toEqual([
-  //     { user: 'user-a', item: 2 },
-  //     { user: 'user-a', item: 1 },
-  //     { user: 'user-c', item: 5 },
-  //     { user: 'user-c', item: 4 },
-  //     { user: 'user-c', item: 3 },
-  //   ])
-  // })
-  //
-  // test('orderBy and joins and nulls', async () => {
-  //   const result = await query(users)
-  //     .leftJoin(users.userId, items.itemUserId)
-  //     .orderBy(items.itemId)
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => ({ user: r.userName, item: r.itemId }))).toEqual([
-  //     { user: 'user-a', item: 1 },
-  //     { user: 'user-a', item: 2 },
-  //     { user: 'user-c', item: 3 },
-  //     { user: 'user-c', item: 4 },
-  //     { user: 'user-c', item: 5 },
-  //     { user: 'user-b', item: null },
-  //   ])
-  // })
-  //
-  // test('orderBy and joins and explicit nullsLast', async () => {
-  //   const result = await query(users)
-  //     .leftJoin(users.userId, items.itemUserId)
-  //     .orderBy(items.itemId, 'asc', 'nullsLast')
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => ({ user: r.userName, item: r.itemId }))).toEqual([
-  //     { user: 'user-a', item: 1 },
-  //     { user: 'user-a', item: 2 },
-  //     { user: 'user-c', item: 3 },
-  //     { user: 'user-c', item: 4 },
-  //     { user: 'user-c', item: 5 },
-  //     { user: 'user-b', item: null },
-  //   ])
-  // })
-  //
-  // test('orderBy and joins and explicit nullsFirst', async () => {
-  //   const result = await query(users)
-  //     .leftJoin(users.userId, items.itemUserId)
-  //     .orderBy(items.itemId, 'asc', 'nullsFirst')
-  //     .fetch(client)
-  //
-  //   expect(result.map(r => ({ user: r.userName, item: r.itemId }))).toEqual([
-  //     { user: 'user-b', item: null },
-  //     { user: 'user-a', item: 1 },
-  //     { user: 'user-a', item: 2 },
-  //     { user: 'user-c', item: 3 },
-  //     { user: 'user-c', item: 4 },
-  //     { user: 'user-c', item: 5 },
-  //   ])
-  // })
+describe('orderBy', () => {
+  const orderdByTitle = [
+    { id: 6, title: 'Laser Blast' },
+    { id: 1, title: 'Sonic the Hedgehog' },
+    { id: 3, title: 'Super Mario Bros' },
+    { id: 2, title: 'Super Mario Land' },
+    { id: 4, title: 'Ultima IV' },
+    { id: 5, title: 'Virtua Racing' },
+  ]
+
+  test('order by single column using default order', async () => {
+    expect(
+      await query(Games)
+        .select(Games.include('id', 'title'))
+        .orderBy(Games.title)
+        .fetch(client),
+    ).toEqual(orderdByTitle)
+  })
+
+  test('order by single column ascending', async () => {
+    expect(
+      await query(Games)
+        .select(Games.include('id', 'title'))
+        .orderBy(Games.title)
+        .fetch(client),
+    ).toEqual(orderdByTitle)
+  })
+
+  test('order by single column descending', async () => {
+    expect(
+      await query(Games)
+        .select(Games.include('id', 'title'))
+        .orderBy(Games.title, 'desc')
+        .fetch(client),
+    ).toEqual([...orderdByTitle].reverse())
+  })
+
+  test('order by single column descending and nulls first', async () => {
+    expect(
+      await query(Games)
+        .select(Games.include('title', 'franchiseId'))
+        .orderBy(Games.franchiseId, 'desc', 'nullsFirst')
+        .fetch(client),
+    ).toEqual([
+      { title: 'Virtua Racing', franchiseId: null },
+      { title: 'Laser Blast', franchiseId: null },
+      { title: 'Super Mario Land', franchiseId: 3 },
+      { title: 'Super Mario Bros', franchiseId: 3 },
+      { title: 'Sonic the Hedgehog', franchiseId: 2 },
+      { title: 'Ultima IV', franchiseId: 1 },
+    ])
+  })
+
+  test('order by single column descending and nulls last', async () => {
+    expect(
+      await query(Games)
+        .select(Games.include('title', 'franchiseId'))
+        .orderBy(Games.franchiseId, 'desc', 'nullsLast')
+        .fetch(client),
+    ).toEqual([
+      { title: 'Super Mario Land', franchiseId: 3 },
+      { title: 'Super Mario Bros', franchiseId: 3 },
+      { title: 'Sonic the Hedgehog', franchiseId: 2 },
+      { title: 'Ultima IV', franchiseId: 1 },
+      { title: 'Virtua Racing', franchiseId: null },
+      { title: 'Laser Blast', franchiseId: null },
+    ])
+  })
+
+  test('order by multiple columns', async () => {
+    expect(
+      await query(Games)
+        .select(Games.include('title', 'franchiseId'))
+        .orderBy(Games.franchiseId, 'desc', 'nullsLast')
+        .orderBy(Games.title, 'asc')
+        .fetch(client),
+    ).toEqual([
+      { title: 'Super Mario Bros', franchiseId: 3 },
+      { title: 'Super Mario Land', franchiseId: 3 },
+      { title: 'Sonic the Hedgehog', franchiseId: 2 },
+      { title: 'Ultima IV', franchiseId: 1 },
+      { title: 'Laser Blast', franchiseId: null },
+      { title: 'Virtua Racing', franchiseId: null },
+    ])
+  })
 })
