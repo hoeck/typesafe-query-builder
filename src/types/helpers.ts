@@ -58,3 +58,12 @@ export type Merge<A, B> = {
     ? B[K]
     : never
 }
+
+/**
+ * Omit which distributes over unions.
+ *
+ * Required for discriminated union tables when removing common columns.
+ */
+export type DistributiveOmit<T, K extends keyof any> = T extends any
+  ? Omit<T, K>
+  : never

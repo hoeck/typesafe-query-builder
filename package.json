@@ -38,7 +38,7 @@
     "build": "tsup src/index.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:types": "tsd",
+    "test:types": "tsd -f test-d",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "typecheck:watch": "tsc --project tsconfig.json --noEmit --watch --preserveWatchOutput --pretty",
     "typecheck:verbose": "tsc --project tsconfig.json --noEmit --noErrorTruncation",

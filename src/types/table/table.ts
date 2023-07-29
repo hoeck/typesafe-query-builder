@@ -1,5 +1,5 @@
 import { Expression } from '../expression/expression'
-import { AssertHasSingleKey } from '../helpers'
+import { AssertHasSingleKey, DistributiveOmit } from '../helpers'
 import { Column, DefaultValue } from './column'
 
 // // mapped helper type from SO:
@@ -214,7 +214,9 @@ export interface TableProjectionMethods<T> {
   ): Selection<
     T,
     // Omit also removes the TableName nominal type
-    Omit<T, K>
+    // Must be distributive in case we're dealing with a discriminated union
+    // table.
+    DistributiveOmit<T, K>
   >
 
   /**

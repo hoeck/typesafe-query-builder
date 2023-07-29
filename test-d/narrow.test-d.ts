@@ -14,6 +14,10 @@ import { parameterType, resultType } from './helpers'
     resultType(q),
   )
 
+  expectType<{ id: number; type: 'console' | 'dedicatedConsole' | 'emulator' }>(
+    resultType(q),
+  )
+
   // systemId is only part of some union members
   expectError(query(Devices).select(Devices.include('systemId')))
   expectError(
@@ -24,12 +28,44 @@ import { parameterType, resultType } from './helpers'
 }
 
 {
-  // non-narrowed `all` selection: selects all common properties
-  expectAssignable<{
-    id: number
-    type: 'console' | 'dedicatedConsole' | 'emulator'
-    name: string
-  }>(resultType(query(Devices).select(Devices.all())))
+  // non-narrowed `all` selection: selects the whole type
+  expectType<
+    | {
+        id: number
+        name: string
+        type: 'console'
+        systemId: number
+        revision: number | null
+      }
+    | {
+        id: number
+        name: string
+        type: 'dedicatedConsole'
+        systemId: number
+        gamesCount: number
+      }
+    | { id: number; name: string; type: 'emulator'; url: string }
+  >(resultType(query(Devices).select(Devices.all())))
+}
+
+{
+  // non-narrowed `exclude` selection: selects the whole type minus some
+  // common excluded columns:
+  expectType<
+    | {
+        id: number
+        type: 'console'
+        systemId: number
+        revision: number | null
+      }
+    | {
+        id: number
+        type: 'dedicatedConsole'
+        systemId: number
+        gamesCount: number
+      }
+    | { id: number; type: 'emulator'; url: string }
+  >(resultType(query(Devices).select(Devices.exclude('name'))))
 }
 
 {
@@ -37,18 +73,28 @@ import { parameterType, resultType } from './helpers'
   const q = query(Devices)
     .narrow('type', 'console', (q, t) =>
       // select fields directly
-      q.select(t.include('type', 'revision')),
+      q.select(t.include('id', 'name', 'type', 'revision')),
     )
     .narrow('type', 'dedicatedConsole', (q, t) => q.select(t.all()))
-    .narrow('type', 'emulator', (q, t) => q.select(t.include('type', 'url')))
+    .narrow('type', 'emulator', (q, t) =>
+      q.select(t.include('id', 'type', 'url')),
+    )
 
-  expectAssignable<
+  expectType<
     | {
+        id: number
+        name: string
         type: 'console'
         revision: number | null
       }
-    | { type: 'dedicatedConsole'; systemId: number; gamesCount: number }
-    | { type: 'emulator'; url: string }
+    | {
+        id: number
+        name: string
+        type: 'dedicatedConsole'
+        systemId: number
+        gamesCount: number
+      }
+    | { id: number; type: 'emulator'; url: string }
   >(resultType(q))
 }
 
@@ -89,13 +135,17 @@ import { parameterType, resultType } from './helpers'
   // narrowed selection with where parameters
   const q = query(Devices)
     .narrow('type', 'console', (q, t) =>
-      q.select(t.all()).where(({ eq }) => eq(t.revision, 'revision')),
+      q
+        .select(t.include('type', 'revision'))
+        .where(({ eq }) => eq(t.revision, 'revision')),
     )
     .narrow('type', 'dedicatedConsole', (q, t) =>
-      q.select(t.all()).where(({ eq }) => eq(t.gamesCount, 'gamesCount')),
+      q
+        .select(t.include('type', 'systemId', 'gamesCount'))
+        .where(({ eq }) => eq(t.gamesCount, 'gamesCount')),
     )
     .narrow('type', 'emulator', (q, t) =>
-      q.select(t.all()).where(({ eq }) => eq(t.url, 'url')),
+      q.select(t.include('type', 'url')).where(({ eq }) => eq(t.url, 'url')),
     )
 
   expectType<{
@@ -126,15 +176,27 @@ import { parameterType, resultType } from './helpers'
       q.selectJsonObject({ key: 'device' }, t.all()),
     )
 
-  expectAssignable<{
-    device:
-      | {
+  expectType<
+    | {
+        device: {
+          id: number
+          name: string
           type: 'console'
+          systemId: number
           revision: number | null
         }
-      | { type: 'dedicatedConsole'; systemId: number; gamesCount: number }
-      | { type: 'emulator'; url: string }
-  }>(resultType(q))
+      }
+    | {
+        device: {
+          id: number
+          name: string
+          type: 'dedicatedConsole'
+          systemId: number
+          gamesCount: number
+        }
+      }
+    | { device: { id: number; name: string; type: 'emulator'; url: string } }
+  >(resultType(q))
 }
 
 {
