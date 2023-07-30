@@ -6,6 +6,6 @@ export const PcComponents = table('pc_components', {
 })
 
 export const PcComponentsFits = table('pc_components_fits', {
-  componentId: col('id').integer(),
-  fitsOnComponentId: col('id').integer(),
+  componentId: col('componentId').integer(),
+  fitsOnComponentId: col('fitsOnComponentId').integer(),
 })

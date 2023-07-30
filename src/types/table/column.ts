@@ -115,7 +115,7 @@ export declare class Column<T> {
   /**
    * A column which is defined by an arbitrary runtype.
    */
-  type<T>(runtype: (v: unknown) => T): T
+  type<T>(runtype: (v: unknown) => T): Column<T>
 
   /**
    * Apply a cast and result transformation when selecting this column.
@@ -140,6 +140,14 @@ export declare class Column<T> {
     cast: (e: ExpressionFactory<V>, t: V) => Expression<I, V, {}>,
     resultTransformation: (value: I) => R,
   ): Column<R>
+
+  /**
+   * Set the name of the columns sql type.
+   *
+   * Used to check tables against the schema and to ensure all overlapping
+   * columns of discriminated unions have the same type.
+   */
+  sqlType(name: string): Column<T>
 }
 
 /**

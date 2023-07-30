@@ -128,6 +128,26 @@ VALUES
   -- laser blast
   (6, 7, '1981-03-01', true); -- 2600
 
+-- a table for a discriminated union type
+CREATE TABLE classicgames.devices (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  system_id INT, -- console, dedicatedConsole
+  revision INT, -- console
+  games_count INT, -- dedicatedConsole
+  url TEXT -- emulator
+);
+
+INSERT INTO classicgames.devices
+  (id, name, type, system_id, revision, games_count, url)
+VALUES
+  (1, 'Master System',       'console',             1,    1, null, null),
+  (2, 'Master System II',    'console',             1,    2, null, null),
+  (3, 'Sega Genesis Mini',   'dedicatedConsole',    2, null,   42, null),
+  (4, 'NES Classic Edition', 'dedicatedConsole',    4, null,   30, null),
+  (5, 'Fusion',              'emulator',         null, null, null, 'https://www.carpeludum.com/kega-fusion/'),
+  (6, 'Gens',                'emulator',         null, null, null, 'http://gens.me/');
 
 --
 -- Desktop computer component dependencies

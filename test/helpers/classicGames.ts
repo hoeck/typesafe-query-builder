@@ -61,19 +61,19 @@ const devicesCommonColumns = {
 }
 
 export const Devices = table.discriminatedUnion(
-  table('devices', {
+  table('classicgames.devices', {
     ...devicesCommonColumns,
     type: col('type').literal('console'),
     systemId: col('system_id').integer(),
     revision: col('revision').integer().null(),
   }),
-  table('devices', {
+  table('classicgames.devices', {
     ...devicesCommonColumns,
     type: col('type').literal('dedicatedConsole'),
     systemId: col('system_id').integer(),
-    gamesCount: col('gamesCount').integer(),
+    gamesCount: col('games_count').integer(),
   }),
-  table('devices', {
+  table('classicgames.devices', {
     ...devicesCommonColumns,
     type: col('type').literal('emulator'),
     url: col('url').string(),

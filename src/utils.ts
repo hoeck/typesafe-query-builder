@@ -1,3 +1,4 @@
+import { inspect } from 'util'
 import * as nodeAssert from 'assert'
 
 /**
@@ -75,4 +76,44 @@ export function findDuplicates(src: string[]): string[] | undefined {
 
     return true
   })
+}
+
+/**
+ * Intersection of arrays of strings.
+ */
+export function intersection(...a: string[][]): Set<string> {
+  if (!a.length) {
+    return new Set()
+  }
+
+  const res = new Set(a[0])
+
+  for (let i = 1; i < a.length; i++) {
+    const s = new Set(a[i])
+
+    res.forEach((x) => {
+      if (x !== undefined && !s.has(x)) {
+        res.delete(x)
+      }
+    })
+  }
+
+  return res
+}
+
+/**
+ * Format values readably for error messages.
+ */
+export function formatValues(...vals: any[]): string {
+  return vals
+    .map((v: any) => {
+      const s = inspect(v)
+
+      if (s.length < 128) {
+        return s
+      }
+
+      return s.slice(0, 124) + '...'
+    })
+    .join(', ')
 }

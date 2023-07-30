@@ -21,14 +21,16 @@ import {
 } from './buildQuery'
 import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
-import { QueryItem } from './queryItem'
+import { QueryItem, SelectItem, WhereItem } from './queryItem'
 import { ExprImpl, wrapInParens } from './sql'
 import {
   SelectionImplementation,
   TableImplementation,
   getTableImplementation,
   isSelectionImplementation,
+  table as tableConstructor,
 } from './table'
+import { assertNever, formatValues } from '../utils'
 
 type AnyQueryBottom = QueryBottom<any, any, any, any, any>
 type AnyTable = Table<any, any> & {
@@ -74,6 +76,10 @@ export class QueryImplementation {
 
   getSql() {
     return queryItemsToSqlTokens(this.query)
+  }
+
+  getQueryItems() {
+    return this.query
   }
 
   // called in queryItemsToRowTransformer for subqueries
@@ -288,10 +294,94 @@ export class QueryImplementation {
 
   narrow(
     key: string,
-    values: any | any[],
-    cb: (q: AnyQueryBottom, t: AnyTable) => AnyQueryBottom,
+    values: string | string[],
+    cb: (q: QueryImplementation, t: AnyTable) => QueryImplementation,
   ) {
-    return new QueryImplementation(this.tables, this.query)
+    // try finding a table that matches the discriminated union member
+    // identified by key and value(s)
+    const discriminatedUnionTables = this.tables.flatMap((t) => {
+      const ti = getTableImplementation(t)
+
+      return ti || []
+    })
+
+    if (discriminatedUnionTables.length !== 1) {
+      throw new QueryBuilderUsageError(
+        'To use query.narrow you must select from exactly one discriminated union table',
+      )
+    }
+
+    const baseTable = discriminatedUnionTables[0]
+
+    if (!baseTable.discriminatedUnion) {
+      throw new QueryBuilderAssertionError(
+        'expected discriminatedUnion to be defined',
+      )
+    }
+
+    if (key !== baseTable.discriminatedUnion.typeTagColumnName) {
+      throw new QueryBuilderAssertionError(
+        `query.narrow: ${formatValues(
+          key,
+        )} is not a type tag for table ${formatValues(baseTable.tableName)}`,
+      )
+    }
+
+    // build an artificial union table that contains columns of all matching
+    // union members
+    const narrowedTableImplementation = Array.isArray(values)
+      ? getTableImplementation(
+          tableConstructor(
+            baseTable.tableName,
+            Object.fromEntries(
+              values.flatMap((v) => {
+                const t =
+                  baseTable.discriminatedUnion?.memberTablesByTagValue[v]
+
+                if (!t) {
+                  throw new QueryBuilderAssertionError(
+                    `expected member table to exist for value ${formatValues(
+                      v,
+                    )}`,
+                  )
+                }
+
+                return t.getColumnNames().map((n) => [n, t.getColumn(n) as any])
+              }),
+            ),
+          ),
+        )
+      : baseTable.discriminatedUnion.memberTablesByTagValue[values]
+
+    if (!narrowedTableImplementation) {
+      throw new QueryBuilderAssertionError(
+        `expected member table to exist for value ${formatValues(values)}`,
+      )
+    }
+
+    const narrowedQueryRoot = new QueryImplementation(
+      [narrowedTableImplementation],
+      [{ type: 'from', table: narrowedTableImplementation }],
+    )
+
+    // build it
+    const narrowedQuery = cb(
+      narrowedQueryRoot,
+      narrowedTableImplementation.getTableProxy() as any,
+    )
+
+    // collect the whole narrowed query - to build the final sql query we
+    // need to process all narrowed query items and compile a shadow query
+    // that hides the union type logic
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        type: 'narrow',
+        key,
+        values,
+        queryItems: narrowedQuery.getQueryItems(),
+      },
+    ])
   }
 
   // using queries

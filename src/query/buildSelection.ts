@@ -159,21 +159,101 @@ function resolveColumnTransformers(
 ) {
   return selections.flatMap((selection) => {
     if (isSelectionImplementation(selection)) {
-      return selection.selectedColumns.flatMap<{
-        transformer: (row: any) => void
-        key: string | undefined
-      }>((name) => {
-        const transformer = selection.table.getColumn(name).resultTransformation
+      if (selection.discriminatedUnion) {
+        // TODO: what about discriminated queries with multiple selections?
+        const {
+          selectionsByTagValue,
+          memberTablesByTagValue,
+          typeTagColumnName,
+        } = selection.discriminatedUnion
 
-        if (!transformer) {
-          return []
-        }
+        const allSelectedKeys = [
+          ...new Set(
+            selection.selectedColumns.map((n) => selection.getColumnAlias(n)),
+          ),
+        ]
+        const columnNameSetsByTypeValue: Map<
+          string | number,
+          Set<string>
+        > = new Map()
+
+        Object.entries(selectionsByTagValue).forEach(
+          ([tagValue, selection]) => {
+            columnNameSetsByTypeValue.set(
+              tagValue,
+              new Set(
+                selection.selectedColumns.map((n) =>
+                  selection.getColumnAlias(n),
+                ),
+              ),
+            )
+          },
+        )
+
+        const transformersByKey = new Map(
+          selection.selectedColumns.flatMap((n) => {
+            const rt = selection.table.getColumn(n).resultTransformation
+
+            if (!rt) {
+              return []
+            }
+
+            return [[selection.getColumnAlias(n), rt]]
+          }),
+        )
 
         return {
-          transformer,
-          key: selection.getColumnAlias(name),
+          transformer: (row: any) => {
+            const typeTagValue = row[typeTagColumnName]
+            const typeKeySet =
+              columnNameSetsByTypeValue.get(typeTagValue) ||
+              // Unknown type tag value. This is something the user must deal
+              // with. To not leak any data just return the type-tag to
+              // indicate where the error might be
+              new Set([typeTagColumnName])
+
+            if (!typeKeySet) {
+              return
+            }
+
+            for (let i = 0; i < allSelectedKeys.length; i++) {
+              const k = allSelectedKeys[i]
+
+              if (!typeKeySet.has(k)) {
+                // remove any keys which do not belong to the type of the row
+                delete row[k]
+              } else {
+                // run column transformations, since k definitely belongs to
+                // the rows type
+                const t = transformersByKey.get(k)
+
+                if (t) {
+                  row[k] = t(row[k])
+                }
+              }
+            }
+          },
+          // transformer must be applied to the whole row to be able to delete keys
+          key: undefined,
         }
-      })
+      } else {
+        return selection.selectedColumns.flatMap<{
+          transformer: (row: any) => void
+          key: string | undefined
+        }>((name) => {
+          const transformer =
+            selection.table.getColumn(name).resultTransformation
+
+          if (!transformer) {
+            return []
+          }
+
+          return {
+            transformer,
+            key: selection.getColumnAlias(name),
+          }
+        })
+      }
     } else {
       const transformer = selection.getRowTransformer()
       const key = selection.exprAlias
@@ -198,8 +278,8 @@ function resolveColumnTransformers(
   })
 }
 
-// returns a function that applies any result transformations from
-// `column.cast` to a queried result
+// returns a function that applies result transformations from `column.cast`
+// to a queried result
 export function projectionToRowTransformer(
   projection: SelectItem['projection'],
 ): ((row: any) => void) | undefined {

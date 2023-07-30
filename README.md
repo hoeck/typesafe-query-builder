@@ -738,9 +738,15 @@ The exact error depends on your validation/runtype implementation.
 
 ## Ideas / Roadmap / Todos
 
+### V4 cleanups
+- add a leading `_` to all internal methods / fields (=== those which are not
+  defined in src/types) to make it clear when console.logging query objects
+  that `_` methods are all internal
+
+
 ### V2
 
-- subselects: better `orderBy` parameter handling for jsonArray: use a method instead of an optional parameter, see jsonArray method type definition
+- ~~subselects: better `orderBy` parameter handling for jsonArray: use a method instead of an optional parameter, see jsonArray method type definition~~ -> subselects are part of select now to support nesting
 - subselects: add `assertNotNull()` to subselects to remove `null` from the inferred type for a subselect by using a runtime check
 
 - release todos

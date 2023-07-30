@@ -15,6 +15,7 @@ export type QueryItem =
   | OrderByItem
   | SelectItem
   | WhereItem
+  | NarrowItem
 
 export interface FromItem {
   type: 'from'
@@ -81,4 +82,11 @@ export interface SelectItem {
 export interface WhereItem {
   type: 'where'
   expr: ExprImpl
+}
+
+export interface NarrowItem {
+  type: 'narrow'
+  key: string
+  values: string | string[]
+  queryItems: QueryItem[]
 }

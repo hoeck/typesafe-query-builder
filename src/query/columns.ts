@@ -1,6 +1,11 @@
 import { inspect } from 'util'
-import { QueryBuilderUsageError, QueryBuilderValidationError } from '../errors'
+import {
+  QueryBuilderAssertionError,
+  QueryBuilderUsageError,
+  QueryBuilderValidationError,
+} from '../errors'
 import { Column, ColumnConstructor } from '../types'
+import { formatValues } from '../utils'
 import { ExprFactImpl } from './expressions'
 import { ExprImpl, SqlToken, sqlWhitespace, wrapInParens } from './sql'
 import { TableImplementation } from './table'
@@ -39,6 +44,17 @@ export class ColumnImplementation {
   // type.
   resultTransformation?: (value: any) => any
 
+  // For assertions when building tables and queries and later for checks
+  // against the db schema.
+  // Two columns having the same (made up) sqlTypeName means they are
+  // equivalent, having the same sql table data type, cast and
+  // transformation function. Used to determine compatibility of two columns
+  // when building discriminated union tables.
+  sqlTypeName?: string
+
+  // literal value columns to tag union types in discriminatedUnion tables
+  literalValue?: string | number
+
   constructor(name: string) {
     this.name = name
   }
@@ -51,6 +67,8 @@ export class ColumnImplementation {
     res.isPrimaryKey = this.isPrimaryKey
     res.castExpr = this.castExpr
     res.resultTransformation = this.resultTransformation
+    res.sqlTypeName = this.sqlTypeName
+    res.literalValue = this.literalValue
 
     return res
   }
@@ -170,20 +188,21 @@ export class ColumnImplementation {
 
     const res = this.copy()
 
+    res.sqlTypeName = 'int'
     res.columnValue = (value: unknown) => {
       if (typeof value !== 'number') {
         throw new QueryBuilderValidationError(
-          `column ${res.name} - expected an integer but got: ${inspect(
-            value,
-          ).slice(0, 128)}`,
+          `column ${formatValues(
+            res.name,
+          )} - expected an integer but got: ${formatValues(value)}`,
         )
       }
 
       if (!Number.isInteger(value) || !Number.isSafeInteger(value)) {
         throw new QueryBuilderValidationError(
-          `column ${
-            res.name
-          } - expected an integer but got a number with fractions or a non safe integer: ${inspect(
+          `column ${formatValues(
+            res.name,
+          )} - expected an integer but got a number with fractions or a non safe integer: ${formatValues(
             value,
           )}`,
         )
@@ -205,12 +224,13 @@ export class ColumnImplementation {
 
     const res = this.copy()
 
+    res.sqlTypeName = 'text'
     res.columnValue = (value: unknown) => {
       if (typeof value !== 'string') {
         throw new QueryBuilderValidationError(
-          `column ${res.name} - expected a string but got: ${inspect(
-            value,
-          ).slice(0, 128)}`,
+          `column ${formatValues(
+            res.name,
+          )} - expected a string but got: ${formatValues(value)}`,
         )
       }
 
@@ -230,12 +250,13 @@ export class ColumnImplementation {
 
     const res = this.copy()
 
+    res.sqlTypeName = 'boolean'
     res.columnValue = (value: unknown) => {
       if (typeof value !== 'boolean') {
         throw new QueryBuilderValidationError(
-          `column ${res.name} - expected a boolean but got: ${inspect(
-            value,
-          ).slice(0, 128)}`,
+          `column ${formatValues(
+            res.name,
+          )} - expected a boolean but got: ${formatValues(value)}`,
         )
       }
 
@@ -255,12 +276,12 @@ export class ColumnImplementation {
 
     const res = this.copy()
 
+    res.sqlTypeName = 'timestamptz'
     res.columnValue = (value: unknown) => {
       if (!(value instanceof Date)) {
         throw new QueryBuilderValidationError(
-          `column {this.name} - expected a Date but got: ${inspect(value).slice(
-            0,
-            128,
+          `column {formatValues(res.name)} - expected a Date but got: ${formatValues(
+            value,
           )}`,
         )
       }
@@ -324,9 +345,10 @@ export class ColumnImplementation {
 
         if (!Number.isSafeInteger(timestamp)) {
           throw new QueryBuilderValidationError(
-            `column ${res.name} - cannot read Date from ${inspect(value).slice(
-              0,
-              128,
+            `column ${formatValues(
+              res.name,
+            )} - cannot read Date from ${formatValues(
+              value,
             )} - expected a string that contains a safe integer `,
           )
         }
@@ -334,9 +356,10 @@ export class ColumnImplementation {
         return new Date(timestamp)
       } else {
         throw new QueryBuilderValidationError(
-          `column ${res.name} - cannot read Date from ${inspect(value).slice(
-            0,
-            128,
+          `column ${formatValues(
+            res.name,
+          )} - cannot read Date from ${formatValues(
+            value,
           )} - expected an number or stringified number`,
         )
       }
@@ -362,6 +385,7 @@ export class ColumnImplementation {
 
     const res = this.copy()
 
+    res.sqlTypeName = 'json'
     res.columnValue = (value: unknown) => {
       // stringify before insert / update because node-pg does not know when
       // we're inserting / updating json data so we have to pass it as a string
@@ -376,28 +400,82 @@ export class ColumnImplementation {
   /**
    * Map a literal value union to a single postgres column.
    *
-   * postgres types: TEXT, VARCHAR, INT
+   * postgres types: TEXT, INT
    */
   literal(...elements: any[]) {
     this.checkThatColumnValueIsIdentity()
 
+    if (!elements.length) {
+      throw new QueryBuilderUsageError('no literal items are given')
+    }
+
+    elements.forEach((e) => {
+      if (typeof e !== 'string' && typeof e !== 'number') {
+        throw new QueryBuilderAssertionError(
+          `column ${formatValues(
+            this.name,
+          )} - literal items must be either strings or numbers, not: ${formatValues(
+            e,
+          )}`,
+        )
+      }
+    })
+
+    if (!elements.length) {
+      throw new QueryBuilderUsageError('no literal items are given')
+    }
+
+    const elementTypes = [...new Set(elements.map((e) => typeof e))]
+
+    if (elementTypes.length > 1) {
+      // sql does not support union types in columns
+      throw new QueryBuilderUsageError(
+        `column ${formatValues(
+          this.name,
+        )} - literal items must all have the same base type, not: ${formatValues(
+          ...elementTypes,
+        )}`,
+      )
+    }
+
+    const elementType = elementTypes[0]
+
+    if (elementType === 'number') {
+      elements.forEach((e) => {
+        if (!Number.isSafeInteger(e)) {
+          throw new QueryBuilderUsageError(
+            `column ${formatValues(
+              this.name,
+            )} - literal numbers must be safe integers, not: ${formatValues(
+              e,
+            )}`,
+          )
+        }
+      })
+    }
+
     const res = this.copy()
-    const index: Set<string | number | boolean | BigInt> = new Set(elements)
+
+    res.sqlTypeName =
+      elementType === 'string'
+        ? 'text'
+        : elementType === 'number'
+        ? 'int'
+        : undefined
+
+    res.literalValue = elements.length === 1 ? elements[0] : undefined
+
+    const index: Set<string | number> = new Set(elements)
 
     res.columnValue = (value: unknown) => {
       if (
-        !(
-          typeof value === 'string' ||
-          typeof value === 'number' ||
-          typeof value === 'boolean' ||
-          typeof value === 'bigint'
-        ) ||
+        !(typeof value === 'string' || typeof value === 'number') ||
         !index.has(value)
       ) {
         throw new QueryBuilderValidationError(
-          `column ${res.name} - expected one of ${elements} but got: ${inspect(
-            value,
-          ).slice(0, 128)}`,
+          `column ${formatValues(res.name)} - expected one of ${formatValues(
+            elements,
+          )} but got: ${formatValues(value)}`,
         )
       }
 
@@ -437,13 +515,12 @@ export class ColumnImplementation {
 
       if (typeof value !== 'string' || !valueIndex.has(value)) {
         throw new QueryBuilderValidationError(
-          `column ${res.name} - expected a member of the enum ${inspect(
-            enumObject,
-            {
-              compact: true,
-              breakLength: Infinity,
-            },
-          )} but got: ${inspect(value).slice(0, 128)}`,
+          `column ${formatValues(
+            res.name,
+          )} - expected a member of the enum ${inspect(enumObject, {
+            compact: true,
+            breakLength: Infinity,
+          })} but got: ${formatValues(value)}`,
         )
       }
 
@@ -462,6 +539,15 @@ export class ColumnImplementation {
     const res = this.copy()
 
     res.columnValue = runtype
+
+    return res
+  }
+
+  // sql type name setter
+  sqlType(name: string) {
+    const res = this.copy()
+
+    res.sqlTypeName = name
 
     return res
   }
@@ -489,7 +575,9 @@ export class ColumnImplementation {
 
     if (!castExprUsesValueTable) {
       throw new QueryBuilderUsageError(
-        `column ${res.name} - expected cast expression to reference the column value at least once`,
+        `column ${formatValues(
+          res.name,
+        )} - expected cast expression to reference the column value at least once`,
       )
     }
 

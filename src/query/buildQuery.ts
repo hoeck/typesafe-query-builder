@@ -173,6 +173,11 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         result.where.push(item.expr.exprTokens)
         break
 
+      case 'narrow':
+        throw new QueryBuilderAssertionError(
+          'narrow must not appear here and be preprocessed into other queryItems instead',
+        )
+
       default:
         assertNever(item)
     }
