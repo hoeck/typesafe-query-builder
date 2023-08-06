@@ -72,9 +72,7 @@ export declare class Column<T> {
    * Use a string / number literal union in place of an enum.
    * Use a single string / number literal as type tags in discriminated unions.
    */
-  literal<A extends string[] | number[] | boolean[] | bigint[]>(
-    ...values: A
-  ): Column<A[number]>
+  literal<A extends string[] | number[]>(...values: A): Column<A[number]>
 
   /**
    * A typescript enum mapped to an INT or TEXT column .

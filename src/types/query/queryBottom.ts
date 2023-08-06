@@ -3,12 +3,13 @@ import { ExpressionFactory } from '../expression/expressionFactory'
 import { ComparableTypes } from '../expression/helpers'
 import {
   AssertHasSingleKey,
-  SingleSelectionValue,
-  SingleSelectionKey,
   Nullable,
+  SingleSelectionKey,
+  SingleSelectionValue,
 } from '../helpers'
 import { Selection, Table } from '../table'
 import { DatabaseClient, DatabaseEscapeFunctions } from './databaseClient'
+import { Query } from './joins'
 
 /**
  * postgres row level lock modes
@@ -47,6 +48,23 @@ type SubquerySelection<C, S extends {}> =
     ? S
     : // C being not never means that this query is a subquery and thus the selected column may be null
       Nullable<S>
+
+/**
+ * keyof (A | B | C) that works over a union of the keys
+ *
+ * Instead of working over its intersection.
+ * Required to narrow over joined tables (unions of tables).
+ */
+type DistributedKeyof<X> = X extends any ? keyof X : never
+
+/**
+ * (A | B | C)['key'], similar to DistributedKeyof
+ */
+type DistributedLookup<V, K> = V extends any
+  ? K extends keyof V
+    ? V[K]
+    : never
+  : never
 
 /**
  * Narrow discriminated union to a specific subtype.
@@ -657,22 +675,23 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
   /**
    * Discriminated union support
    *
-   * Perform `select`s and `where`s against the table pretending that it
-   * only consists the narrowed type.
-   * Compiles down to sql using `case when` statements over `Key`.
+   * Perform `join`s, `select`s and `where`s against the table pretending that
+   * it only consists the narrowed type.
+   * Compiles down to sql by:
+   *
+   *  - converting all joins to left-joins and postprocessing
+   *  - selecting all columns (joined and base table) and post-processing the
+   *    result for `select`
+   *  - `case when` statements over `Key` for `where`.
    *
    * Create Discriminated Tables with `table.discriminatedUnion`.
-
-   * Warning: Typings are a bit sloppy - not everthing that typechecks will
-   * actually work in practice:
    *
-   * - apply `.join`s to the query before using narrow, inside a narrowed
-   *   query, joins are not supported
-   * - non-discriminated select must appear after narrow
+   * Warning: Typings are experimental - not everthing that typechecks will
+   * actually work in practice and vice versa.
    */
   narrow<
-    Key extends keyof T,
-    Vals extends T[Key],
+    Key extends DistributedKeyof<T>,
+    Vals extends DistributedLookup<T, Key>,
     NarrowedTable extends NarrowDiscriminatedUnion<T, Key, Vals>,
     P1 extends {},
     S1,
@@ -680,9 +699,9 @@ export declare class QueryBottom<T, P extends {}, L = never, S = {}, C = never>
     key: Key,
     values: Vals | Vals[],
     cb: (
-      q: QueryBottom<NarrowedTable, P, L, {}, C>,
+      q: Query<NarrowedTable, {}, C>,
       t: Table<NarrowedTable, {}>,
-    ) => QueryBottom<NarrowedTable, P1, L, S1, C>,
+    ) => QueryBottom<any, P1, any, S1, C>,
   ): QueryBottom<T, P & P1, L, {} extends S ? S1 : S | S1, C>
 
   /**

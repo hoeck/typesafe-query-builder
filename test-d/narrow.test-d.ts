@@ -213,3 +213,109 @@ import { parameterType, resultType } from './helpers'
     | { id: number; type: 'emulator'; url: string }
   >(resultType(q))
 }
+
+{
+  // outside join
+  const q = query(Devices)
+    // that join makes no sense but I do not have sample schema set up for
+    // such a non typed join right now - and the types do not care whether a
+    // join condition us useful or not
+    .join(Systems, ({ eq, literal }) => eq(Systems.id, literal(1)))
+    .select(Devices.all(), Systems.include('year'))
+
+  // for some reason, tsd thinks the following type is not exactly what the
+  // query builder infers, not sure if true or a bug in tsd
+  expectAssignable<
+    | {
+        id: number
+        name: string
+        type: 'console'
+        systemId: number
+        revision: number | null
+        year: number // the joined property
+      }
+    | {
+        id: number
+        name: string
+        type: 'dedicatedConsole'
+        systemId: number
+        gamesCount: number
+        year: number // the joined property
+      }
+    | {
+        id: number
+        name: string
+        type: 'emulator'
+        url: string
+        year: number // the joined property
+      }
+  >(resultType(q))
+
+  // the query types above are basically like this:
+  type A = { type: 'a'; a: 1 } // union table member
+  type B = { type: 'b'; b: 2 } // union table member
+  type C = A | B // table
+  type D = { x: 5 } // table to be joined
+  type E = C & D // joined result
+  type F = { type: 'a'; a: 1; x: 5 } | { type: 'b'; b: 2; x: 5 } // expected type
+
+  // test value for tsd
+  const e: E = {} as any
+
+  // assignment works in both directions
+  const f: F = e
+  const g: E = f
+
+  // tsd `expectType` fails though:
+  // expectType<F>(e)
+  // tsd check in both directions succeeds:
+  expectAssignable<F>(e)
+  expectAssignable<E>(f)
+}
+
+{
+  // 😱 Narrowed Join 💥💯:
+  // join the Systems table but only for union members that have the systemId
+  // property!
+  const q = query(Devices)
+    .narrow('type', 'console', (q, t) =>
+      q
+        .join(Systems, ({ eq }) => eq(Systems.id, t.systemId))
+        .select(
+          t.exclude('id', 'systemId'),
+          Systems.include('name').rename({ name: 'system' }),
+        ),
+    )
+    .narrow('type', 'dedicatedConsole', (q, t) =>
+      q
+        .join(Systems, ({ eq }) => eq(Systems.id, t.systemId))
+        .select(
+          t.exclude('id', 'systemId'),
+          Systems.include('name').rename({ name: 'system' }),
+        ),
+    )
+    .narrow('type', 'emulator', (q, t) =>
+      // emulator has no system reference
+      q.select(t.exclude('id')),
+    )
+
+  expectAssignable<
+    | {
+        name: string
+        type: 'console'
+        revision: number | null
+        system: string
+      }
+    | {
+        name: string
+        type: 'dedicatedConsole'
+        gamesCount: number
+        system: string
+      }
+    | {
+        name: string
+        type: 'emulator'
+        url: string
+      }
+  >(resultType(q))
+}
