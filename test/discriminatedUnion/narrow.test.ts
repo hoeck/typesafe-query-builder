@@ -4,80 +4,74 @@ import { expectValuesUnsorted, Devices, Systems, client } from '../helpers'
 describe('querying discriminatedUnion tables', () => {
   describe('narrowing selections based on type', () => {
     test('query every subtype', async () => {
-      const q = query(Devices)
+      const res = await query(Devices)
         .narrow('type', 'console', (q, t) =>
           // select fields directly
           q.select(t.include('type', 'revision')),
         )
-        .narrow('type', 'dedicatedConsole', (q, t) => q.select(t.all()))
+        .narrow('type', 'dedicatedConsole', (q, t) =>
+          q.select(t.exclude('systemId', 'id')),
+        )
         .narrow('type', 'emulator', (q, t) =>
           q.select(t.include('type', 'url')),
         )
+        .fetch(client)
 
-      const res = await q.fetch(client)
-
-      console.log(res)
+      expectValuesUnsorted(res, [
+        { type: 'console', revision: 1 },
+        { type: 'console', revision: 2 },
+        {
+          type: 'dedicatedConsole',
+          name: 'Sega Genesis Mini',
+          gamesCount: 42,
+        },
+        {
+          type: 'dedicatedConsole',
+          name: 'NES Classic Edition',
+          gamesCount: 30,
+        },
+        { type: 'emulator', url: 'https://www.carpeludum.com/kega-fusion/' },
+        { type: 'emulator', url: 'http://gens.me/' },
+      ])
     })
 
-    test.skip('xxx', async () => {
-      const q = query(Devices)
-        //.join(Systems, ({ eq, literal }) => eq(Systems.id, literal(1)))
+    test('join inside a narrow section', async () => {
+      const res = await query(Devices)
         .narrow('type', 'console', (q, t) =>
-          // select fields directly
           q
             .join(Systems, ({ eq, literal }) => eq(Systems.id, t.systemId))
-            .select(t.include('type', 'revision'), Systems.include('year')),
+            .select(
+              t.include('type', 'revision', 'name'),
+              Systems.include('name', 'year').rename({ name: 'systemName' }),
+            ),
         )
         .narrow('type', 'emulator', (q, t) =>
           q.select(t.include('type', 'url')),
         )
-      //.select(Systems.include('year', 'manufacturerId'))
+        .sqlLog(client)
+        .fetch(client)
 
-      const res = await q.fetchExactlyOne(client)
-
-      if (res.type === 'emulator') {
-        res
-      }
-
-      if (res.type === 'console') {
-        res
-      }
-
-      // query building
-      //
-      // non-narrow-select:
-      //
-      //
+      expectValuesUnsorted(res, [
+        {
+          name: 'Master System',
+          type: 'console',
+          revision: 1,
+          systemName: 'Master System',
+          year: 1985,
+        },
+        {
+          name: 'Master System II',
+          type: 'console',
+          revision: 2,
+          systemName: 'Master System',
+          year: 1985,
+        },
+        {
+          type: 'emulator',
+          url: 'https://www.carpeludum.com/kega-fusion/',
+        },
+        { type: 'emulator', url: 'http://gens.me/' },
+      ])
     })
-
-    /*
-
-    - pass a query object similar to subquery
-
-    columns:
-
-    type, revision, -- von type:console
-    id, name, systemId, gamesCount -- von dedicatedConsole
-    type, url -- von emulator
-
-    ->
-
-    SELECT id, name, type, revision, ...
-    FROM devices
-
-    - collect all selected columns
-    - generate a single query
-    - transform joins to left joins (as not all subtypes will have a match)
-    - what about json selects, aggregations????
-      -> must be the same in *all* narrowed queries?
-      -> checked at runtime
-    - fetch the result
-    - map resulting rows to the narrowed types
-    - pass them to each narrowed "subselect" to perform the result transformation
-
-
-
-
-  */
   })
 })

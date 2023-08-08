@@ -87,6 +87,6 @@ export interface WhereItem {
 export interface NarrowItem {
   type: 'narrow'
   key: string
-  values: string | string[]
+  values: string[]
   queryItems: QueryItem[]
 }

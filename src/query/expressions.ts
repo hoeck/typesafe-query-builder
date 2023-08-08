@@ -61,6 +61,12 @@ export class ExprFactImpl implements FactoryMethods {
   // private expression helpers (many expressions are of similar shape)
 
   _andOrOp(operator: 'AND' | 'OR', expressions: ExprImpl[]): ExprImpl {
+    if (expressions.length === 0) {
+      throw new QueryBuilderAssertionError(
+        `${operator}: expected one or more arguments`,
+      )
+    }
+
     if (expressions.length === 1) {
       return expressions[0]
     }

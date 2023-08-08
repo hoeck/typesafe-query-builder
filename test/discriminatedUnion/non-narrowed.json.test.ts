@@ -64,6 +64,64 @@ describe('querying discriminatedUnion tables', () => {
       ])
     })
 
+    test('dividing the selection between plain cols and a json object', async () => {
+      const res = await query(Devices)
+        .selectJsonObject({ key: 'details' }, Devices.exclude('id'))
+        .select(Devices.include('id'))
+        .fetch(client)
+
+      expectValuesUnsorted(res, [
+        {
+          details: {
+            name: 'Master System',
+            type: 'console',
+            systemId: 1,
+            revision: 1,
+          },
+          id: 1,
+        },
+        {
+          details: {
+            name: 'Master System II',
+            type: 'console',
+            systemId: 1,
+            revision: 2,
+          },
+          id: 2,
+        },
+        {
+          details: {
+            name: 'Sega Genesis Mini',
+            type: 'dedicatedConsole',
+            systemId: 2,
+            gamesCount: 42,
+          },
+          id: 3,
+        },
+        {
+          details: {
+            name: 'NES Classic Edition',
+            type: 'dedicatedConsole',
+            systemId: 4,
+            gamesCount: 30,
+          },
+          id: 4,
+        },
+        {
+          details: {
+            name: 'Fusion',
+            type: 'emulator',
+            url: 'https://www.carpeludum.com/kega-fusion/',
+          },
+          id: 5,
+        },
+        {
+          details: { name: 'Gens', type: 'emulator', url: 'http://gens.me/' },
+          id: 6,
+        },
+      ])
+    })
+
     test('select a part of the row into a json object array', async () => {
       const res = await query(Devices)
         .selectJsonObjectArray(

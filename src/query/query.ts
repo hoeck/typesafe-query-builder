@@ -31,6 +31,7 @@ import {
   table as tableConstructor,
 } from './table'
 import { assertNever, formatValues } from '../utils'
+import { buildNarrowedQuery } from './buildNarrowedQuery'
 
 type AnyQueryBottom = QueryBottom<any, any, any, any, any>
 type AnyTable = Table<any, any> & {
@@ -72,21 +73,23 @@ export class QueryImplementation {
     this.query = query
   }
 
-  // internal methods
-
-  getSql() {
-    return queryItemsToSqlTokens(this.query)
-  }
+  // implementation methods
 
   getQueryItems() {
-    return this.query
+    return buildNarrowedQuery(this.query)
   }
 
-  // called in queryItemsToRowTransformer for subqueries
+  getSql() {
+    return queryItemsToSqlTokens(this.getQueryItems())
+  }
+
+  // called in queryItemsToRowTransformer for subqueries:
+  // create a function to transform a single row of the queries result
   getRowTransformer() {
-    return queryItemsToRowTransformer(this.query)
+    return queryItemsToRowTransformer(this.getQueryItems())
   }
 
+  // create a function to transform the queries result
   getResultTransformer() {
     const t = this.getRowTransformer()
 
@@ -104,7 +107,7 @@ export class QueryImplementation {
   }
 
   get exprAlias() {
-    return queryItemsToExpressionAlias(this.query)
+    return queryItemsToExpressionAlias(this.getQueryItems())
   }
 
   // query methods
@@ -186,16 +189,20 @@ export class QueryImplementation {
 
     if (
       isSelectionImplementation(resolvedSelection) &&
-      resolvedSelection.selectedColumns.length !== 1
+      resolvedSelection.getSelectedColumnNames().length !== 1
     ) {
       throw new QueryBuilderAssertionError(
-        '`selectJsonArray` needs exactly 1 selected column',
+        `table.selectJsonArray on table ${formatValues(
+          resolvedSelection.getTableName(),
+        )}: a single column must be selected, not ${
+          resolvedSelection.getSelectedColumnNames().length
+        } (${formatValues(...resolvedSelection.getSelectedColumnNames())})`,
       )
     }
 
     if (!params.orderBy && params.direction) {
       throw new QueryBuilderUsageError(
-        '`selectJsonArray` direction argument must be supplied along orderBy',
+        'table.selectJsonArray: direction argument must be supplied along orderBy',
       )
     }
 
@@ -302,7 +309,11 @@ export class QueryImplementation {
     const discriminatedUnionTables = this.tables.flatMap((t) => {
       const ti = getTableImplementation(t)
 
-      return ti || []
+      if (!ti.discriminatedUnion) {
+        return []
+      }
+
+      return ti
     })
 
     if (discriminatedUnionTables.length !== 1) {
@@ -378,7 +389,7 @@ export class QueryImplementation {
       {
         type: 'narrow',
         key,
-        values,
+        values: Array.isArray(values) ? values : [values],
         queryItems: narrowedQuery.getQueryItems(),
       },
     ])

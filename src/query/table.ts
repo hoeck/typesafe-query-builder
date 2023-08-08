@@ -17,6 +17,7 @@ import {
 import { ColumnImplementation, getColumnImplementation } from './columns'
 import {
   ExprImpl,
+  ExprImplWithAlias,
   SqlToken,
   joinTokens,
   sqlNewline,
@@ -29,45 +30,91 @@ import {
 // access the tables internals for building queries
 const tableImplementationSymbol = Symbol('tableImplementation')
 
+// parts of a column which are required to use that col in a select
+export interface SelectedColumn {
+  // the columns expression including casts
+  expr: ExprImplWithAlias
+  // the columns result transformation function
+  rt: ((value: any) => any) | undefined
+}
+
 export class SelectionImplementation {
   // selection over a discriminated union table
   discriminatedUnion?: {
     typeTagColumnName: string
-    memberTablesByTagValue: { [tagValue: string | number]: TableImplementation }
-    selectionsByTagValue: {
-      [tagValue: string | number]: SelectionImplementation
+
+    // Does that work?
+    // How to do the 'shadow' select of all columns?
+    // atm its done implicitly and hidden from the user via the type surface
+    // but it would be better to do this explicitly. - but then all existing
+    // code would have to be changed to deal with these selects :(
+    memberColumnAliasesByTagValue: {
+      [tagValue: string | number]: string[]
     }
   }
 
   constructor(
-    public readonly table: TableImplementation,
-    public readonly selectedColumns: string[],
-    public readonly columnNameMapping?: null | {
+    // table name to show in errors
+    private readonly tableName: string,
+    // selected columns by their names as appearing in tables schema (before
+    // possible renaming)
+    private readonly selectedColumns: {
+      [name: string]: SelectedColumn
+    },
+    // mapping of column names to optional aliases
+    private readonly columnNameMapping?: null | {
       [originalColumnName: string]: string
     },
   ) {
-    this.table = table
+    this.tableName = tableName
     this.selectedColumns = selectedColumns
   }
 
-  getColumnAlias(columnName: string) {
-    return this.columnNameMapping?.[columnName] ?? columnName
+  // internal interface
+
+  // return the names of all selected columns
+  getSelectedColumnNames() {
+    return Object.keys(this.selectedColumns)
   }
+
+  // return the column expr for use in selects
+  getColumnExpr(columnName: string): ExprImplWithAlias {
+    return {
+      exprTokens: this.selectedColumns[columnName].expr.exprTokens,
+      exprAlias: this.columnNameMapping?.[columnName] ?? columnName,
+    }
+  }
+
+  // a columns optional result transformation function
+  getColumnResultTransformation(columnName: string) {
+    return this.selectedColumns[columnName].rt
+  }
+
+  // table name for use in error messages
+  getTableName() {
+    return this.tableName
+  }
+
+  // user interface
 
   rename(mapping: { [originalColumnName: string]: string }) {
     if (this.columnNameMapping) {
       throw new QueryBuilderUsageError(
-        `\`rename\` has already been called on this selection (${this.table})`,
+        `\`rename\` has already been called on this selection (${this.tableName})`,
       )
     }
 
     // check that all columns exist in this selection
-    const selectedColumnsSet = new Set(this.selectedColumns)
+    const selectedColumnsSet = new Set(this.getSelectedColumnNames())
 
     Object.keys(mapping).forEach((k) => {
       if (!selectedColumnsSet.has(k)) {
         throw new QueryBuilderUsageError(
-          `renamed column "${k}" does not exist in this selection (${this.table})`,
+          `renamed column ${formatValues(
+            k,
+          )} does not exist in this selection (table: ${formatValues(
+            this.tableName,
+          )})`,
         )
       }
     })
@@ -78,7 +125,9 @@ export class SelectionImplementation {
     Object.values(mapping).forEach((v) => {
       if (!valuesSet.has(v)) {
         throw new QueryBuilderUsageError(
-          `mapped column "${v}" in \`rename\` is not unique (${this.table})`,
+          `mapped column "${v}" in \`rename\` is not unique (table: ${formatValues(
+            this.tableName,
+          )})`,
         )
       }
 
@@ -86,7 +135,7 @@ export class SelectionImplementation {
     })
 
     return new SelectionImplementation(
-      this.table,
+      this.tableName,
       this.selectedColumns,
       mapping,
     )
@@ -99,7 +148,12 @@ export class SelectionImplementation {
 export function isSelectionImplementation(
   x: unknown,
 ): x is SelectionImplementation {
-  if (x && typeof x === 'object' && 'table' in x && 'selectedColumns' in x) {
+  if (
+    x &&
+    typeof x === 'object' &&
+    'tableName' in x &&
+    'getSelectedColumnNames' in x
+  ) {
     return true
   }
 
@@ -113,10 +167,18 @@ export function isSelectionImplementation(
  */
 export class TableImplementation {
   // Table sql name.
-  // Also used for identify similar table-references in
-  // from/select/join and subqueries.
-  // For subselects, this is a generated unique identifier.
+  // Used to generate queries and to give context in error messages.
   readonly tableName: string
+
+  // Identifies a table.
+  // Table implementations with the same id are considered equal when
+  // generating table aliases in the query. We cannot use object identity
+  // because with discriminatedUnions we create intermediate table objects to
+  // provide a type-narrowed view on a table.
+  // For non-aliased tables, this is just the tableName.
+  // TODO: alias feature to be able to use the same table in a query
+  // more than once, e.g. for self joins or in with recursive clauses.
+  readonly tableId: string
 
   // all columns available in this table to use in selection, projection, where, etc.
   private tableColumns: { [key: string]: ColumnImplementation }
@@ -132,6 +194,7 @@ export class TableImplementation {
     tableColumns: { [key: string]: ColumnImplementation },
   ) {
     this.tableName = tableName
+    this.tableId = tableName
     this.tableColumns = tableColumns
 
     const duplicateSqlNames = findDuplicates(
@@ -193,27 +256,6 @@ export class TableImplementation {
           columnName: name,
         },
       ],
-    }
-  }
-
-  // column with optional cast for use in selections
-  getColumnExprWithCast(name: string): ExprImpl {
-    const col = this.tableColumns[name]
-
-    if (col === undefined) {
-      throw new QueryBuilderAssertionError(
-        `column ${formatValues(name)} does not exist on table ${formatValues(
-          this.tableName,
-        )}`,
-      )
-    }
-
-    return {
-      exprTokens: col.wrapColumnTokenInCast({
-        type: 'sqlTableColumn',
-        table: this,
-        columnName: name,
-      }),
     }
   }
 
@@ -280,11 +322,35 @@ export class TableImplementation {
     ]
   }
 
+  getSelectedColumn(name: string): SelectedColumn {
+    const col = this.getColumn(name)
+
+    if (!col) {
+      throw new QueryBuilderAssertionError(
+        `column ${formatValues(name)} not found in table ${formatValues(
+          this.tableName,
+        )}`,
+      )
+    }
+
+    return {
+      rt: col.resultTransformation,
+      expr: {
+        exprTokens: col.wrapColumnTokenInCast({
+          type: 'sqlTableColumn',
+          table: this,
+          columnName: name,
+        }),
+        exprAlias: name,
+      },
+    }
+  }
+
   /// Query Builder Table Interface
 
   // column accessor, in case a column name clashes with a table method
   column(name: string) {
-    return this.getColumnExpr(name)
+    return getTableImplementation(this).getColumnExpr(name)
   }
 
   /// Selection ctors
@@ -294,19 +360,22 @@ export class TableImplementation {
     const table = getTableImplementation(this)
 
     const sel = new SelectionImplementation(
-      table,
-      Object.keys(table.tableColumns),
+      table.tableName,
+      Object.fromEntries(
+        table
+          .getColumnNames()
+          .map((name) => [name, table.getSelectedColumn(name)]),
+      ),
     )
 
     if (table.discriminatedUnion) {
       // discriminated union: select all columns from each member
       sel.discriminatedUnion = {
         typeTagColumnName: table.discriminatedUnion.typeTagColumnName,
-        memberTablesByTagValue: table.discriminatedUnion.memberTablesByTagValue,
-        selectionsByTagValue: Object.fromEntries(
+        memberColumnAliasesByTagValue: Object.fromEntries(
           Object.entries(table.discriminatedUnion.memberTablesByTagValue).map(
-            ([tagValue, tableImpl]) => {
-              return [tagValue, tableImpl.all()]
+            ([tagValue, memberTable]) => {
+              return [tagValue, Object.keys(memberTable.tableColumns)]
             },
           ),
         ),
@@ -323,7 +392,10 @@ export class TableImplementation {
     // nothing special needs to be done for discriminatedUnion tables
     // because with include we're working only with all common columns so we
     // can drop the discriminatedUnion completely
-    return new SelectionImplementation(table, keys)
+    return new SelectionImplementation(
+      table.tableName,
+      Object.fromEntries(keys.map((k) => [k, table.getSelectedColumn(k)])),
+    )
   }
 
   // choose columns to hide from the result
@@ -331,8 +403,13 @@ export class TableImplementation {
     const table = getTableImplementation(this)
 
     const sel = new SelectionImplementation(
-      table,
-      Object.keys(table.tableColumns).filter((k) => !keys.includes(k)),
+      table.tableName,
+      Object.fromEntries(
+        table
+          .getColumnNames()
+          .filter((k) => !keys.includes(k))
+          .map((name) => [name, table.getSelectedColumn(name)]),
+      ),
     )
 
     if (table.discriminatedUnion) {
@@ -349,11 +426,15 @@ export class TableImplementation {
       // discriminated union: exclude common columns
       sel.discriminatedUnion = {
         typeTagColumnName: table.discriminatedUnion.typeTagColumnName,
-        memberTablesByTagValue: table.discriminatedUnion.memberTablesByTagValue,
-        selectionsByTagValue: Object.fromEntries(
+        memberColumnAliasesByTagValue: Object.fromEntries(
           Object.entries(table.discriminatedUnion.memberTablesByTagValue).map(
-            ([tagValue, tableImpl]) => {
-              return [tagValue, tableImpl.exclude(...keys)]
+            ([tagValue, memberTable]) => {
+              return [
+                tagValue,
+                Object.keys(memberTable.tableColumns).filter(
+                  (n) => !keys.includes(n),
+                ),
+              ]
             },
           ),
         ),

@@ -16,7 +16,7 @@ describe('creating tables', () => {
           label: column('name').string(),
         })
       }).toThrow(
-        'table "test_table" - found duplicate sql column names: "name"',
+        "table 'test_table' - found duplicate sql column names: 'name'",
       )
     })
   })

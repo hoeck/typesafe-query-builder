@@ -19,10 +19,13 @@ export function resolveSelectionExpressions(
 ): { exprTokens: SqlToken[]; exprAlias: string }[] {
   return selections.flatMap((selection) => {
     if (isSelectionImplementation(selection)) {
-      return selection.selectedColumns.map((name) => ({
-        exprTokens: selection.table.getColumnExprWithCast(name).exprTokens,
-        exprAlias: selection.getColumnAlias(name),
-      }))
+      // in case that this is a selection over a discriminated union
+      // table, we generate selects over all columns and use the
+      // post-processing (result/row transformation) to create the correct
+      // discriminated union rows
+      return selection
+        .getSelectedColumnNames()
+        .map((name) => selection.getColumnExpr(name))
     } else {
       if (!selection.exprAlias) {
         throw new QueryBuilderAssertionError(
@@ -159,17 +162,21 @@ function resolveColumnTransformers(
 ) {
   return selections.flatMap((selection) => {
     if (isSelectionImplementation(selection)) {
+      // discriminated union table row transformer
       if (selection.discriminatedUnion) {
-        // TODO: what about discriminated queries with multiple selections?
-        const {
-          selectionsByTagValue,
-          memberTablesByTagValue,
-          typeTagColumnName,
-        } = selection.discriminatedUnion
+        const { typeTagColumnName, memberColumnAliasesByTagValue } =
+          selection.discriminatedUnion
 
+        // A discriminated union selection contains a union of all selected
+        // members keys.
+        // The task of this transformer is to delete keys which do not
+        // belong to the type of the current row. At the same time, all
+        // other selected keys (json objects, joins) need to be left alone.
         const allSelectedKeys = [
           ...new Set(
-            selection.selectedColumns.map((n) => selection.getColumnAlias(n)),
+            selection
+              .getSelectedColumnNames()
+              .map((n) => selection.getColumnExpr(n).exprAlias),
           ),
         ]
         const columnNameSetsByTypeValue: Map<
@@ -177,28 +184,21 @@ function resolveColumnTransformers(
           Set<string>
         > = new Map()
 
-        Object.entries(selectionsByTagValue).forEach(
-          ([tagValue, selection]) => {
-            columnNameSetsByTypeValue.set(
-              tagValue,
-              new Set(
-                selection.selectedColumns.map((n) =>
-                  selection.getColumnAlias(n),
-                ),
-              ),
-            )
+        Object.entries(memberColumnAliasesByTagValue).forEach(
+          ([tagValue, aliases]) => {
+            columnNameSetsByTypeValue.set(tagValue, new Set(aliases))
           },
         )
 
         const transformersByKey = new Map(
-          selection.selectedColumns.flatMap((n) => {
-            const rt = selection.table.getColumn(n).resultTransformation
+          selection.getSelectedColumnNames().flatMap((n) => {
+            const rt = selection.getColumnResultTransformation(n)
 
             if (!rt) {
               return []
             }
 
-            return [[selection.getColumnAlias(n), rt]]
+            return [[selection.getColumnExpr(n).exprAlias, rt]]
           }),
         )
 
@@ -237,12 +237,12 @@ function resolveColumnTransformers(
           key: undefined,
         }
       } else {
-        return selection.selectedColumns.flatMap<{
+        // plain table row transformer
+        return selection.getSelectedColumnNames().flatMap<{
           transformer: (row: any) => void
           key: string | undefined
         }>((name) => {
-          const transformer =
-            selection.table.getColumn(name).resultTransformation
+          const transformer = selection.getColumnResultTransformation(name)
 
           if (!transformer) {
             return []
@@ -250,7 +250,7 @@ function resolveColumnTransformers(
 
           return {
             transformer,
-            key: selection.getColumnAlias(name),
+            key: selection.getColumnExpr(name).exprAlias,
           }
         })
       }

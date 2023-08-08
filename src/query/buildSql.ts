@@ -39,11 +39,11 @@ class Parameters {
 
 class TableAliases {
   aliases = 'abcdefghijklmnopqrstuvwxyz'
-  tables = new Map<TableImplementation, string>()
+  tables = new Map<string, string>()
   counter = 0
 
   getAlias(table: TableImplementation) {
-    const existingAlias = this.tables.get(table)
+    const existingAlias = this.tables.get(table.tableId)
 
     if (existingAlias) {
       return existingAlias
@@ -51,7 +51,7 @@ class TableAliases {
 
     const newAlias = this.aliases[this.counter]
 
-    this.tables.set(table, newAlias)
+    this.tables.set(table.tableId, newAlias)
     this.counter++
 
     return newAlias

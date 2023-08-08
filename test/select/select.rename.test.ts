@@ -58,7 +58,9 @@ describe('select.rename', () => {
             foo: 'bar',
           }),
         ),
-      ).toThrow('renamed column "foo" does not exist in this selection')
+      ).toThrow(
+        "renamed column 'foo' does not exist in this selection (table: 'classicgames.manufacturers')",
+      )
     })
 
     test('column names must be selected', async () => {
@@ -69,7 +71,9 @@ describe('select.rename', () => {
             country: 'bar',
           }),
         ),
-      ).toThrow('renamed column "country" does not exist in this selection')
+      ).toThrow(
+        "renamed column 'country' does not exist in this selection (table: 'classicgames.manufacturers')",
+      )
     })
 
     test('rename must only be called once', async () => {

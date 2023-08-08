@@ -88,3 +88,8 @@ export interface ExprImpl {
   exprTokens: SqlToken[]
   exprAlias?: string
 }
+
+export interface ExprImplWithAlias {
+  exprTokens: SqlToken[]
+  exprAlias: string
+}

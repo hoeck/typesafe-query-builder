@@ -66,7 +66,9 @@ describe('selectJsonArray', () => {
           { key: 'foo' },
           Manufacturers.all(),
         ),
-      ).toThrow('`selectJsonArray` needs exactly 1 selected column')
+      ).toThrow(
+        "table.selectJsonArray on table 'classicgames.manufacturers': a single column must be selected, not 3 ('id', 'name', 'country')",
+      )
     })
 
     test('direction without order by ', async () => {
@@ -76,7 +78,7 @@ describe('selectJsonArray', () => {
           Manufacturers.include('id'),
         ),
       ).toThrow(
-        '`selectJsonArray` direction argument must be supplied along orderBy',
+        'table.selectJsonArray: direction argument must be supplied along orderBy',
       )
     })
   })
