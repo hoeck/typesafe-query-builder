@@ -5,6 +5,8 @@ import {
   ExprImpl,
   SqlToken,
   joinTokens,
+  sqlDedent,
+  sqlIndent,
   sqlNewline,
   sqlWhitespace,
   wrapInParens,
@@ -159,7 +161,7 @@ export class ExprFactImpl implements FactoryMethods {
   }
 
   caseWhen = (...cases: ([ExprImpl, ExprImpl] | ExprImpl)[]): ExprImpl => {
-    const exprTokens: SqlToken[] = ['CASE']
+    const exprTokens: SqlToken[] = ['CASE', sqlIndent]
     const parameters: Set<string> = new Set()
 
     cases.forEach((c, i) => {
@@ -167,11 +169,11 @@ export class ExprFactImpl implements FactoryMethods {
         const [condition, result] = c
 
         exprTokens.push(
-          sqlWhitespace,
+          sqlNewline,
           'WHEN',
           sqlWhitespace,
           ...condition.exprTokens,
-          sqlWhitespace,
+          sqlNewline,
           'THEN',
           sqlWhitespace,
           ...result.exprTokens,
@@ -185,11 +187,11 @@ export class ExprFactImpl implements FactoryMethods {
           )
         }
 
-        exprTokens.push(sqlWhitespace, 'ELSE', sqlWhitespace, ...c.exprTokens)
+        exprTokens.push(sqlNewline, 'ELSE', sqlWhitespace, ...c.exprTokens)
       }
     })
 
-    exprTokens.push(sqlWhitespace, 'END')
+    exprTokens.push(sqlDedent, sqlNewline, 'END')
 
     return {
       exprTokens,

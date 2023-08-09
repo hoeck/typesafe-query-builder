@@ -71,8 +71,10 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
           { type: 'sqlTableAlias', table: item.table },
           sqlNewline,
           'ON',
+          sqlIndent,
           sqlWhitespace,
           ...item.expr.exprTokens,
+          sqlDedent,
           sqlDedent,
         ])
         break
@@ -197,10 +199,12 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         result.where.length
           ? [
               'WHERE',
-              sqlWhitespace,
+              sqlIndent,
+              sqlNewline,
               ...new ExprFactImpl([]).and(
                 ...result.where.map((w) => ({ exprTokens: w })),
               ).exprTokens,
+              sqlDedent,
             ]
           : [],
         result.orderBy.length
