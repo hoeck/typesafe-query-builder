@@ -127,6 +127,7 @@ export function projectionToSqlTokens(
     case 'jsonObject':
       return [
         ...getJsonBuildObjectExpression(projection.selections),
+        sqlWhitespace,
         'AS',
         sqlWhitespace,
         { type: 'sqlIdentifier', value: projection.key },

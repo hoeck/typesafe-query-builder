@@ -176,6 +176,8 @@ export function queryItemsToSqlTokens(queryItems: QueryItem[]): SqlToken[] {
         break
 
       case 'narrow':
+        // transforming the query with buildNarrowedQuery was somehow
+        // skipped or did not work?
         throw new QueryBuilderAssertionError(
           'narrow must not appear here and be preprocessed into other queryItems instead',
         )

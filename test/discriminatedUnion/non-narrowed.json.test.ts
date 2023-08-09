@@ -1,5 +1,5 @@
 import { query } from '../../src'
-import { Devices, Systems, client, expectValuesUnsorted } from '../helpers'
+import { Devices, client, expectValuesUnsorted } from '../helpers'
 
 describe('querying discriminatedUnion tables', () => {
   describe('non-narrowed json', () => {

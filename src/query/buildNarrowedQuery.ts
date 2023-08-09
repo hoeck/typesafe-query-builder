@@ -1,6 +1,7 @@
 import { QueryBuilderAssertionError, QueryBuilderUsageError } from '../errors'
 import { assertNever, findDuplicates, formatValues } from '../utils'
 import { ExprFactImpl } from './expressions'
+import { QueryImplementation } from './query'
 import {
   JoinItem,
   NarrowItem,
@@ -31,6 +32,166 @@ function buildCaseWhenTypeValueExpr(
   )
 }
 
+function collectNarrowedColumns(
+  selections: (SelectionImplementation | QueryImplementation)[],
+) {
+  const columns: { name: string; col: SelectedColumn }[] = []
+
+  for (const selection of selections) {
+    if (isSelectionImplementation(selection)) {
+      for (const name of selection.getSelectedColumnNames()) {
+        const expr = selection.getColumnExpr(name)
+
+        // use the cols alias, as names might class when we
+        // have joined selections
+        columns.push({
+          name: expr.exprAlias,
+          col: {
+            expr,
+            rt: selection.getColumnResultTransformation(name),
+          },
+        })
+      }
+    } else {
+      const exprAlias = selection.exprAlias
+
+      if (exprAlias === undefined) {
+        throw new QueryBuilderAssertionError(
+          'expected alias of query expression not to be undefined',
+        )
+      }
+
+      const exprTokens = selection.exprTokens
+
+      columns.push({
+        name: exprAlias,
+        col: {
+          expr: { exprTokens, exprAlias },
+          rt: selection.getRowTransformer(),
+        },
+      })
+    }
+  }
+
+  return columns
+}
+
+function createCommonProjection(
+  projections: SelectItem['projection'][],
+  selection: SelectionImplementation,
+): SelectItem['projection'] {
+  if (!projections.length) {
+    throw new QueryBuilderAssertionError('expected projections to not be empty')
+  }
+
+  const projectionTypes = [...new Set(projections.map((p) => p.type))]
+
+  if (projectionTypes.length > 1) {
+    throw new QueryBuilderUsageError(
+      `query.narrow: selections must be all of the same basic projection, not ${formatValues(
+        ...projectionTypes,
+      )}`,
+    )
+  }
+
+  const projectionKeys = [
+    ...new Set(
+      projections.flatMap((p) =>
+        p.type === 'jsonObject' ||
+        p.type === 'jsonObjectArray' ||
+        p.type === 'jsonArray'
+          ? p.key
+          : [],
+      ),
+    ),
+  ]
+
+  if (projectionKeys.length > 1) {
+    throw new QueryBuilderUsageError(
+      `query.narrow: json selections must all use the same key, not ${formatValues(
+        ...projectionKeys,
+      )}`,
+    )
+  }
+
+  const projectionOrderBy = [
+    ...new Set(
+      projections.flatMap((p) =>
+        p.type === 'jsonObjectArray' || p.type === 'jsonArray'
+          ? JSON.stringify(p.orderBy) // TODO: how to compare two expressions and determine they are the same?
+          : [],
+      ),
+    ),
+  ]
+
+  if (projectionOrderBy.length > 1) {
+    throw new QueryBuilderUsageError(
+      `query.narrow: json array selections must all have the same order by, not ${formatValues(
+        ...projectionOrderBy,
+      )}`,
+    )
+  }
+
+  const projectionDirections = [
+    ...new Set(
+      projections.flatMap((p) =>
+        p.type === 'jsonObjectArray' || p.type === 'jsonArray'
+          ? p.direction
+          : [],
+      ),
+    ),
+  ]
+
+  if (projectionDirections.length > 1) {
+    throw new QueryBuilderUsageError(
+      `query.narrow: json array selections must all use the same direction, not ${formatValues(
+        ...projectionDirections,
+      )}`,
+    )
+  }
+
+  switch (projections[0].type) {
+    case 'plain':
+      return {
+        type: 'plain',
+        selections: [selection],
+      }
+    case 'jsonObject': {
+      return {
+        type: 'jsonObject',
+        key: projections[0].key,
+        selections: [selection],
+      }
+    }
+    case 'jsonObjectArray':
+      return {
+        type: 'jsonObjectArray',
+        key: projections[0].key,
+        orderBy: projections[0].orderBy,
+        direction: projections[0].direction,
+        selections: [selection],
+      }
+    case 'jsonArray':
+      return {
+        type: 'jsonArray',
+        key: projections[0].key,
+        orderBy: projections[0].orderBy,
+        direction: projections[0].direction,
+        selection: selection,
+      }
+      break
+    default:
+      assertNever(projections[0])
+  }
+}
+
+/**
+ * Take in a query with narrow items and return one without.
+ *
+ * Narrowed queries are transformed into non-narrowed queries with
+ * member-type-unaware selections and member-type-aware where and join clauses
+ * and a row transformation that creates the final union member type.
+ */
 export function buildNarrowedQuery(queryItems: QueryItem[]): QueryItem[] {
   const narrows = queryItems.filter(
     (item): item is NarrowItem => item.type === 'narrow',
@@ -76,6 +237,7 @@ export function buildNarrowedQuery(queryItems: QueryItem[]): QueryItem[] {
     typeValue: string
     columns: { name: string; col: SelectedColumn }[]
   }[] = []
+  const projections: SelectItem['projection'][] = []
 
   // collect all joins to build a single left join per table with a custom
   // join condition that dispatches over type values
@@ -119,47 +281,15 @@ export function buildNarrowedQuery(queryItems: QueryItem[]): QueryItem[] {
             {
               switch (item.projection.type) {
                 case 'plain':
-                  for (const selection of item.projection.selections) {
-                    if (isSelectionImplementation(selection)) {
-                      for (const name of selection.getSelectedColumnNames()) {
-                        const expr = selection.getColumnExpr(name)
-
-                        // use the cols alias, as names might class when we
-                        // have joined selections
-                        columns.push({
-                          name: expr.exprAlias,
-                          col: {
-                            expr,
-                            rt: selection.getColumnResultTransformation(name),
-                          },
-                        })
-                      }
-                    } else {
-                      const exprAlias = selection.exprAlias
-
-                      if (exprAlias === undefined) {
-                        throw new QueryBuilderAssertionError(
-                          'expected alias of query expression not to be undefined',
-                        )
-                      }
-
-                      const exprTokens = selection.exprTokens
-
-                      columns.push({
-                        name: exprAlias,
-                        col: {
-                          expr: { exprTokens, exprAlias },
-                          rt: selection.getRowTransformer(),
-                        },
-                      })
-                    }
-                  }
-                  break
                 case 'jsonObject':
+                case 'jsonObjectArray':
+                  columns.push(
+                    ...collectNarrowedColumns(item.projection.selections),
+                  )
+                  projections.push(item.projection)
                   break
                 case 'jsonArray':
-                  break
-                case 'jsonObjectArray':
+                  projections.push(item.projection)
                   break
                 default:
                   assertNever(item.projection)
@@ -223,6 +353,16 @@ export function buildNarrowedQuery(queryItems: QueryItem[]): QueryItem[] {
     }),
   )
 
+  if (!allSelectedColumns[typeKey]) {
+    // without this, constructing the resulting member types would not work
+    // (or it would be more complicated than it already is)
+    throw new QueryBuilderUsageError(
+      `query.narrow: the type key column ${formatValues(
+        typeKey,
+      )} must be included in each narrowed selection`,
+    )
+  }
+
   const narrowSelection = new SelectionImplementation(
     'typesafe_query_builder_narrowed_table',
     allSelectedColumns,
@@ -240,10 +380,7 @@ export function buildNarrowedQuery(queryItems: QueryItem[]): QueryItem[] {
 
   const narrowSelect: SelectItem = {
     type: 'select',
-    projection: {
-      type: 'plain',
-      selections: [narrowSelection],
-    },
+    projection: createCommonProjection(projections, narrowSelection),
   }
 
   const narrowJoins: JoinItem[] = [...narrowedJoinsByTableId.entries()].map(
