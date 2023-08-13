@@ -107,13 +107,18 @@ export function intersection(...a: string[][]): Set<string> {
 export function formatValues(...vals: any[]): string {
   return vals
     .map((v: any) => {
-      const s = inspect(v)
+      const s = inspect(v, {
+        // without newlines so it lands conveniently on a single live
+        // in the servers log
+        compact: true,
+        breakLength: 2 ** 16,
+      })
 
-      if (s.length < 128) {
+      if (s.length < 254) {
         return s
       }
 
-      return s.slice(0, 124) + '...'
+      return s.slice(0, 250) + '...'
     })
     .join(', ')
 }

@@ -149,6 +149,8 @@ VALUES
   (5, 'Fusion',              'emulator',         null, null, null, 'https://www.carpeludum.com/kega-fusion/'),
   (6, 'Gens',                'emulator',         null, null, null, 'http://gens.me/');
 
+SELECT pg_catalog.setval('classicgames.devices_id_seq', 7, false);
+
 --
 -- Desktop computer component dependencies
 -- Intended for testing WITH RECURSIVE queries

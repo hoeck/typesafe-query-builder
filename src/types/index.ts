@@ -10,6 +10,7 @@ export type {
   DatabaseClient,
   DatabaseEscapeFunctions,
   Delete,
+  InsertInto,
   InsertIntoConstructor,
   InsertStatementConstructor,
   Query,

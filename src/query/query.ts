@@ -13,6 +13,8 @@ import {
   Selection,
   Table,
 } from '../types'
+import { formatValues } from '../utils'
+import { buildNarrowedQuery } from './buildNarrowedQuery'
 import {
   queryItemsSelectionCheck,
   queryItemsToExpressionAlias,
@@ -21,7 +23,8 @@ import {
 } from './buildQuery'
 import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
-import { QueryItem, SelectItem, WhereItem } from './queryItem'
+import { InsertIntoImplementation } from './insert'
+import { QueryItem } from './queryItem'
 import { ExprImpl, wrapInParens } from './sql'
 import {
   SelectionImplementation,
@@ -30,8 +33,6 @@ import {
   isSelectionImplementation,
   table as tableConstructor,
 } from './table'
-import { assertNever, formatValues } from '../utils'
-import { buildNarrowedQuery } from './buildNarrowedQuery'
 
 type AnyQueryBottom = QueryBottom<any, any, any, any, any>
 type AnyTable = Table<any, any> & {
@@ -498,9 +499,8 @@ export const query: QueryRoot = function query(table: any) {
   return new QueryImplementation([ti], [{ type: 'from', table: ti }]) as any
 } as any
 
-query.DEFAULT = {} as any
-
-query.insertInto = {} as any
+query.DEFAULT = InsertIntoImplementation.DEFAULT as any
+query.insertInto = InsertIntoImplementation.create as any
 
 query.insertStatement = {} as any
 

@@ -1,5 +1,5 @@
 import { DatabaseTable, Selection, SetDefault, SetOptional } from '../table'
-import { DatabaseClient } from './databaseClient'
+import { DatabaseClient, DatabaseEscapeFunctions } from './databaseClient'
 
 /**
  * Basic `INSERT INTO ... VALUES ... [RETURNING ...]` into a single table.
@@ -41,6 +41,16 @@ export declare class InsertIntoSingle<T> {
 
   returning<S>(selection: Selection<T, S>): InsertIntoExecute<S>
 
+  /**
+   * Return the generated sql string to help with debugging.
+   */
+  sql(client: DatabaseEscapeFunctions): string
+
+  /**
+   * Log the generated sql string to the console.
+   */
+  sqlLog(client: DatabaseEscapeFunctions): InsertIntoSingle<T>
+
   execute(client: DatabaseClient): Promise<void>
 }
 
@@ -49,11 +59,31 @@ export declare class InsertIntoMany<T> {
 
   returning<S>(selection: Selection<T, S>): InsertIntoExecute<S[]>
 
+  /**
+   * Return the generated sql string to help with debugging.
+   */
+  sql(client: DatabaseEscapeFunctions): string
+
+  /**
+   * Log the generated sql string to the console.
+   */
+  sqlLog(client: DatabaseEscapeFunctions): InsertIntoSingle<T>
+
   execute(client: DatabaseClient): Promise<void>
 }
 
 export declare class InsertIntoExecute<R> {
   protected __returning: R
+
+  /**
+   * Return the generated sql string to help with debugging.
+   */
+  sql(client: DatabaseEscapeFunctions): string
+
+  /**
+   * Log the generated sql string to the console.
+   */
+  sqlLog(client: DatabaseEscapeFunctions): InsertIntoExecute<R>
 
   execute(client: DatabaseClient): Promise<R>
 }

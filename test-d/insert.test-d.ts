@@ -21,6 +21,14 @@ const insertTests = (async () => {
       .execute(client),
   )
 
+  // basic single insert with defaults as optional values
+  expectType<void>(
+    await query
+      .insertInto(Manufacturers)
+      .valueOptional({ name: 'Sony', country: 'Japan' })
+      .execute(client),
+  )
+
   // returning + default values
   expectType<{
     id: number
@@ -55,6 +63,51 @@ const insertTests = (async () => {
       .insertInto(Manufacturers)
       .value({
         id: query.DEFAULT,
+        country: 'Japan',
+      })
+      .execute(client),
+  )
+
+  // missing default col
+  expectError(
+    await query
+      .insertInto(Manufacturers)
+      .value({
+        name: 'SNK',
+        country: 'Japan',
+      })
+      .execute(client),
+  )
+
+  // wrong default col
+  expectError(
+    await query
+      .insertInto(Manufacturers)
+      .value({
+        id: query.DEFAULT,
+        name: query.DEFAULT,
+        country: 'Japan',
+      })
+      .execute(client),
+  )
+
+  // missing required optional col
+  expectError(
+    await query
+      .insertInto(Manufacturers)
+      .valueOptional({
+        country: 'Japan',
+      })
+      .execute(client),
+  )
+
+  // invalid use of default in optional values
+  expectError(
+    await query
+      .insertInto(Manufacturers)
+      .valueOptional({
+        id: query.DEFAULT,
+        name: 'SNK',
         country: 'Japan',
       })
       .execute(client),

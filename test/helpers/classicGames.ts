@@ -29,7 +29,6 @@ export const Games = table('classicgames.games', {
       }
 
       const anyV: any = v
-
       if (typeof anyV.wiki !== 'string' && typeof anyV.wiki !== 'undefined') {
         throw new Error('invalid value for "wiki"')
       }
@@ -40,6 +39,12 @@ export const Games = table('classicgames.games', {
 
       if (typeof anyV.misc !== 'string' && typeof anyV.misc !== 'undefined') {
         throw new Error('invalid value for "ign"')
+      }
+
+      for (let k in anyV) {
+        if (k !== 'wiki' && k !== 'ign' && k !== 'misc') {
+          throw new Error(`invalid key: "${k}"`)
+        }
       }
 
       return anyV as { wiki?: string; ign?: string; misc?: string }

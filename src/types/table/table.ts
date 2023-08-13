@@ -83,7 +83,7 @@ type SetOptionalRaw<T, D extends string> = Omit<T, D> &
 export type SetOptional<T, K extends string> =
   // by wrapping setoptionalraw in a condition it distributes over unions so
   // we reach discriminated union support
-  T extends any ? SetOptional<T, K> : never
+  T extends any ? SetOptionalRaw<T, K> : never
 
 /**
  * Set all keys D in T to also accept a DefaultValue.

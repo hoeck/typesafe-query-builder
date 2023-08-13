@@ -35,6 +35,9 @@ export class ColumnImplementation {
   // just for documentation right now
   isPrimaryKey?: boolean
 
+  // true if the column has a default value
+  hasDefault?: boolean
+
   // optional cast expression
   castExpr?: ExprImpl
 
@@ -65,6 +68,7 @@ export class ColumnImplementation {
     res.columnValue = this.columnValue
     res.isNullable = this.isNullable
     res.isPrimaryKey = this.isPrimaryKey
+    res.hasDefault = this.hasDefault
     res.castExpr = this.castExpr
     res.resultTransformation = this.resultTransformation
     res.sqlTypeName = this.sqlTypeName
@@ -116,16 +120,17 @@ export class ColumnImplementation {
       )
     }
 
-    res.columnValue = (value: unknown) => {
-      if (value === undefined) {
-        // insert filters any undefined columns but the validations runs
-        // before that step and is the only part of the column that knowns
-        // about it being optional
-        return undefined
-      }
-
-      return columnValue(value)
-    }
+    res.hasDefault = true
+    // res.columnValue = (value: unknown) => {
+    //   if (value === undefined) {
+    //     // insert filters any undefined columns but the validations runs
+    //     // before that step and is the only part of the column that knowns
+    //     // about it being optional
+    //     return undefined
+    //   }
+    //
+    //   return columnValue(value)
+    // }
 
     return res
   }

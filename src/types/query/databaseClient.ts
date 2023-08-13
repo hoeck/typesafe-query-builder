@@ -12,7 +12,7 @@ export interface DatabaseClient {
     values: any[],
   ): Promise<{
     rows: Array<{ [key: string]: any }>
-    fields: Array<{ name: string; dataTypeID: number }>
+    rowCount: number
   }>
 
   /**
