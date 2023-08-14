@@ -1,18 +1,18 @@
 import { DatabaseTable, Selection, SetDefault, SetOptional } from '../table'
-import { DatabaseClient } from './databaseClient'
+import { DatabaseClient, DatabaseEscapeFunctions } from './databaseClient'
 
 /**
  * Build an insert statetement that inserts related data.
  *
  * Compiles down to a single sql statement with `WITH`, for example:
  *
- *   const newMyTableIds: number[] = await query
- *     .insertStatement<number>(({ addInsertInto, addReturnValue }) => {
+ *   const result = await query
+ *     .insertStatement<{id: number}>(({ addInsertInto, addReturnValue }) => {
  *       const { id: newMyTableId } = addInsertInto(MyTable)
  *         .value({ name: foo })
  *         .returning(MyTable.id)
  *
- *       addReturnValue(newMyTableId)
+ *       addReturnValue({id: newMyTableId})
  *
  *       addInsertInto(MyRelatedTable).value({
  *         myTableId: newMyTableId,
@@ -31,9 +31,15 @@ import { DatabaseClient } from './databaseClient'
  *    my_table_1 AS (INSERT INTO my_table (name) VALUES ('foo') RETURNING id,
  *    my_related_table_1 AS (INSERT INTO my_related_table ((SELECT id FROM my_table_1), property) VALUES ('foo') RETURNING (id, my_table_id)),
  *  SELECT json_build_object('myNewTableId', id) FROM my_table_1;
+ *
+ * The returning type must be explicitly declared to be able to use
+ * `addReturnValue`.
+ * The returning type does not work with `Date` or other casted columns and
+ * does not support discminated unions (it lacks the postprocessing that
+ * queries and simple inserts have)
  */
 export interface InsertStatementConstructor {
-  <R = void>(
+  <R = never>(
     callback: (builder: InsertStatementBuilder<R>) => void,
   ): InsertStatement<R>
 }
@@ -42,7 +48,11 @@ export interface InsertStatementConstructor {
  * An insert statement ready to be sent to the database.
  */
 export declare class InsertStatement<R> {
-  execute(client: DatabaseClient): Promise<R>
+  sql(client: DatabaseEscapeFunctions): string
+
+  sqlLog(client: DatabaseEscapeFunctions): InsertStatement<R>
+
+  execute(client: DatabaseClient): Promise<R[]>
 }
 
 /**
@@ -63,10 +73,16 @@ interface InsertStatementBuilder<R> {
   /**
    * Add a return value.
    *
-   * A single object with either javascript values or returning column
-   * references.
+   * The value must stem from the returning clause of an `addInsertInto`-call.
+   *
+   * No postprocessing (discriminated union support, casting of columns) is
+   * done with the result, so only basic types are allowed.
    */
-  addReturnValue<R>(value: R): void
+  addReturnValue(value: {
+    [K in keyof R]: R[K] extends string | number | boolean | null
+      ? InsertStatementColumnReference<R[K]>
+      : never
+  }): void
 }
 
 /**

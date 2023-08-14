@@ -24,6 +24,7 @@ import {
 import { createSql } from './buildSql'
 import { ExprFactImpl } from './expressions'
 import { InsertIntoImplementation } from './insert'
+import { InsertStatementImplementation } from './insertStatement'
 import { QueryItem } from './queryItem'
 import { ExprImpl, wrapInParens } from './sql'
 import {
@@ -471,7 +472,11 @@ export class QueryImplementation {
       )
     }
 
-    return result
+    if (!result.length) {
+      return undefined
+    }
+
+    return result[0]
   }
 
   async fetchExactlyOne(client: DatabaseClient, params?: any) {
@@ -489,7 +494,7 @@ export class QueryImplementation {
       )
     }
 
-    return result
+    return result[0]
   }
 }
 
@@ -501,16 +506,12 @@ export const query: QueryRoot = function query(table: any) {
 
 query.DEFAULT = InsertIntoImplementation.DEFAULT as any
 query.insertInto = InsertIntoImplementation.create as any
+query.insertStatement = InsertStatementImplementation.create as any
 
-query.insertStatement = {} as any
-
+// TODO:
 query.update = {} as any
-
 query.deleteFrom = {} as any
-
 query.union = {} as any
-
 query.unionAll = {} as any
-
 query.with = {} as any
 query.withRecursive = {} as any

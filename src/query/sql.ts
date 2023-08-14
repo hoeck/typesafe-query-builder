@@ -12,6 +12,14 @@ export interface SqlParameter {
   parameterName: string
 }
 
+export interface SqlParameterValue {
+  // inserts a positional parameter directly, collecting its value, used for
+  // inserts to be able to insert multiple rows where a key:value parameter
+  // mapping does not work
+  type: 'sqlParameterValue'
+  value: any
+}
+
 export interface SqlLiteral {
   type: 'sqlLiteral'
   value: string | number | boolean | BigInt | Date | null
@@ -56,6 +64,7 @@ export type SqlToken =
   | typeof sqlWhitespace
   | typeof sqlNewline
   | SqlParameter
+  | SqlParameterValue
   | SqlLiteral
   | SqlIdentifier
   | SqlTable

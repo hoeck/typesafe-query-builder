@@ -12,12 +12,12 @@ import {
 import { createSql } from './buildSql'
 import {
   SqlToken,
-  joinTokens,
   sqlDedent,
   sqlIndent,
   sqlNewline,
+  sqlParenClose,
+  sqlParenOpen,
   sqlWhitespace,
-  wrapInParens,
 } from './sql'
 import {
   SelectionImplementation,
@@ -87,7 +87,7 @@ export class InsertIntoImplementation {
       throw new QueryBuilderAssertionError('expected __values to be set')
     }
 
-    const { sql, parameters } = this._buildInsertSql(client, this.__values)
+    const { sql } = createSql(client, this._buildInsertSql(this.__values))
 
     return sql
   }
@@ -100,11 +100,11 @@ export class InsertIntoImplementation {
 
   // insert a single row
   async execute(client: DatabaseClient) {
-    if (!this.__values) {
+    if (this.__values === undefined) {
       throw new QueryBuilderAssertionError('expected __values to be set')
     }
 
-    if (!this.__values) {
+    if (!this.__values.length) {
       throw new QueryBuilderValidationError(
         `insertInto (table ${formatValues(
           this.__table.tableName,
@@ -112,12 +112,13 @@ export class InsertIntoImplementation {
       )
     }
 
-    const { sql, parameters, rowTransformer } = this._buildInsertSql(
+    const { sql, parameterValues } = createSql(
       client,
-      this.__values,
+      this._buildInsertSql(this.__values),
     )
+    const rowTransformer = this._getReturningRowTransformer()
 
-    const result = await client.query(sql, parameters)
+    const result = await client.query(sql, parameterValues)
 
     if (result.rowCount !== this.__values.length) {
       throw new QueryBuilderResultError(
@@ -174,15 +175,23 @@ export class InsertIntoImplementation {
   // default values in the insert
   // As a side-effect, checks that all keys are valid column names and no
   // extra key is present.
-  private _getInsertColumnListSql(names: string[]): SqlToken[] {
-    return wrapInParens(
-      joinTokens(
-        names.map((n): SqlToken[] => [
-          { type: 'sqlIdentifier', value: this.__table.getColumn(n).name },
-        ]),
-        [',', sqlNewline],
-      ),
-    )
+  // Append to te existing query tokens in hopes this perfs better (insert
+  // statement strings must be created for every invokation - they cannot be
+  // cached as their parameters are too dynamic).
+  private _buildInsertColumnListSql(names: string[], sql: SqlToken[]): void {
+    sql.push(sqlParenOpen)
+
+    for (let i = 0; i < names.length; i++) {
+      const n = names[i]
+
+      sql.push({ type: 'sqlIdentifier', value: this.__table.getColumn(n).name })
+
+      if (i < names.length - 1) {
+        sql.push(',', sqlNewline)
+      }
+    }
+
+    sql.push(sqlParenClose)
   }
 
   // return the table instance for this row
@@ -220,30 +229,27 @@ export class InsertIntoImplementation {
     return du.memberTablesByTagValue[typeTagValue]
   }
 
-  // // return column names for this row
-  // private _getTable(names: string[], table: TableImplementation) {}
-
-  // build the values sql: `($1,$2), (DEFAULT, $3)`
-  // construct a value array that matches the values sql
+  // build the values sql like: `($1,$2), (DEFAULT, $3)`
   // run each columns runtype function (`columnValue`) on each value
   // check for additional keys in the insert
-  private _buildValues(
-    names: string[],
-    rows: any[],
-  ): { sqlString: string; parameters: any[] } {
-    const sql: string[] = []
-    const parameters: any[] = []
+  // append all tokens to the already `sql` token list, hoping this produces
+  // less garbarge than passing arrays around
+  private _buildValues(names: string[], rows: any[], sql: SqlToken[]): void {
     const defaultValue =
       this.__defaults === 'undefined'
         ? undefined
         : InsertIntoImplementation.DEFAULT
-    let p = 1
 
-    for (const row of rows) {
-      const valuesSql: string[] = []
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
       const table = this._getTable(row)
 
-      for (const n of names) {
+      // "manual" paren open as we don't need indendation for the long lists
+      // of parameter vals
+      sql.push('(')
+
+      for (let j = 0; j < names.length; j++) {
+        const n = names[j]
         const value = row[n]
 
         if (table.hasColumn(n)) {
@@ -253,7 +259,22 @@ export class InsertIntoImplementation {
           const column = table.getColumn(n)
 
           if (column.hasDefault && value === defaultValue) {
-            valuesSql.push('DEFAULT')
+            sql.push('DEFAULT')
+          } else if (isInsertStatementColumnReference(row[n])) {
+            sql.push(
+              '(',
+              'SELECT',
+              sqlWhitespace,
+              {
+                type: 'sqlIdentifier',
+                value: row[n].getColName(),
+              },
+              sqlWhitespace,
+              'FROM',
+              sqlWhitespace,
+              { type: 'sqlIdentifier', value: row[n].getFromName() },
+              ')',
+            )
           } else {
             if (!(n in row)) {
               throw new QueryBuilderValidationError(
@@ -277,8 +298,10 @@ export class InsertIntoImplementation {
               )
             }
 
-            valuesSql.push('$' + p++)
-            parameters.push(column.columnValue(value))
+            sql.push({
+              type: 'sqlParameterValue',
+              value: column.columnValue(value),
+            })
           }
         } else {
           // discriminatedUnion table: when a name is not a part of the
@@ -295,21 +318,26 @@ export class InsertIntoImplementation {
             )
           }
 
-          valuesSql.push('NULL')
+          sql.push('NULL')
+        }
+
+        if (j < names.length - 1) {
+          sql.push(', ')
         }
       }
 
-      sql.push('\n  (' + valuesSql.join(', ') + ')')
-    }
+      sql.push(')')
 
-    return { sqlString: sql.join(',\n'), parameters }
+      if (i < rows.length - 1) {
+        sql.push(',', sqlNewline)
+      }
+    }
   }
 
   // create the whole insert into statement, complete with values,
   // parameters and column value checks
-  private _buildInsertSql(client: DatabaseEscapeFunctions, rows: any[]) {
+  _buildInsertSql(rows: any[]) {
     const names = this._getAllUsedKeys(rows)
-    const values = this._buildValues(names, rows)
 
     const tokens: SqlToken[] = [
       'INSERT INTO',
@@ -322,12 +350,15 @@ export class InsertIntoImplementation {
       { type: 'sqlTableAlias', table: this.__table },
       sqlIndent,
       sqlNewline,
-      ...this._getInsertColumnListSql(names),
-      sqlDedent,
-      sqlNewline,
-      'VALUES',
-      values.sqlString,
     ]
+
+    this._buildInsertColumnListSql(names, tokens)
+
+    tokens.push(sqlDedent, sqlNewline, 'VALUES', sqlIndent, sqlNewline)
+
+    this._buildValues(names, rows, tokens)
+
+    tokens.push(sqlDedent)
 
     if (this.__returning) {
       tokens.push(
@@ -335,25 +366,70 @@ export class InsertIntoImplementation {
         'RETURNING',
         sqlIndent,
         sqlNewline,
+
+        // TODO: these can be cached
         ...projectionToSqlTokens({
           type: 'plain',
           selections: [this.__returning],
         }),
+
         sqlDedent,
       )
     }
 
-    const { sql } = createSql(client, tokens)
-
-    return {
-      sql,
-      parameters: values.parameters,
-      rowTransformer: this.__returning
-        ? projectionToRowTransformer({
-            type: 'plain',
-            selections: [this.__returning],
-          })
-        : undefined,
-    }
+    return tokens
   }
+
+  private _getReturningRowTransformer() {
+    if (!this.__returning) {
+      return undefined
+    }
+
+    return projectionToRowTransformer({
+      type: 'plain',
+      selections: [this.__returning],
+    })
+  }
+
+  public _buildInsertStatement() {
+    if (this.__values === undefined) {
+      throw new QueryBuilderAssertionError('expected __values to be set')
+    }
+
+    if (this.__values.length !== 1) {
+      throw new QueryBuilderAssertionError(
+        `insert must have exactly a single value`,
+      )
+    }
+
+    return this._buildInsertSql(this.__values)
+  }
+}
+
+const colRefSymbol = Symbol('typesafe-query-builder-insert-column-reference')
+
+// col reference for use in "insert statements" (with clauses)
+export class InsertStatementColumnReferenceImplementation {
+  public __insertStatementColumnReferenceMarker = colRefSymbol
+
+  constructor(public __id: string, private __columnName: string) {
+    this.__id = __id
+    this.__columnName = __columnName
+  }
+
+  getColName() {
+    return this.__columnName
+  }
+
+  getFromName() {
+    return this.__id
+  }
+}
+
+function isInsertStatementColumnReference(value: any) {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    value.__insertStatementColumnReferenceMarker === colRefSymbol
+  )
 }

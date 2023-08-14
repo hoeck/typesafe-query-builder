@@ -1,3 +1,4 @@
+import { QueryBuilderAssertionError } from '../errors'
 import { DatabaseEscapeFunctions } from '../types'
 import { assertNever } from '../utils'
 import { SqlToken } from './sql'
@@ -35,6 +36,10 @@ class Parameters {
 
     return res
   }
+
+  hasParameters() {
+    return this.counter > 1
+  }
 }
 
 class TableAliases {
@@ -64,6 +69,7 @@ export function createSql(
 ) {
   const res: string[] = []
   const parameters = new Parameters()
+  const parameterValues: any[] = []
   const aliases = new TableAliases()
 
   // simple indentation to be able to debug sql statements without
@@ -99,6 +105,10 @@ export function createSql(
         case 'sqlParameter':
           res.push(parameters.getSql(token.parameterName))
           break
+        case 'sqlParameterValue':
+          parameterValues.push(token.value)
+          res.push('$' + parameterValues.length)
+          break
         case 'sqlLiteral':
           if (typeof token.value === 'string') {
             res.push(client.escapeLiteral(token.value))
@@ -132,10 +142,18 @@ export function createSql(
     }
   }
 
+  if (parameterValues.length && parameters.hasParameters()) {
+    throw new QueryBuilderAssertionError(
+      'cannot use sqlParameterValue and sqlParameter sql tokens in the same token array',
+    )
+  }
+
   return {
     // contains $n parameters
     sql: res.join(''),
     // position -> name
     parameters: parameters.getMapping(),
+    // parameter values and parameters are exclusive
+    parameterValues,
   }
 }

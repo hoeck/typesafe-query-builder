@@ -8,7 +8,7 @@ import {
   Devices,
 } from './helpers/classicGames'
 
-const insertTests = (async () => {
+const insertTests = async () => {
   // basic single insert
   expectType<void>(
     await query
@@ -168,15 +168,17 @@ const insertTests = (async () => {
       .returning(Manufacturers.include('id'))
       .execute(client),
   )
+}
 
+const insertStatementTests = (async () => {
   // related / nested inserts
   const games = [
     { title: 'Sonic 2', systemIds: [1, 2, 3] },
     { title: 'Sonic and Knuckles', systemIds: [2] },
   ]
 
-  await query
-    .insertStatement(({ addInsertInto, addReturnValue }) => {
+  const statement = query.insertStatement<{ gameId: number }>(
+    ({ addInsertInto, addReturnValue }) => {
       games.forEach((g) => {
         const { id: gameId } = addInsertInto(Games)
           .value({
@@ -198,8 +200,12 @@ const insertTests = (async () => {
           })
         })
       })
-    })
-    .execute(client)
+    },
+  )
+
+  const res = await statement.execute(client)
+
+  expectType<{ gameId: number }[]>(res)
 
   // creates the following sql:
   //
