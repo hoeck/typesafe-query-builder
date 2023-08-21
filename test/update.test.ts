@@ -1,17 +1,7 @@
-import { client } from './helpers'
+import { query } from '../src'
+import { Manufacturers, Systems, client } from './helpers'
 
-describe.skip('update methods', () => {
-  test('placeholder', () => {})
-
-  async function queryUsers(ids: number[]) {
-    const sql =
-      'SELECT id as "userId", avatar as "userAvatar", email as "userEmail", name as "userName", active as "userActive" FROM users WHERE id = ANY($1::int[]) ORDER BY id'
-
-    const rows = (await client.query(sql, [ids])).rows
-
-    return rows.length === 1 ? rows[0] : rows
-  }
-
+describe('update', () => {
   beforeEach(async () => {
     await client.query('BEGIN')
   })
@@ -21,426 +11,98 @@ describe.skip('update methods', () => {
   })
 
   describe('update', () => {
-    //   test('basic update', async () => {
-    //     const result = await query(users)
-    //       .whereEq(users.userId, 'id')
-    //       .update(
-    //         client,
-    //         { id: 1 }, // update params
-    //         {
-    //           userEmail: 'new@foo',
-    //         },
-    //       )
-    //
-    //     expect(result).toEqual([
-    //       {
-    //         userActive: null,
-    //         userAvatar: null,
-    //         userEmail: 'new@foo',
-    //         userId: 1,
-    //         userName: 'user-a',
-    //       },
-    //     ])
-    //
-    //     expect(
-    //       (await queryUsers([1, 2, 3])).map((u: any) => ({
-    //         userId: u.userId,
-    //         userEmail: u.userEmail,
-    //       })),
-    //     ).toEqual([
-    //       {
-    //         userEmail: 'new@foo',
-    //         userId: 1,
-    //       },
-    //       {
-    //         userEmail: 'c@user',
-    //         userId: 2,
-    //       },
-    //       {
-    //         userEmail: 'b@user',
-    //         userId: 3,
-    //       },
-    //     ])
-    //   })
-    //
-    //   test('with whereIn', async () => {
-    //     const result = await query(users)
-    //       .whereIn(users.userId, 'ids')
-    //       .update(
-    //         client,
-    //         { ids: [1, 2] }, // update params
-    //         {
-    //           userEmail: 'new@foo',
-    //           userActive: new Date('2023-03-03'),
-    //         },
-    //       )
-    //
-    //     expect(result).toEqual([
-    //       {
-    //         userActive: new Date('2023-03-03'),
-    //         userAvatar: null,
-    //         userEmail: 'new@foo',
-    //         userId: 1,
-    //         userName: 'user-a',
-    //       },
-    //       {
-    //         userActive: new Date('2023-03-03'),
-    //         userAvatar: null,
-    //         userEmail: 'new@foo',
-    //         userId: 2,
-    //         userName: 'user-c',
-    //       },
-    //     ])
-    //
-    //     expect(
-    //       (await queryUsers([1, 2, 3])).map((u: any) => ({
-    //         userId: u.userId,
-    //         userEmail: u.userEmail,
-    //       })),
-    //     ).toEqual([
-    //       {
-    //         userEmail: 'new@foo',
-    //         userId: 1,
-    //       },
-    //       {
-    //         userEmail: 'new@foo',
-    //         userId: 2,
-    //       },
-    //       {
-    //         userEmail: 'b@user',
-    //         userId: 3,
-    //       },
-    //     ])
-    //   })
-    //
-    //   test('with whereEq and anyParam', async () => {
-    //     const result = await query(users)
-    //       .whereEq(users.userId, 'id')
-    //       .update(
-    //         client,
-    //         { id: query.anyParam }, // update params
-    //         {
-    //           userEmail: 'x',
-    //         },
-    //       )
-    //
-    //     expect(result.map(r => r.userId).sort()).toEqual([1, 2, 3])
-    //     expect(result.map(r => r.userEmail)).toEqual(['x', 'x', 'x'])
-    //   })
-    //
-    //   test('with whereIn and ANY_PARAM', async () => {
-    //     const result = await query(users)
-    //       .whereIn(users.userId, 'ids')
-    //       .update(
-    //         client,
-    //         { ids: query.anyParam }, // update params
-    //         {
-    //           userEmail: 'y',
-    //         },
-    //       )
-    //
-    //     expect(result.map(r => r.userId).sort()).toEqual([1, 2, 3])
-    //     expect(result.map(r => r.userEmail)).toEqual(['y', 'y', 'y'])
-    //   })
-    //
-    //   test('with custom returning', async () => {
-    //     const result = await query(users.select('userEmail'))
-    //       .whereEq(users.userId, 'id')
-    //       .update(
-    //         client,
-    //         { id: 1 }, // update params
-    //         {
-    //           userEmail: 'new@foo',
-    //         },
-    //       )
-    //
-    //     expect(result).toEqual([
-    //       {
-    //         userEmail: 'new@foo',
-    //       },
-    //     ])
-    //   })
-    //
-    //   test('many rows', async () => {
-    //     const result = await query(users.select('userId', 'userEmail')).update(
-    //       client,
-    //       {},
-    //       {
-    //         userEmail: 'all@foo',
-    //       },
-    //     )
-    //
-    //     expect(result).toEqual([
-    //       { userId: 1, userEmail: 'all@foo' },
-    //       { userId: 2, userEmail: 'all@foo' },
-    //       { userId: 3, userEmail: 'all@foo' },
-    //     ])
-    //   })
-    //
-    //   test('set null', async () => {
-    //     const result = await query(users.select('userAvatar'))
-    //       .whereEq(users.userId, 'id')
-    //       .update(
-    //         client,
-    //         { id: 3 },
-    //         {
-    //           userAvatar: null,
-    //         },
-    //       )
-    //
-    //     expect(result).toEqual([{ userAvatar: null }])
-    //   })
-    //
-    //   test('data validation', async () => {
-    //     // it should call the columns validation function before inserting the data
-    //     // this starts getting useful when inserting json data and arrays!
-    //     await expect(
-    //       query(users.select('userAvatar'))
-    //         .whereEq(users.userId, 'id')
-    //         .update(client, { id: 1 }, {
-    //           userEmail: 123,
-    //         } as any),
-    //     ).rejects.toThrow(
-    //       'validation failed for column "userEmail" at row number 0 with: "column email - expected a string but got: 123"',
-    //     )
-    //   })
-    //
-    //   test('json is stringified before being passed into the query', async () => {
-    //     // 1. insert something
-    //     const insertResult = await query(jsonAnyTable).insertOne(client, {
-    //       value: 'foo',
-    //     })
-    //
-    //     expect(insertResult.value).toEqual('foo')
-    //
-    //     // update it
-    //
-    //     const updateResult = await query(jsonAnyTable)
-    //       .whereEq(jsonAnyTable.id, 'id')
-    //       .update(
-    //         client,
-    //         { id: insertResult.id },
-    //         {
-    //           value: '{}',
-    //         },
-    //       )
-    //
-    //     expect(updateResult).toEqual([expect.objectContaining({ value: '{}' })])
-    //   })
-    //
-    //   test('empty update', async () => {
-    //     const res = await query(users)
-    //       .whereEq(users.userId, 'id')
-    //       .update(client, { id: 1 }, {})
-    //
-    //     expect(res).toEqual([])
-    //   })
-    //
-    //   test('update with whereSql', async () => {
-    //     const result = await query(users.select('userId', 'userEmail'))
-    //       .whereSql(sql`${users.userId} > ${sql.number('id')}`)
-    //       .update(
-    //         client,
-    //         { id: 1 }, // update params
-    //         {
-    //           userEmail: 'new@foo',
-    //         },
-    //       )
-    //
-    //     expect(result.sort((a, b) => a.userId - b.userId)).toEqual([
-    //       {
-    //         userId: 2,
-    //         userEmail: 'new@foo',
-    //       },
-    //       {
-    //         userId: 3,
-    //         userEmail: 'new@foo',
-    //       },
-    //     ])
-    //   })
-    // })
-    //
-    // describe('updateOne', () => {
-    //   test('updates', async () => {
-    //     const result = await query(users.select('userName', 'userEmail'))
-    //       .whereEq(users.userId, 'id')
-    //       .updateOne(
-    //         client,
-    //         { id: 1 }, // update params
-    //         {
-    //           userEmail: 'new@foo',
-    //         },
-    //       )
-    //
-    //     expect(result).toEqual([
-    //       {
-    //         userEmail: 'new@foo',
-    //         userName: 'user-a',
-    //       },
-    //     ])
-    //
-    //     expect(
-    //       (await queryUsers([1, 2, 3])).map((u: any) => ({
-    //         userId: u.userId,
-    //         userEmail: u.userEmail,
-    //       })),
-    //     ).toEqual([
-    //       {
-    //         userEmail: 'new@foo',
-    //         userId: 1,
-    //       },
-    //       {
-    //         userEmail: 'c@user',
-    //         userId: 2,
-    //       },
-    //       {
-    //         userEmail: 'b@user',
-    //         userId: 3,
-    //       },
-    //     ])
-    //   })
-    //
-    //   test('throws when updating more than 1 row', async () => {
-    //     // it throws ...
-    //     await expect(
-    //       query(users)
-    //         .whereIn(users.userId, 'ids')
-    //         .updateOne(
-    //           client,
-    //           { ids: [1, 2] }, // update params
-    //           {
-    //             userName: 'user-xx',
-    //           },
-    //         ),
-    //     ).rejects.toThrow(/expected at most one updated row/)
-    //
-    //     // ... *AFTER* the update is through
-    //     // To use this function you have to use transactions.
-    //     expect(
-    //       (await queryUsers([1, 2, 3])).map((u: any) => ({
-    //         userId: u.userId,
-    //         userName: u.userName,
-    //       })),
-    //     ).toEqual([
-    //       {
-    //         userName: 'user-xx',
-    //         userId: 1,
-    //       },
-    //       {
-    //         userName: 'user-xx',
-    //         userId: 2,
-    //       },
-    //       {
-    //         userName: 'user-b',
-    //         userId: 3,
-    //       },
-    //     ])
-    //   })
-    //
-    //   test('does not throw when updating 0 rows', async () => {
-    //     await expect(
-    //       query(users)
-    //         .whereIn(users.userId, 'ids')
-    //         .updateOne(
-    //           client,
-    //           { ids: [-123] },
-    //           {
-    //             userName: 'never-updated',
-    //           },
-    //         ),
-    //     ).resolves.toEqual([])
-    //   })
-    // })
-    //
-    // describe('updateExactlyOne', () => {
-    //   test('updates', async () => {
-    //     const result = await query(users.select('userName', 'userEmail'))
-    //       .whereEq(users.userId, 'id')
-    //       .updateExactlyOne(
-    //         client,
-    //         { id: 1 }, // update params
-    //         {
-    //           userEmail: 'new@foo',
-    //         },
-    //       )
-    //
-    //     expect(result).toEqual([
-    //       {
-    //         userEmail: 'new@foo',
-    //         userName: 'user-a',
-    //       },
-    //     ])
-    //
-    //     expect(
-    //       (await queryUsers([1, 2, 3])).map((u: any) => ({
-    //         userId: u.userId,
-    //         userEmail: u.userEmail,
-    //       })),
-    //     ).toEqual([
-    //       {
-    //         userEmail: 'new@foo',
-    //         userId: 1,
-    //       },
-    //       {
-    //         userEmail: 'c@user',
-    //         userId: 2,
-    //       },
-    //       {
-    //         userEmail: 'b@user',
-    //         userId: 3,
-    //       },
-    //     ])
-    //   })
-    //
-    //   test('throws when updating more than 1 row', async () => {
-    //     // it throws ...
-    //     await expect(
-    //       query(users)
-    //         .whereIn(users.userId, 'ids')
-    //         .updateExactlyOne(
-    //           client,
-    //           { ids: [2, 3] }, // update params
-    //           {
-    //             userName: 'user-xx',
-    //           },
-    //         ),
-    //     ).rejects.toThrow(/expected exactly one updated row/)
-    //
-    //     // ... *AFTER* the update is through
-    //     // To use this function you have to use transactions.
-    //     expect(
-    //       (await queryUsers([1, 2, 3])).map((u: any) => ({
-    //         userId: u.userId,
-    //         userName: u.userName,
-    //       })),
-    //     ).toEqual([
-    //       {
-    //         userName: 'user-a',
-    //         userId: 1,
-    //       },
-    //       {
-    //         userName: 'user-xx',
-    //         userId: 2,
-    //       },
-    //       {
-    //         userName: 'user-xx',
-    //         userId: 3,
-    //       },
-    //     ])
-    //   })
-    //
-    //   test('throws when updating 0 rows', async () => {
-    //     await expect(
-    //       query(users)
-    //         .whereIn(users.userId, 'ids')
-    //         .updateExactlyOne(
-    //           client,
-    //           { ids: [-123] },
-    //           {
-    //             userName: 'never-updated',
-    //           },
-    //         ),
-    //     ).rejects.toThrow(/expected exactly one updated row/)
-    //   })
+    test('with column data', async () => {
+      const res = await query
+        .update(Systems)
+        .data('data', Systems.include('name', 'year'))
+        .execute(client, { data: { name: 'SEGA', year: 1990 } })
+
+      expect(res).toEqual(undefined)
+      expect(
+        await query(Systems)
+          .select(Systems.include('name', 'year'))
+          .fetch(client),
+      ).toEqual([
+        { name: 'SEGA', year: 1990 },
+        { name: 'SEGA', year: 1990 },
+        { name: 'SEGA', year: 1990 },
+        { name: 'SEGA', year: 1990 },
+        { name: 'SEGA', year: 1990 },
+        { name: 'SEGA', year: 1990 },
+        { name: 'SEGA', year: 1990 },
+      ])
+    })
+
+    test('with column data and where and returning', async () => {
+      const res = await query
+        .update(Systems)
+        .data('data', Systems.include('name', 'year', 'manufacturerId'))
+        .where(({ eq }) => eq(Systems.name, 'syname'))
+        .returning(Systems.all())
+        .execute(client, {
+          syname: 'Sega',
+          data: { name: 'SEGA', year: 1990, manufacturerId: 2 },
+        })
+
+      // new row contains 'SEGA' as the name, which does not match the 'Sega'
+      // filter, hence an empty list
+      expect(res).toEqual([])
+    })
+
+    test('with set and returning', async () => {
+      const res = await query
+        .update(Manufacturers)
+        .set('name', ({ caseWhen, literal, eq }) =>
+          caseWhen(
+            [eq(Manufacturers.name, literal('Sega')), literal('sega')],
+            literal('non-sega'),
+          ),
+        )
+        .returning(Manufacturers.include('id', 'name'))
+        .execute(client)
+
+      // new row contains 'SEGA' as the name, which does not match the 'Sega'
+      // filter, hence an empty list
+      expect(res).toEqual([
+        { id: 1, name: 'sega' },
+        { id: 2, name: 'non-sega' },
+        { id: 3, name: 'non-sega' },
+      ])
+    })
+
+    test.each`
+      ids                | expected              | error
+      ${[1]}             | ${1}                  | ${null}
+      ${[1, 2]}          | ${2}                  | ${null}
+      ${[1, 2]}          | ${1}                  | ${"query.update: table 'classicgames.systems' - expected to update exactly 1 rows but got 2 instead."}
+      ${[]}              | ${1}                  | ${"query.update: table 'classicgames.systems' - expected to update exactly 1 rows but got 0 instead."}
+      ${[2]}             | ${{ min: 1, max: 1 }} | ${null}
+      ${[2, 4]}          | ${{ min: 1, max: 1 }} | ${"query.update: table 'classicgames.systems' - expected to update no more than 1 rows but got 2 instead."}
+      ${[1, 2, 3, 4]}    | ${{ min: 3, max: 4 }} | ${null}
+      ${[1, 2, 4]}       | ${{ min: 3, max: 4 }} | ${null}
+      ${[2, 4]}          | ${{ min: 3, max: 4 }} | ${"query.update: table 'classicgames.systems' - expected to update no less than 3 rows but got 2 instead."}
+      ${[2, 4, 1, 3, 5]} | ${{ min: 3 }}         | ${null}
+      ${[2, 4]}          | ${{ min: 3 }}         | ${"query.update: table 'classicgames.systems' - expected to update no less than 3 rows but got 2 instead."}
+      ${[]}              | ${{ max: 1 }}         | ${null}
+      ${[2, 4]}          | ${{ max: 1 }}         | ${"query.update: table 'classicgames.systems' - expected to update no more than 1 rows but got 2 instead."}
+    `('expectUpdatedRowCount $expected', ({ ids, expected, error }) => {
+      const q = query
+        .update(Systems)
+        .set('name', ({ literal }) => literal('an old console'))
+        .where(({ isIn }) => isIn(Systems.id, 'ids'))
+        .returning(Systems.include('id'))
+
+      if (error === null) {
+        expect(
+          q.expectUpdatedRowCount(expected).execute(client, { ids }),
+        ).resolves.toEqual(
+          expect.arrayContaining(ids.map((id: number) => ({ id }))),
+        )
+      } else {
+        expect(
+          q.expectUpdatedRowCount(expected).execute(client, { ids }),
+        ).rejects.toThrow(error)
+      }
+    })
   })
 })

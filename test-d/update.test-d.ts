@@ -4,26 +4,26 @@ import { Update } from '../src/types'
 import { client } from './helpers'
 import { Devices, GamesSystems, Systems } from './helpers/classicGames'
 
-function updateParams<X>(t: Update<any, X, any>): X {
+function updateParams<X extends {}>(t: Update<any, X, any>): X {
   return {} as any
 }
 
-function updateResult<X>(t: Update<any, any, X>): X {
+function updateResult<X extends {}>(t: Update<any, any, X>): X {
   return {} as any
 }
 
 {
   // data parameter only
-  const q = query.update(Systems).setDataParameter('data')
+  const q = query.update(Systems).data('data', Systems.include('name'))
 
-  expectType<{ data: Partial<TableRow<typeof Systems>> }>(updateParams(q))
+  expectType<{ data: { name: string } }>(updateParams(q))
   expectType<{}>(updateResult(q))
   expectType<Promise<void>>(q.execute(client, { data: { name: '-' } }))
 
   expectError(
     query
       .update(Systems)
-      .setDataParameter('data')
+      .data('data', Systems.include('name'))
       // incorrect parameter name
       .execute(client, { name: '-' }),
   )
@@ -31,9 +31,9 @@ function updateResult<X>(t: Update<any, any, X>): X {
   expectError(
     query
       .update(Systems)
-      .setDataParameter('data')
+      .data('data', Systems.include('name'))
       // correct parameter name but incorrect column type
-      .execute(client, { data: { id: 'foobar' } }),
+      .execute(client, { data: { name: 12 } }),
   )
 }
 
@@ -41,12 +41,10 @@ function updateResult<X>(t: Update<any, any, X>): X {
   // data parameter and where filter
   const q = query
     .update(Systems)
-    .setDataParameter('data')
+    .data('data', Systems.include('name'))
     .where(({ eq }) => eq(Systems.id, 'id'))
 
-  expectType<{ id: number } & { data: Partial<TableRow<typeof Systems>> }>(
-    updateParams(q),
-  )
+  expectType<{ id: number } & { data: { name: string } }>(updateParams(q))
   expectType<{}>(updateResult(q))
   expectType<Promise<void>>(
     q.execute(client, { id: 1, data: { name: 'MASTER SYSTEM' } }),

@@ -6,11 +6,9 @@ import {
 import {
   DatabaseClient,
   DatabaseEscapeFunctions,
-  Expression,
   QueryBottom,
   QueryRoot,
   RowLockMode,
-  Selection,
   Table,
 } from '../types'
 import { formatValues } from '../utils'
@@ -34,15 +32,14 @@ import {
   isSelectionImplementation,
   table as tableConstructor,
 } from './table'
+import { UpdateImplementation } from './update'
 
 type AnyQueryBottom = QueryBottom<any, any, any, any, any>
 type AnyTable = Table<any, any> & {
   getTableImplementation(): TableImplementation
 }
-type AnyExpression = Expression<any, any, any, any>
 type AnyExpressionCallback = (e: ExprFactImpl) => ExprImpl
 type AnySubqueryCallback = (e: ExprFactImpl['subquery']) => QueryImplementation
-type AnySelection = Selection<any, any>
 
 function resolveSelections(
   tables: TableImplementation[],
@@ -507,9 +504,9 @@ export const query: QueryRoot = function query(table: any) {
 query.DEFAULT = InsertIntoImplementation.DEFAULT as any
 query.insertInto = InsertIntoImplementation.create as any
 query.insertStatement = InsertStatementImplementation.create as any
+query.update = UpdateImplementation.create as any
 
 // TODO:
-query.update = {} as any
 query.deleteFrom = {} as any
 query.union = {} as any
 query.unionAll = {} as any

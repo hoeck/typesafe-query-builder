@@ -259,6 +259,29 @@ export class TableImplementation {
     }
   }
 
+  // the expression for use in update .. set and inserts where the colname
+  // must not be aliased
+  getColumnExprWithoutAlias(name: string): ExprImpl {
+    const col = this.tableColumns[name]
+
+    if (col === undefined) {
+      throw new QueryBuilderAssertionError(
+        `column ${formatValues(name)} does not exist on table ${formatValues(
+          this.tableName,
+        )}`,
+      )
+    }
+
+    return {
+      exprTokens: [
+        {
+          type: 'sqlIdentifier',
+          value: col.name,
+        },
+      ],
+    }
+  }
+
   // serving the actual Table
   getTableProxy(): Table<any, any> {
     return new Proxy(this, {

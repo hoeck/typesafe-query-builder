@@ -6,31 +6,32 @@ import { NarrowDiscriminatedUnion } from './queryBottom'
 /**
  * SQL UPDATE statement builder.
  */
-export declare class Update<T, P = {}, S = {}> {
+export declare class Update<T, P extends {} = {}, S extends {} = {}> {
   protected __updateTable: T
   protected __updateParams: P
   protected __updateReturning: S
 
   /**
-   * Define the parameter name that adds "colname: value" pairs to the `SET` clause.
+   * The parameter name that adds "colname: value" pairs to the `SET` clause.
    */
-  setDataParameter<N extends string>(
+  data<N extends string, PS>(
     paramKey: N,
-  ): Update<T, P & { [K in N]: Partial<RemoveTableName<T>> }, S>
+    selection: Selection<T, PS>,
+  ): Update<T, P & { [K in N]: PS }, S>
 
   /**
    * Define a single expression added to the `SET` clause for the update.
    */
   set<K extends keyof T, EP extends {}>(
     columnName: K,
-    expression: (e: ExpressionFactory<T>) => Expression<T[K], T, EP, any>,
+    expression: (f: ExpressionFactory<T>) => Expression<T[K], T, EP, any>,
   ): Update<T, P & EP, S>
 
   /**
    * Use an Expression as the where clause.
    */
   where<EP extends {}>(
-    e: (b: ExpressionFactory<T>) => Expression<boolean | null, T, EP, any>,
+    e: (f: ExpressionFactory<T>) => Expression<boolean | null, T, EP, any>,
   ): Update<T, P & EP, S>
 
   /**
@@ -43,7 +44,7 @@ export declare class Update<T, P = {}, S = {}> {
     Vals extends T[Key],
     NarrowedTable extends NarrowDiscriminatedUnion<T, Key, Vals>,
     P1 extends {},
-    S1,
+    S1 extends {},
   >(
     key: Key,
     values: Vals | Vals[],
@@ -70,7 +71,17 @@ export declare class Update<T, P = {}, S = {}> {
   /**
    * Specify a RETURNING clause.
    */
-  returning<S>(selection: Selection<T, S>): Update<T, P, S>
+  returning<S extends {}>(selection: Selection<T, S>): Update<T, P, S>
+
+  /**
+   * Return the generated sql string.
+   */
+  sql: (client: DatabaseClient, params?: P) => string
+
+  /**
+   * Log the generated sql string to the console.
+   */
+  sqlLog: (client: DatabaseClient, params?: P) => Update<T, P, S>
 
   /**
    * Perform the update.
