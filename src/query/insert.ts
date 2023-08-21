@@ -184,7 +184,7 @@ export class InsertIntoImplementation {
     for (let i = 0; i < names.length; i++) {
       const n = names[i]
 
-      sql.push({ type: 'sqlIdentifier', value: this.__table.getColumn(n).name })
+      sql.push(...this.__table.getColumnExprWithoutAlias(n).exprTokens)
 
       if (i < names.length - 1) {
         sql.push(',', sqlNewline)
