@@ -26,16 +26,14 @@ import {
   getTableImplementation,
 } from './table'
 
-export class UpdateImplementation {
+export class DeleteImplementation {
   static create(t: Table<any, any>) {
     const ti = getTableImplementation(t)
 
-    return new UpdateImplementation(ti)
+    return new DeleteImplementation(ti)
   }
 
   private __table: TableImplementation
-  private __data?: { paramKey: string; selection: SelectionImplementation }
-  private __setExprs: { colname: string; expr: ExprImpl }[] = []
   private __whereExprs: ExprImpl[] = []
   private __expectedRowCount?: number | { min?: number; max?: number }
   private __returning?: SelectionImplementation
@@ -44,56 +42,18 @@ export class UpdateImplementation {
     this.__table = table
   }
 
-  data(paramKey: string, selection: SelectionImplementation) {
-    if (this.__data !== undefined) {
-      throw new QueryBuilderUsageError(
-        'query.update:a data() parameter should only be set once',
-      )
-    }
-
-    this._checkNonDataParameterName(paramKey)
-
-    this.__data = { paramKey, selection }
-
-    return this
-  }
-
-  set(colname: string, cb: (f: ExprFactImpl) => ExprImpl) {
-    const expr = cb(new ExprFactImpl([this.__table]))
-
-    createSql(
-      { escapeIdentifier: (x) => x, escapeLiteral: (x) => x },
-      expr.exprTokens,
-    ).parameters.forEach((p) => this._checkNonDataParameterName(p))
-
-    this.__setExprs.push({ colname, expr })
-
-    return this
-  }
-
   where(cb: (f: ExprFactImpl) => ExprImpl) {
-    const expr = cb(new ExprFactImpl([this.__table]))
-
-    createSql(
-      { escapeIdentifier: (x) => x, escapeLiteral: (x) => x },
-      expr.exprTokens,
-    ).parameters.forEach((p) => this._checkNonDataParameterName(p))
-
-    this.__whereExprs.push(expr)
+    this.__whereExprs.push(cb(new ExprFactImpl([this.__table])))
 
     return this
   }
 
-  narrow() {
-    throw new QueryBuilderAssertionError('TODO')
-  }
-
-  expectUpdatedRowCount(
+  expectDeletedRowCount(
     exactCountOrRange: number | { min?: number; max?: number },
   ) {
     if (this.__expectedRowCount !== undefined) {
       throw new QueryBuilderUsageError(
-        'query.update: expectUpdatedRowCount() should only be called once',
+        'query.delete: expectDeletedRowCount() should only be called once',
       )
     }
 
@@ -117,20 +77,6 @@ export class UpdateImplementation {
 
     const tokensWithParameterValues = tokens.map((t): typeof t => {
       if (typeof t !== 'string' && t.type === 'sqlParameter') {
-        if (this._isDataParameterName(t.parameterName)) {
-          if (!this.__data) {
-            throw new QueryBuilderAssertionError('expected __data to be set')
-          }
-
-          return {
-            type: 'sqlLiteral',
-            value:
-              params[this.__data.paramKey][
-                this._extractDataParameterName(t.parameterName)
-              ],
-          }
-        }
-
         return { type: 'sqlLiteral', value: params[t.parameterName] }
       }
 
@@ -160,26 +106,16 @@ export class UpdateImplementation {
 
     const result = await client.query(
       sql,
-      parameters.map((p) => {
-        if (this._isDataParameterName(p)) {
-          if (!this.__data) {
-            throw new QueryBuilderAssertionError('expected __data to be set')
-          }
-
-          return params[this.__data.paramKey][this._extractDataParameterName(p)]
-        } else {
-          return params[p]
-        }
-      }),
+      parameters.map((p) => params[p]),
     )
 
     if (this.__expectedRowCount !== undefined) {
       if (typeof this.__expectedRowCount === 'number') {
         if (result.rowCount !== this.__expectedRowCount) {
           throw new QueryBuilderResultError(
-            `query.update: table ${formatValues(
+            `query.delete: table ${formatValues(
               this.__table.tableName,
-            )} - expected to update exactly ${
+            )} - expected to delete exactly ${
               this.__expectedRowCount
             } rows but got ${result.rowCount} instead.`,
           )
@@ -190,9 +126,9 @@ export class UpdateImplementation {
           result.rowCount < this.__expectedRowCount.min
         ) {
           throw new QueryBuilderResultError(
-            `query.update: table ${formatValues(
+            `query.delete: table ${formatValues(
               this.__table.tableName,
-            )} - expected to update no less than ${
+            )} - expected to delete no less than ${
               this.__expectedRowCount.min
             } rows but got ${result.rowCount} instead.`,
           )
@@ -203,9 +139,9 @@ export class UpdateImplementation {
           result.rowCount > this.__expectedRowCount.max
         ) {
           throw new QueryBuilderResultError(
-            `query.update: table ${formatValues(
+            `query.delete: table ${formatValues(
               this.__table.tableName,
-            )} - expected to update no more than ${
+            )} - expected to delete no more than ${
               this.__expectedRowCount.max
             } rows but got ${result.rowCount} instead.`,
           )
@@ -220,81 +156,6 @@ export class UpdateImplementation {
     resultTransformer(result.rows)
 
     return result.rows
-  }
-
-  // as we put all parameters - data and where and set - into a single flat
-  // list, we need to prefix the data parameters and make sure they do not
-  // clash with where and set params
-  private _getDataParameterName(colName: string) {
-    return '_updateData_' + colName
-  }
-
-  private _isDataParameterName(paramName: string) {
-    return paramName.startsWith('_updateData_')
-  }
-
-  private _extractDataParameterName(paramName: string) {
-    return paramName.slice('_updateData_'.length)
-  }
-
-  private _checkNonDataParameterName(paramName: string) {
-    if (paramName.startsWith('_updateData_')) {
-      throw new QueryBuilderUsageError(
-        `query.update: parameter name (${formatValues(
-          paramName,
-        )}) must not start with ${formatValues('_updateData_')}`,
-      )
-    }
-  }
-
-  private _buildSetSql(): SqlToken[] {
-    const setClauses: SqlToken[][] = []
-
-    if (!this.__data && !this.__setExprs.length) {
-      throw new QueryBuilderUsageError(
-        'query.update: neither data() nor set() has been called before executing the update',
-      )
-    }
-
-    if (this.__data) {
-      const sel = this.__data.selection
-      const key = this.__data.paramKey
-
-      setClauses.push(
-        ...sel.getSelectedColumnNames().map((s): SqlToken[] => {
-          return [
-            ...this.__table.getColumnExprWithoutAlias(s).exprTokens,
-            sqlWhitespace,
-            '=',
-            sqlWhitespace,
-            {
-              type: 'sqlParameter',
-              parameterName: this._getDataParameterName(s),
-            },
-          ]
-        }),
-      )
-    }
-
-    setClauses.push(
-      ...this.__setExprs.map((e) => {
-        return [
-          ...this.__table.getColumnExprWithoutAlias(e.colname).exprTokens,
-          sqlWhitespace,
-          '=',
-          sqlWhitespace,
-          ...e.expr.exprTokens,
-        ]
-      }),
-    )
-
-    return [
-      'SET',
-      sqlIndent,
-      sqlNewline,
-      ...joinTokens(setClauses, [',', sqlNewline]),
-      sqlDedent,
-    ]
   }
 
   private _buildWhereSql() {
@@ -336,7 +197,7 @@ export class UpdateImplementation {
 
   private _buildSql(): SqlToken[] {
     return [
-      'UPDATE',
+      'DELETE FROM',
       sqlIndent,
       sqlNewline,
       { type: 'sqlTable', table: this.__table },
@@ -346,7 +207,6 @@ export class UpdateImplementation {
       { type: 'sqlTableAlias', table: this.__table },
       sqlDedent,
       sqlNewline,
-      ...this._buildSetSql(),
       ...this._buildWhereSql(),
       ...this._buildReturning(),
     ]

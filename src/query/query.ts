@@ -20,6 +20,7 @@ import {
   queryItemsToSqlTokens,
 } from './buildQuery'
 import { createSql } from './buildSql'
+import { DeleteImplementation } from './delete'
 import { ExprFactImpl } from './expressions'
 import { InsertIntoImplementation } from './insert'
 import { InsertStatementImplementation } from './insertStatement'
@@ -505,10 +506,18 @@ query.DEFAULT = InsertIntoImplementation.DEFAULT as any
 query.insertInto = InsertIntoImplementation.create as any
 query.insertStatement = InsertStatementImplementation.create as any
 query.update = UpdateImplementation.create as any
+query.deleteFrom = DeleteImplementation.create as any
 
 // TODO:
-query.deleteFrom = {} as any
-query.union = {} as any
-query.unionAll = {} as any
-query.with = {} as any
-query.withRecursive = {} as any
+query.union = () => {
+  throw new QueryBuilderUsageError('TODO')
+}
+query.unionAll = () => {
+  throw new QueryBuilderUsageError('TODO')
+}
+query.with = () => {
+  throw new QueryBuilderUsageError('TODO')
+}
+query.withRecursive = () => {
+  throw new QueryBuilderUsageError('TODO')
+}

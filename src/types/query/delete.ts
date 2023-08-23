@@ -37,6 +37,16 @@ export declare class Delete<T, P = {}, S = {}> {
   returning<S>(selection: Selection<T, S>): Delete<T, P, S>
 
   /**
+   * Return the generated sql string.
+   */
+  sql: (client: DatabaseClient, params?: P) => string
+
+  /**
+   * Log the generated sql string to the console.
+   */
+  sqlLog: (client: DatabaseClient, params?: P) => Delete<T, P, S>
+
+  /**
    * Perform the delete.
    */
   execute: {} extends P

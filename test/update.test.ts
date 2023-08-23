@@ -73,6 +73,7 @@ describe('update', () => {
     test.each`
       ids                | expected              | error
       ${[1]}             | ${1}                  | ${null}
+      ${[1, 1, 1]}       | ${1}                  | ${null}
       ${[1, 2]}          | ${2}                  | ${null}
       ${[1, 2]}          | ${1}                  | ${"query.update: table 'classicgames.systems' - expected to update exactly 1 rows but got 2 instead."}
       ${[]}              | ${1}                  | ${"query.update: table 'classicgames.systems' - expected to update exactly 1 rows but got 0 instead."}
