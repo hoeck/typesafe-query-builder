@@ -202,8 +202,8 @@ and other properties:
 - `.primary()` - the column is (a part of) the primary key of this table, not used at the moment in types, use it to document your schema.
 - `.default()` - the column has a default value, you can use undefined or query.DEFAULT in insert statements. In contrast to sql, `null()` columns are not automatically defaulting to null.
 - `.null()` - in addition to its type, the column may also be `null`.
-- `.cast()` - define a custom SQL cast to string and json function to turn a string into a value, achieves transparent JSON selects of non-JSON datatypes such das Date.
-- `.sqlType()` - explicitly set an SQL column type for introspection purposes
+- `.cast()` - define a custom SQL cast to string and json function to turn a string into a value (to achieve transparent JSON selects of non-JSON datatypes such das Date).
+- `.sqlType()` - explicitly set an SQL column type (for introspection purposes)
 
 #### Custom Column Types
 
@@ -230,6 +230,8 @@ const Items = table('items', {
     // ...
 })
 ```
+
+Works best with any runtype library, see https://github.com/moltar/typescript-runtime-type-benchmarks for a list.
 
 ### Querying Basics
 
