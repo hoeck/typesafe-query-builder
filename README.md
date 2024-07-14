@@ -941,6 +941,10 @@ The exact error depends on your validation/runtype implementation.
 * [Typetta](https://github.com/twinlogix/typetta)
   - full support for typed joins, projections
   - uses GraphQL to model the schema
+* [Drizzle](https://orm.drizzle.team/)
+  - provides a typesafe query builder and a classic findEntities like interface
+  - complete with migration support and CRUD handling
+  - zero deps
 
 ### Related Reddit Threads
 
