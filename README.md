@@ -7,42 +7,42 @@ Create and fetch PostgresSQL selects, joins and JSON aggregations and let Typesc
 - [Install](#install)
 - [Example](#example)
 - [Documentation](#documentation)
-  * [Schema](#schema)
-  * [Tables](#tables)
-    + [`table(sqlTableName: string, columns: {[name: string]: Column})`](#tablesqltablename-string-columns-name-string-column)
-  * [Columns](#columns)
-    + [`column(sqlName: string): Column`](#columnsqlname-string-column)
-  * [Custom Column Types](#custom-column-types)
-  * [Querying Basics](#querying-basics)
-  * [Fetching](#fetching)
-    + [`async query.fetch(client, [params])`](#async-queryfetchclient-params)
-    + [`async query.fetchOne(client, [params])`](#async-queryfetchoneclient-params)
-    + [`async query.fetchExactlyOne(client, [params])`](#async-queryfetchexactlyoneclient-params)
-    + [`query.sql()`](#querysql)
-    + [`async query.explain(client, [params])`](#async-queryexplainclient-params)
-  * [Joining Tables](#joining-tables)
-  * [JSON Aggregations (Join directly into JSON)](#json-aggregations-join-directly-into-json)
-  * [Selecting Columns](#selecting-columns)
-    + [`table.select(...columnNames: (keyof Table)[])`](#tableselectcolumnnames-keyof-table)
-    + [`table.selectWithout(...columnNames: (keyof Table)[])`](#tableselectwithoutcolumnnames-keyof-table)
-    + [`table.selectAs({existingColumnName: newColumnName})`](#tableselectasexistingcolumnname-newcolumnname)
-    + [`table.selectAsJson(jsonKey)`](#tableselectasjsonjsonkey)
-  * [Where Conditions](#where-conditions)
-    + [`query.whereEq(column, parameterKey)`](#querywhereeqcolumn-parameterkey)
-    + [`query.whereIn(column, parameterKey)`](#querywhereincolumn-parameterkey)
-    + [`query.whereSql(...sqlFragment[])`](#querywheresqlsqlfragment)
-  * [Order By, Limit, Offset, Locks](#order-by-limit-offset-locks)
-    + [`.orderBy(column, [direction, [nulls]])`](#orderbycolumn-direction-nulls)
-    + [`.limit(count)`](#limitcount)
-    + [`.offset(count)`](#offsetcount)
-    + [`.lock(lockMode: 'update' | 'share' | 'none')`](#locklockmode-update--share--none)
-    + [`.lockParam(paramKey: string)`](#lockparamparamkey-string)
-  * [Updates and Inserts](#updates-and-inserts)
-    + [Untrusted data](#untrusted-data)
-    + [`async query.insert(client, data)`](#async-queryinsertclient-data)
-    + [`async query.insertOne(client, data)`](#async-queryinsertoneclient-data)
-    + [`async query.update(client, parameterValues, data)`](#async-queryupdateclient-parametervalues-data)
-    + [JSON Columns](#json-columns)
+  - [Schema](#schema)
+  - [Tables](#tables)
+    - [`table(sqlTableName: string, columns: {[name: string]: Column})`](#tablesqltablename-string-columns-name-string-column)
+  - [Columns](#columns)
+    - [`column(sqlName: string): Column`](#columnsqlname-string-column)
+  - [Custom Column Types](#custom-column-types)
+  - [Querying Basics](#querying-basics)
+  - [Fetching](#fetching)
+    - [`async query.fetch(client, [params])`](#async-queryfetchclient-params)
+    - [`async query.fetchOne(client, [params])`](#async-queryfetchoneclient-params)
+    - [`async query.fetchExactlyOne(client, [params])`](#async-queryfetchexactlyoneclient-params)
+    - [`query.sql()`](#querysql)
+    - [`async query.explain(client, [params])`](#async-queryexplainclient-params)
+  - [Joining Tables](#joining-tables)
+  - [JSON Aggregations (Join directly into JSON)](#json-aggregations-join-directly-into-json)
+  - [Selecting Columns](#selecting-columns)
+    - [`table.select(...columnNames: (keyof Table)[])`](#tableselectcolumnnames-keyof-table)
+    - [`table.selectWithout(...columnNames: (keyof Table)[])`](#tableselectwithoutcolumnnames-keyof-table)
+    - [`table.selectAs({existingColumnName: newColumnName})`](#tableselectasexistingcolumnname-newcolumnname)
+    - [`table.selectAsJson(jsonKey)`](#tableselectasjsonjsonkey)
+  - [Where Conditions](#where-conditions)
+    - [`query.whereEq(column, parameterKey)`](#querywhereeqcolumn-parameterkey)
+    - [`query.whereIn(column, parameterKey)`](#querywhereincolumn-parameterkey)
+    - [`query.whereSql(...sqlFragment[])`](#querywheresqlsqlfragment)
+  - [Order By, Limit, Offset, Locks](#order-by-limit-offset-locks)
+    - [`.orderBy(column, [direction, [nulls]])`](#orderbycolumn-direction-nulls)
+    - [`.limit(count)`](#limitcount)
+    - [`.offset(count)`](#offsetcount)
+    - [`.lock(lockMode: 'update' | 'share' | 'none')`](#locklockmode-update--share--none)
+    - [`.lockParam(paramKey: string)`](#lockparamparamkey-string)
+  - [Updates and Inserts](#updates-and-inserts)
+    - [Untrusted data](#untrusted-data)
+    - [`async query.insert(client, data)`](#async-queryinsertclient-data)
+    - [`async query.insertOne(client, data)`](#async-queryinsertoneclient-data)
+    - [`async query.update(client, parameterValues, data)`](#async-queryupdateclient-parametervalues-data)
+    - [JSON Columns](#json-columns)
 - [Design Decisions / Opinions](#design-decisions--opinions)
 - [Roadmap / Todos](#roadmap--todos)
 - [Local Development](#local-development)
@@ -98,7 +98,7 @@ import { Users, Items } from './schema.ts'
 const usersWithItems = await query(Users)
   .join(Users.id, Items.userId)
   .whereEq(User.id, 'id')
-  .fetch(client, {id: 1})
+  .fetch(client, { id: 1 })
 
 console.log(usersWithItems)
 // => [
@@ -125,7 +125,7 @@ import { Users, Items } from './schema.ts'
 const usersWithItems = await query(Users)
   .join(Users.id, Items.selectAsJsonAgg('items').userId)
   .whereEq(User.id, 'id')
-  .fetch(client, {id: 1})
+  .fetch(client, { id: 1 })
 
 console.log(usersWithItems)
 // => [
@@ -169,9 +169,9 @@ Its up to you to organise the table variables, the easiest for smaller projects 
 import { table, column } from 'typesafe-query-builder'
 
 export const Users = table('users', {
-    id: column('id').integer().default(),
-    email: column('email').string(),
-    lastActive: column('last_active').date().default()
+  id: column('id').integer().default(),
+  email: column('email').string(),
+  lastActive: column('last_active').date().default(),
 })
 ```
 
@@ -183,19 +183,19 @@ Define a column and return it. `sqlName` is its name in the database.
 
 Use the following chaining methods to define its type:
 
-* `.integer()` - SQL `INTEGER`-like / typescript `number`
-* `.string()` - SQL `TEXT` / typescript `string`
-* `.boolean()` - SQL `BOOLEAN` / typescript `boolean`
-* `.date()` - SQL `TIMESTAMP`-like / typescript `Date`
-* `.json<T>(validator: (data: unknown) => T)` - Postgres JSON / typescript `T` - provide a runtype that validates the type of the data to be inserted into the JSON column
-* `.stringUnion(...elements)` - Typescript string literal union mapped to a Postgres `TEXT` column
-* `.enum(enumObject)` - Typescript Enum mapped to a Postgres `TEXT` or `INT` column
+- `.integer()` - SQL `INTEGER`-like / typescript `number`
+- `.string()` - SQL `TEXT` / typescript `string`
+- `.boolean()` - SQL `BOOLEAN` / typescript `boolean`
+- `.date()` - SQL `TIMESTAMP`-like / typescript `Date`
+- `.json<T>(validator: (data: unknown) => T)` - Postgres JSON / typescript `T` - provide a runtype that validates the type of the data to be inserted into the JSON column
+- `.stringUnion(...elements)` - Typescript string literal union mapped to a Postgres `TEXT` column
+- `.enum(enumObject)` - Typescript Enum mapped to a Postgres `TEXT` or `INT` column
 
 and other properties:
 
-* `.primary()` - the column is (a part of) the primary key of this table (required to generate correct group by statements for `selectAsJsonAgg` queries)
-* `.default()` - the column has a default value so it can be ommitted from insert statements
-* `.null()` - in addition to its type, the column may also be `null`
+- `.primary()` - the column is (a part of) the primary key of this table (required to generate correct group by statements for `selectAsJsonAgg` queries)
+- `.default()` - the column has a default value so it can be ommitted from insert statements
+- `.null()` - in addition to its type, the column may also be `null`
 
 ### Custom Column Types
 
@@ -239,7 +239,7 @@ Queries are immutable, every chained method returns a new object:
 ```typescript
 const usersQuery = query(Users)
 const firstUserQuery = usersQuery.limit(1)
-const secondUserQuery =  usersQuery.offset(1).limit(1)
+const secondUserQuery = usersQuery.offset(1).limit(1)
 ```
 
 To tell the query which column from which table to use in an e.g. orderBy, `TableColumnRef`s are used.
@@ -400,10 +400,9 @@ await userNamesQuery.fetch(client)
 As with sql, the columns which are not selected can still be used in join conditions, where conditions and inside order by:
 
 ```typescript
-const userItemsQuery = query(Users.select('name')).join(
-  Users.id,
-  Items.select('label').userId,
-).orderBy(Users.id)
+const userItemsQuery = query(Users.select('name'))
+  .join(Users.id, Items.select('label').userId)
+  .orderBy(Users.id)
 
 await userNamesQuery.fetch(client)
 // => [{name: 'user-1', label: 'item-1'}, ...]
@@ -414,7 +413,7 @@ await userNamesQuery.fetch(client)
 Rename one or more columns of a table in the result set. Does not change which columns are included.
 
 ```typescript
-const userNamesQuery = query(Users.selectAs({name: userName}))
+const userNamesQuery = query(Users.selectAs({ name: userName }))
 
 await userNamesQuery.fetch(client)
 // => [{id: 1, userName: 'user-1', ...}, ...]
@@ -425,7 +424,7 @@ To select and rename columns, combine it with `select`:
 ```typescript
 const userItemsQuery = query(Users.select('name')).join(
   Users.id,
-  Items.select('label').selectAs({label: 'itemLabel'} as const).userId,
+  Items.select('label').selectAs({ label: 'itemLabel' } as const).userId,
 )
 
 await userNamesQuery.fetch(client)
@@ -469,7 +468,7 @@ Append a `WHERE col = $parameter` condition to the query.
 ```typescript
 const userById = query(Users).whereEq(Users.id, 'idParam')
 
-await user.fetch(userById, {idParam: 1})
+await user.fetch(userById, { idParam: 1 })
 // => [{id: 1, ...}, ...]
 ```
 
@@ -478,7 +477,7 @@ Transparently switches to `IS NULL` if the parameter value is `null`
 ```typescript
 const usersQuery = query(Users).whereEq(Users.name, 'nameParam')
 
-await usersQuery.fetch(client, {nameParam: null})
+await usersQuery.fetch(client, { nameParam: null })
 // => [{name: null, ...}, ...]
 ```
 
@@ -500,10 +499,19 @@ const usersQuery = query(Users)
   .whereEq(Users.id, 'id')
   .whereEq(Users.removedAt, 'removedAt')
 
-const activeUser = await usersQuery.fetch(client, {id: 11, removedAt: null})
-const anyUser = await usersQuery.fetch(client, {id: 8, removedAt: query.anyParam})
-const allActiveUsers = await usersQuery.fetch(client, {id: query.anyParam, removedAt: null})
-const allUsers = await usersQuery.fetch(client, {id: query.anyParam, removedAt: query.anyParam})
+const activeUser = await usersQuery.fetch(client, { id: 11, removedAt: null })
+const anyUser = await usersQuery.fetch(client, {
+  id: 8,
+  removedAt: query.anyParam,
+})
+const allActiveUsers = await usersQuery.fetch(client, {
+  id: query.anyParam,
+  removedAt: null,
+})
+const allUsers = await usersQuery.fetch(client, {
+  id: query.anyParam,
+  removedAt: query.anyParam,
+})
 ```
 
 #### `query.whereIn(column, parameterKey)`
@@ -515,10 +523,9 @@ Actually, to keep the query builder simple and also compare `NULL` against `null
 Transparently handles `NULL`s similar to `whereEq`.
 
 ```typescript
-const usersQuery = query(Users)
-  .whereIn(Users.name, 'names')
+const usersQuery = query(Users).whereIn(Users.name, 'names')
 
-await usersQuery.fetch(client, {names: ['user-1', null, 'user-2']})
+await usersQuery.fetch(client, { names: ['user-1', null, 'user-2'] })
 // => [
 //   {name: 'user-1', ...},
 //   {name: 'user-2', ...},
@@ -535,42 +542,46 @@ Each tagged template may contain a single optional columns and a single optional
 For example, use a column and a parameter key for a `>`-condition:
 
 ```typescript
-import {query, sql} from 'typesafe-query-builder'
+import { query, sql } from 'typesafe-query-builder'
 
 const userQuery = query(Users)
   .whereSql(sql`${Users.id} > ${sql.number('id')}`)
   .orderBy(Users.id)
 
-await userQuery.fetch(client, {id: 10})
+await userQuery.fetch(client, { id: 10 })
 // => [{id: 11, ...}, {id: 12, ...}]
 ```
 
 Or get all users with name longer than `x` characters.
 
 ```typescript
-import {query, sql} from 'typesafe-query-builder'
+import { query, sql } from 'typesafe-query-builder'
 
-const userQuery = query(Users)
-  .whereSql(sql`LENGTH(${Users.name}) > ${sql.number('nameLength')}`)
+const userQuery = query(Users).whereSql(
+  sql`LENGTH(${Users.name}) > ${sql.number('nameLength')}`,
+)
 
-await userQuery.fetch(client, {nameLength: 10})
+await userQuery.fetch(client, { nameLength: 10 })
 // => [{name: 'very-long-user-name', ...}, ...]
 ```
 
 Up to 5 sql tagged templates can be combined into one condition:
 
 ```typescript
-import {query, sql} from 'typesafe-query-builder'
+import { query, sql } from 'typesafe-query-builder'
 
-const userQuery = query(Users)
-  .whereSql(
-    sql`(${Users.id} BETWEEN ${sql.number('lower')}`,
-    sql`AND ${sql.number('upper')}) OR `,
-    sql`${Users.name} IS NULL OR`,
-    sql`${Users.name} = ANY(${sql.stringArray('names')})`,
-  )
+const userQuery = query(Users).whereSql(
+  sql`(${Users.id} BETWEEN ${sql.number('lower')}`,
+  sql`AND ${sql.number('upper')}) OR `,
+  sql`${Users.name} IS NULL OR`,
+  sql`${Users.name} = ANY(${sql.stringArray('names')})`,
+)
 
-await userQuery.fetch(client, {lower: 5, upper: 10, names: ['user-a', 'user-b']})
+await userQuery.fetch(client, {
+  lower: 5,
+  upper: 10,
+  names: ['user-a', 'user-b'],
+})
 // => [{id: 5, ...}, ...]
 ```
 
@@ -631,7 +642,9 @@ import { Users } from './schema'
 const client = new Client()
 await client.connect()
 
-await query(Users.select('id')).insert(client, [pick(insertData, 'name', 'email')])
+await query(Users.select('id')).insert(client, [
+  pick(insertData, 'name', 'email'),
+])
 // => [{id: 1}, {id: 2}]
 ```
 
@@ -708,7 +721,7 @@ await client.connect()
 
 await query(Users.select('id')).insertOne(client, {
   name: 'user-1',
-  email: 'user-1@test.com'
+  email: 'user-1@test.com',
 })
 // => [{id: 1}]
 ```
@@ -716,7 +729,7 @@ await query(Users.select('id')).insertOne(client, {
 #### `async query.update(client, parameterValues, data)`
 
 Update rows in a table that match the given `where` conditions.
-If no `where` is used, update *all* rows in that table.
+If no `where` is used, update _all_ rows in that table.
 
 ```typescript
 import { Client } from 'pg'
@@ -746,12 +759,12 @@ await client.connect()
 
 await query(Users.select('id'))
   .whereEq(User.id, 'id')
-  .update(client, { id: 22 }, { preferences: {theme: 'dark' }})
+  .update(client, { id: 22 }, { preferences: { theme: 'dark' } })
 // => [{id: 22, ...}]
 
 await query(Users.select('id'))
   .whereEq(User.id, 'id')
-  .update(client, { id: 22 }, { preferences: {them: 'dark' }})
+  .update(client, { id: 22 }, { preferences: { them: 'dark' } })
 // => Error: invalid key 'them'
 ```
 
@@ -773,12 +786,14 @@ The exact error depends on your validation/runtype implementation.
   - it is too complicated and contains magic (causes an implicit group-by)
   - it is not composable: due to the group by, you can only have one json-agg per query
   - atm there is no way to get an aggregated array of scalars
-  -> replace with correlated subqueries - they don't have any of the downsides (maybe perf but I don't care about that right now)
+    -> replace with correlated subqueries - they don't have any of the downsides (maybe perf but I don't care about that right now)
 - publish simple insert and update methods that work with json objects which
   is useful in migration queries (writing that by hand is cumbersome and
   typeorm does not provide anything useful)
 - is is possible to change the way selection works?
+
   - instead of implicitly selecting on `join`, add a separate `select` method on the query:
+
   ```
       query
         .from(Table)
@@ -796,6 +811,7 @@ The exact error depends on your validation/runtype implementation.
     query.insertInto(Table).manyValues([{}, ...]) ??
     query.update(Table).whereEq().whereIn().set()
   ```
+
 - find a different way to "tag" columns with default values:
   - need that info really only for inserts on a raw, unjoined table
     - it gets in the way during all other queries
@@ -817,7 +833,7 @@ The exact error depends on your validation/runtype implementation.
   - and maybe:
     - `getRequiredTrait(record, ['field1', 'field2']) => {field1: val, field2: val} or throw new Error()`
     - `assertTrait(...)`
-- add `whereNotEq` *or* provide this via a parameter wrapper similar to `query.anyParam`, maybe:
+- add `whereNotEq` _or_ provide this via a parameter wrapper similar to `query.anyParam`, maybe:
   `query(Foo).whereEq(Foo.id, 'id').fetch(client, {id: query.not(null)})` evaluating to `where id is not null`
 - detect bad `orderBy`s, e.g order-by a column used in a json-agg
 - fix `query(Table.select()).update(...)` to not generate a broken, empty `RETURNING` clause
@@ -845,28 +861,30 @@ The exact error depends on your validation/runtype implementation.
 - add custom join conditions, maybe: `joinWhereSql` and `leftJoinWhereSql` similar to `whereSql`
   to do joins like `FROM left JOIN right ON left.id = right.id AND right.removedAt IS NULL`
 - implement SUBSELECTS for `where` like
-   ```
-   query(Users).whereIn(Users.id, query(Items).whereSql(`${Item.type} = 'A'`).table().userId)
-   query(Users).whereEq(Users.id, query(Items).whereSql(`${Item.type} = 'A'`).limit(1).table().userId)
-   ```
+  ```
+  query(Users).whereIn(Users.id, query(Items).whereSql(`${Item.type} = 'A'`).table().userId)
+  query(Users).whereEq(Users.id, query(Items).whereSql(`${Item.type} = 'A'`).limit(1).table().userId)
+  ```
 - derive runtypes from the table schema
 - add support for "first N items of group" joins via
   `CROSS/LEFT JOIN LATERAL (SELECT ... WHERE <lateral-join-condition> ORDER BY ... LIMIT ...) [ON true]`
   see the excellent answers of Mr. Brandstetter:
   - https://stackoverflow.com/questions/25536422/optimize-group-by-query-to-retrieve-latest-row-per-user/25536748#25536748
   - https://stackoverflow.com/questions/25957558/query-last-n-related-rows-per-row/25965393#25965393
-  for the user of the query builder it should look like a normal `.join` or
-  `.leftJoin` and also support `selectAsJson` and `selectAsJsonAgg`
+    for the user of the query builder it should look like a normal `.join` or
+    `.leftJoin` and also support `selectAsJson` and `selectAsJsonAgg`
 - add the table name (and maybe the alias too) to the table-type so that two identically-shaped tables will not be interchangeable in TS
 - add an `alias(aliasName): Table` method to `Table` to be able to use the same table many times in a query via an explicit alias
 - add `union` and `unionAll` for merging queries
 - add support for common table expressions (`WITH`), syntax idea:
+
 ```
     query
         .with(() => table1)
         .with((a) => table2.join(a))
         .with((a,b) => b.whereEq(x))
 ```
+
 - Documentation
   - utility types: `TableType`
   - subselects and nesting via `query.table`
@@ -902,50 +920,50 @@ The exact error depends on your validation/runtype implementation.
 
 ### Query Builders
 
-* [Zapatos](https://github.com/jawj/zapatos)
+- [Zapatos](https://github.com/jawj/zapatos)
   - write sql using template strings and typed schema objects for type inference.
   - developed into a library from [Mostly ORMLess](https://github.com/jawj/mostly-ormless/blob/master/README.md) by the same author
-* [tsql](https://github.com/AnyhowStep/tsql)
-* [MassiveJS](https://massivejs.org)
+- [tsql](https://github.com/AnyhowStep/tsql)
+- [MassiveJS](https://massivejs.org)
   - pg only
-* [Prisma 2](https://www.prisma.io)
-* [ts-typed-sql](https://github.com/phiresky/ts-typed-sql)
+- [Prisma 2](https://www.prisma.io)
+- [ts-typed-sql](https://github.com/phiresky/ts-typed-sql)
   - Unmaintained, 2018
-* [Mammoth](https://github.com/Ff00ff/mammoth)
+- [Mammoth](https://github.com/Ff00ff/mammoth)
   - covers every SQL feature (WITH, subqueries, JSON functions etc.)
-* [Vulcyn](https://github.com/travigd/vulcyn)
+- [Vulcyn](https://github.com/travigd/vulcyn)
   - like a really basic version of mammoth or this project
   - seems unmaintained
-* [PgTyped](https://github.com/adelsz/pgtyped)
+- [PgTyped](https://github.com/adelsz/pgtyped)
   - different (but awesome) approach: parse SQL queries in your code and
     generate types for them
-* [postguard](https://github.com/andywer/postguard)
+- [postguard](https://github.com/andywer/postguard)
   - derive the types from a generated schema
   - parse queries in the code from sql template tags and validate them
-* [typed-query-builder](https://github.com/ClickerMonkey/typed-query-builder)
+- [typed-query-builder](https://github.com/ClickerMonkey/typed-query-builder)
   - db-agnostic (atm. MS-SQL only) and its own in memory DB for testing
   - covers every SQL feature incl. functions, WITH, ...
-* [Kysely](https://github.com/koskimas/kysely)
+- [Kysely](https://github.com/koskimas/kysely)
   - tries to be a universal query builder
   - makes heavy use of typescript template literals (making it look similar to knex)
   - schema made up of plain typescript interfaces
   - db agnostic
-* [Crudely Typed](https://github.com/danvk/crudely-typed)
+- [Crudely Typed](https://github.com/danvk/crudely-typed)
   - relies on interfaces generated from the schema with [pg-to-ts](https://github.com/danvk/pg-to-ts)
 
 ### ORMs
 
-* [Orchid-ORM](https://github.com/romeerez/orchid-orm)
+- [Orchid-ORM](https://github.com/romeerez/orchid-orm)
   - flexible query builder using a mix of chaining methods and light usage of template literals
   - works on a predefined schema
-* [Typetta](https://github.com/twinlogix/typetta)
+- [Typetta](https://github.com/twinlogix/typetta)
   - full support for typed joins, projections
   - uses GraphQL to model the schema
-* [Drizzle](https://orm.drizzle.team/)
+- [Drizzle](https://orm.drizzle.team/)
   - provides a typesafe query builder and a classic findEntities like interface
   - complete with migration support and CRUD handling
   - zero deps
 
 ### Related Reddit Threads
 
-* [Orchid ORM Announcement] https://old.reddit.com/r/typescript/comments/10tdr30/announcing_a_new_typescript_orm/
+- [Orchid ORM Announcement] https://old.reddit.com/r/typescript/comments/10tdr30/announcing_a_new_typescript_orm/
