@@ -13,6 +13,9 @@ Create and fetch PostgresSQL selects, joins and JSON aggregations and let Typesc
   - [V4 and beyond ideas](#v4-and-beyond-ideas)
 - [Local Development](#local-development)
 - [Similar Projects](#similar-projects)
+  - [Query Builders](#query-builders)
+  - [ORMs](#orms)
+  - [Related Reddit Threads](#related-reddit-threads)
 
 <!-- tocstop -->
 
@@ -200,20 +203,23 @@ console.log(usersWithItems)
 
 ## Similar Projects
 
-- [Mostly ORMLess](https://github.com/jawj/mostly-ormless/blob/master/README.md)
-  - Write sql using template strings and typed schema objects for type inferrence.
+### Query Builders
+
+- [Zapatos](https://github.com/jawj/zapatos)
+  - write sql using template strings and typed schema objects for type inference.
+  - developed into a library from [Mostly ORMLess](https://github.com/jawj/mostly-ormless/blob/master/README.md) by the same author
 - [tsql](https://github.com/AnyhowStep/tsql)
-- [massivejs](https://massivejs.org)
+- [MassiveJS](https://massivejs.org)
   - pg only
 - [Prisma 2](https://www.prisma.io)
 - [ts-typed-sql](https://github.com/phiresky/ts-typed-sql)
   - Unmaintained, 2018
-- [mammoth](https://github.com/Ff00ff/mammoth)
+- [Mammoth](https://github.com/Ff00ff/mammoth)
   - covers every SQL feature (WITH, subqueries, JSON functions etc.)
-- [vulcyn](https://github.com/travigd/vulcyn)
+- [Vulcyn](https://github.com/travigd/vulcyn)
   - like a really basic version of mammoth or this project
   - seems unmaintained
-- [pgtyped](https://github.com/adelsz/pgtyped)
+- [PgTyped](https://github.com/adelsz/pgtyped)
   - different (but awesome) approach: parse SQL queries in your code and
     generate types for them
 - [postguard](https://github.com/andywer/postguard)
@@ -222,10 +228,27 @@ console.log(usersWithItems)
 - [typed-query-builder](https://github.com/ClickerMonkey/typed-query-builder)
   - db-agnostic (atm. MS-SQL only) and its own in memory DB for testing
   - covers every SQL feature incl. functions, WITH, ...
-- [kysely](https://github.com/koskimas/kysely)
-  - tries to be universal query builder
+- [Kysely](https://github.com/koskimas/kysely)
+  - tries to be a universal query builder
   - makes heavy use of typescript template literals (making it look similar to knex)
   - schema made up of plain typescript interfaces
   - db agnostic
-- [crudely-typed](https://github.com/danvk/crudely-typed)
+- [Crudely Typed](https://github.com/danvk/crudely-typed)
   - relies on interfaces generated from the schema with [pg-to-ts](https://github.com/danvk/pg-to-ts)
+
+### ORMs
+
+- [Orchid-ORM](https://github.com/romeerez/orchid-orm)
+  - flexible query builder using a mix of chaining methods and light usage of template literals
+  - works on a predefined schema
+- [Typetta](https://github.com/twinlogix/typetta)
+  - full support for typed joins, projections
+  - uses GraphQL to model the schema
+- [Drizzle](https://orm.drizzle.team/)
+  - provides a typesafe query builder and a classic findEntities like interface
+  - complete with migration support and CRUD handling
+  - zero deps
+
+### Related Reddit Threads
+
+- [Orchid ORM Announcement] https://old.reddit.com/r/typescript/comments/10tdr30/announcing_a_new_typescript_orm/
