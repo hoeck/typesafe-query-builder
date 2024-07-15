@@ -797,7 +797,7 @@ The exact error depends on your validation/runtype implementation.
     ```
     - cons (compared to builder queries):
       - repetition
-      - might fail an runtime (when the query has a syntax or runtype type error
+      - might fail at runtime (when the query has a syntax or runtype type error
       - needs a prettier sql plugin & embedded prettier sql formatting to work, otherwise lots of manual indentation are required
       - limited autocompletion so tables, no autocompletion for the sql
       - no typechecking for used columns & tables
