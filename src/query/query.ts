@@ -1,613 +1,523 @@
-import assert from 'assert'
-
 import {
+  QueryBuilderAssertionError,
   QueryBuilderResultError,
   QueryBuilderUsageError,
-  QueryBuilderValidationError,
 } from '../errors'
 import {
+  DatabaseClient,
+  DatabaseEscapeFunctions,
+  QueryBottom,
+  QueryRoot,
+  RowLockMode,
   Table,
-  TableColumnRef,
+} from '../types'
+import { formatValues } from '../utils'
+import { buildNarrowedQuery } from './buildNarrowedQuery'
+import {
+  queryItemsSelectionCheck,
+  queryItemsToExpressionAlias,
+  queryItemsToRowTransformer,
+  queryItemsToSqlTokens,
+} from './buildQuery'
+import { createSql } from './buildSql'
+import { DeleteImplementation } from './delete'
+import { ExprFactImpl } from './expressions'
+import { InsertIntoImplementation } from './insert'
+import { InsertStatementImplementation } from './insertStatement'
+import { QueryItem } from './queryItem'
+import { ExprImpl, wrapInParens } from './sql'
+import {
+  SelectionImplementation,
   TableImplementation,
   getTableImplementation,
-} from '../table'
-import {
-  buildSqlQuery,
-  buildColumns,
-  buildInsert,
-  buildUpdate,
-  buildResultConverter,
-} from './build'
-import { BuildContext } from './buildContext'
-import {
-  QueryRoot,
-  DatabaseClient,
-  QueryItem,
-  LockMode,
-  SqlFragment,
-  SqlFragmentBuilder,
-  SqlFragmentParam,
-  anyParam,
-} from './types'
+  isSelectionImplementation,
+  table as tableConstructor,
+} from './table'
+import { UpdateImplementation } from './update'
 
-const sqlImplementation = (
-  literals: TemplateStringsArray,
-  param1?: any,
-  param2?: any,
-) => {
-  let column: any
-  let paramKey: any
-  let columnFirst: boolean = false
-
-  if (param1 && param1.__typesafQueryBuilderSqlFragmentParam === true) {
-    paramKey = param1.paramKey
-    columnFirst = false
-
-    if (param2 instanceof TableImplementation) {
-      column = param2
-    } else {
-      if (param2 !== undefined) {
-        assert.fail('expected param2 to be undefined')
-      }
-    }
-  } else if (param1 instanceof TableImplementation) {
-    column = param1
-    columnFirst = true
-
-    if (param2 && param2.__typesafQueryBuilderSqlFragmentParam === true) {
-      paramKey = param2.paramKey
-    } else {
-      if (param2 !== undefined) {
-        assert.fail('expected param2 to be undefined')
-      }
-    }
-  } else if (param1 === undefined && param2 === undefined) {
-    /* sql literal */
-  } else {
-    assert.fail(`no matching parameters in sql fragment: ${literals}`)
-  }
-
-  return {
-    column,
-    columnFirst,
-    paramKey,
-    // the paramValue attribute is only used in the typesystem
-    literals: literals.raw,
-  } as any
+type AnyQueryBottom = QueryBottom<any, any, any, any, any>
+type AnyTable = Table<any, any> & {
+  getTableImplementation(): TableImplementation
 }
+type AnyExpressionCallback = (e: ExprFactImpl) => ExprImpl
+type AnySubqueryCallback = (e: ExprFactImpl['subquery']) => QueryImplementation
 
-function createSqlParam(key: any): SqlFragmentParam<any, any> {
-  return {
-    __typesafQueryBuilderSqlFragmentParam: true,
-    paramKey: key,
-  }
-}
-
-sqlImplementation.param = createSqlParam
-sqlImplementation.number = createSqlParam
-sqlImplementation.string = createSqlParam
-sqlImplementation.boolean = createSqlParam
-sqlImplementation.date = createSqlParam
-sqlImplementation.numberArray = createSqlParam
-sqlImplementation.stringArray = createSqlParam
-
-export const sql: SqlFragmentBuilder = sqlImplementation
-
-type AnyTable = Table<any, any, any>
-type AnyTableColumnRef = TableColumnRef<any, any, any, any>
-
-// call each columns validation function for the given data and assign the
-// validated value
-function validateRowData(
-  table: TableImplementation,
-  keys: string[],
-  data: any,
+function resolveSelections(
+  tables: TableImplementation[],
+  selections: (SelectionImplementation | AnySubqueryCallback)[],
 ) {
-  keys.forEach(k => {
-    const value = data[k]
-    const column = table.tableColumns[k]
+  const resolvedSelections: (SelectionImplementation | QueryImplementation)[] =
+    []
 
-    if (!column) {
-      assert.fail('column is missing from table implementation ' + k)
+  for (let i = 0; i < selections.length; i++) {
+    const s = selections[i]
+
+    if (typeof s === 'function') {
+      resolvedSelections.push(s(new ExprFactImpl(tables).subquery))
+    } else if (isSelectionImplementation(s)) {
+      resolvedSelections.push(s)
+    } else {
+      throw new QueryBuilderAssertionError('invalid argument to select')
     }
+  }
 
-    // throws on invalid data
-    data[k] = column.columnValue(value)
-  })
+  return resolvedSelections
 }
 
-// global counter to create unique table names in `Query.table()` calls
-let uniqueTableNameCounter = 0
-
-class QueryImplementation {
+export class QueryImplementation {
   constructor(
     private tables: TableImplementation[],
     private query: QueryItem[],
   ) {
     this.tables = tables
     this.query = query
-
-    // TODO: raise an error if table1 has selected cols that differ from the selection that is used in the table
-    // reason: catch usage errors where one tries pass a tablecolref with selected columns to join, because they get ignored
-    // but it must be allowed to store a table with selections in a variable and then use it also in the join again
-
-    this.checkSingleJsonAgg()
-    this.checkDuplicateSelectedColumns()
   }
 
-  private checkSingleJsonAgg() {
-    // raise an error if selectAsJsonAgg is used more than once in a query
+  // implementation methods
+
+  getQueryItems() {
+    return buildNarrowedQuery(this.query)
+  }
+
+  getSql() {
+    return queryItemsToSqlTokens(this.getQueryItems())
+  }
+
+  // called in queryItemsToRowTransformer for subqueries:
+  // create a function to transform a single row of the queries result
+  getRowTransformer() {
+    return queryItemsToRowTransformer(this.getQueryItems())
+  }
+
+  // create a function to transform the queries result
+  getResultTransformer() {
+    const t = this.getRowTransformer()
+
+    return (rows: any[]) => {
+      for (let i = 0; i < rows.length; i++) {
+        t(rows[i])
+      }
+    }
+  }
+
+  // ExprImpl
+
+  get exprTokens() {
+    return wrapInParens(this.getSql())
+  }
+
+  get exprAlias() {
+    return queryItemsToExpressionAlias(this.getQueryItems())
+  }
+
+  // query methods
+
+  join(t: AnyTable, on: AnyExpressionCallback) {
+    const tableImpl = getTableImplementation(t)
+    const tables = [...this.tables, tableImpl]
+    const expr = on(new ExprFactImpl(tables))
+
+    return new QueryImplementation(tables, [
+      ...this.query,
+      { type: 'join', expr, joinType: 'join', table: tableImpl },
+    ])
+  }
+
+  leftJoin(t: AnyTable, on: AnyExpressionCallback) {
+    const tableImpl = getTableImplementation(t)
+    const tables = [...this.tables, tableImpl]
+    const expr = on(new ExprFactImpl(tables))
+
+    return new QueryImplementation(tables, [
+      ...this.query,
+      { type: 'join', expr, joinType: 'leftJoin', table: tableImpl },
+    ])
+  }
+
+  where(e: AnyExpressionCallback) {
+    const expr = e(new ExprFactImpl(this.tables))
+
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      { type: 'where', expr },
+    ])
+  }
+
+  select(...selections: (SelectionImplementation | AnySubqueryCallback)[]) {
+    const queryItems: QueryItem[] = [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'plain',
+          selections: resolveSelections(this.tables, selections),
+        },
+      },
+    ]
+
+    queryItemsSelectionCheck(queryItems)
+
+    return new QueryImplementation(this.tables, queryItems)
+  }
+
+  selectJsonObject(
+    params: { key: string },
+    ...selections: (SelectionImplementation | AnySubqueryCallback)[]
+  ) {
+    const queryItems: QueryItem[] = [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'jsonObject',
+          key: params.key,
+          selections: resolveSelections(this.tables, selections),
+        },
+      },
+    ]
+
+    queryItemsSelectionCheck(queryItems)
+
+    return new QueryImplementation(this.tables, queryItems)
+  }
+
+  selectJsonArray(
+    params: { key: string; orderBy?: ExprImpl; direction?: 'asc' | 'desc' },
+    selection: SelectionImplementation | AnySubqueryCallback,
+  ) {
+    const [resolvedSelection] = resolveSelections(this.tables, [selection])
+
     if (
-      this.tables.length > 1 &&
-      this.tables.filter(t => t.isJsonAggProjection()).length > 1
+      isSelectionImplementation(resolvedSelection) &&
+      resolvedSelection.getSelectedColumnNames().length !== 1
     ) {
-      throw new QueryBuilderUsageError(
-        '`selectAsJsonAgg` must only be used once in each query (use subqueries in case you want to have multiple `selectAsJsonAgg` aggregations)',
+      throw new QueryBuilderAssertionError(
+        `table.selectJsonArray on table ${formatValues(
+          resolvedSelection.getTableName(),
+        )}: a single column must be selected, not ${
+          resolvedSelection.getSelectedColumnNames().length
+        } (${formatValues(...resolvedSelection.getSelectedColumnNames())})`,
       )
     }
-  }
 
-  // raise an error if selected columns of different conlfict with each other
-  // (e.g. multiple id cols)
-  private checkDuplicateSelectedColumns() {
-    if (this.tables.length < 2) {
-      return
+    if (!params.orderBy && params.direction) {
+      throw new QueryBuilderUsageError(
+        'table.selectJsonArray: direction argument must be supplied along orderBy',
+      )
     }
 
-    let columnMultiset: Map<string, Set<TableImplementation>> = new Map()
+    const queryItems: QueryItem[] = [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'jsonArray',
+          key: params.key,
+          orderBy: params.orderBy,
+          direction: params.direction,
+          selection: resolvedSelection,
+        },
+      },
+    ]
 
-    this.tables.forEach(t => {
-      t.getResultingColumnNames().forEach(c => {
-        const entry = columnMultiset.get(c)
+    queryItemsSelectionCheck(queryItems)
 
-        if (entry) {
-          entry.add(t)
-        } else {
-          columnMultiset.set(c, new Set([t]))
-        }
-      })
-    })
+    return new QueryImplementation(this.tables, queryItems)
+  }
 
-    const containsDuplicate = Array.from(columnMultiset.values()).some(
-      s => s.size > 1,
-    )
-
-    if (!containsDuplicate) {
-      return
+  selectJsonObjectArray(
+    params: { key: string; orderBy?: ExprImpl; direction?: 'asc' | 'desc' },
+    ...selections: (SelectionImplementation | AnySubqueryCallback)[]
+  ) {
+    if (!params.orderBy && params.direction) {
+      throw new QueryBuilderUsageError(
+        '`jsonArray` direction argument must be supplied along orderBy',
+      )
     }
 
-    // table-names -> list of duplicated column names
-    const duplicatesReport = new Map<string, string[]>()
-
-    columnMultiset.forEach((tableSet, columnName) => {
-      if (tableSet.size < 2) {
-        // column is just present in a single table
-        return
-      }
-
-      const reportKeyList: string[] = []
-
-      tableSet.forEach(t => {
-        reportKeyList.push(t.tableName)
-      })
-
-      const reportKey = reportKeyList.join(', ')
-      const entry = duplicatesReport.get(reportKey)
-
-      if (!entry) {
-        duplicatesReport.set(reportKey, [columnName])
-      } else {
-        entry.push(columnName)
-      }
-    })
-
-    const msg: string[] = []
-
-    duplicatesReport.forEach((cols, tables) => {
-      msg.push(`in tables ${tables}: ${cols.join(', ')}`)
-    })
-
-    throw new QueryBuilderUsageError(
-      `Ambiguous selected column names ${msg.join(' and ')}`,
-    )
-  }
-
-  join(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
-    const table1 = getTableImplementation(ref1)
-    const table2 = getTableImplementation(ref2)
-
-    return new QueryImplementation(
-      [...this.tables, table2],
-      [
-        ...this.query,
-        {
-          queryType: 'join',
-          column1: table1,
-          column2: table2,
-          joinType: 'join',
+    const queryItems: QueryItem[] = [
+      ...this.query,
+      {
+        type: 'select',
+        projection: {
+          type: 'jsonObjectArray',
+          key: params.key,
+          orderBy: params.orderBy,
+          direction: params.direction,
+          selections: resolveSelections(this.tables, selections),
         },
-      ],
-    )
-  }
-
-  leftJoin(ref1: AnyTableColumnRef, ref2: AnyTableColumnRef) {
-    const table1 = getTableImplementation(ref1)
-    const table2 = getTableImplementation(ref2)
-
-    return new QueryImplementation(
-      [...this.tables, table2],
-      [
-        ...this.query,
-        {
-          queryType: 'join',
-          column1: table1,
-          column2: table2,
-          joinType: 'leftJoin',
-        },
-      ],
-    )
-  }
-
-  whereEq(column: AnyTableColumnRef, paramKey: string) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      {
-        queryType: 'whereEq',
-        column: getTableImplementation(column),
-        paramKey,
       },
-    ])
-  }
+    ]
 
-  whereIn(column: AnyTableColumnRef, paramKey: string) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      {
-        queryType: 'whereIn',
-        column: getTableImplementation(column),
-        paramKey,
-      },
-    ])
-  }
+    queryItemsSelectionCheck(queryItems)
 
-  whereSql(...params: Array<SqlFragment<any, any, any>>) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      {
-        queryType: 'whereSql',
-        fragments: params.map(f => ({
-          column: f.column ? getTableImplementation(f.column) : undefined,
-          columnFirst: f.columnFirst,
-          literals: f.literals,
-          paramKey: f.paramKey,
-        })),
-      },
-    ])
-  }
-
-  select(tables: AnyTable[]) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      {
-        queryType: 'select',
-        tables,
-      },
-    ])
-  }
-
-  limit(count: number) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      {
-        queryType: 'limit',
-        count,
-      },
-    ])
-  }
-
-  offset(offset: number) {
-    return new QueryImplementation(this.tables, [
-      ...this.query,
-      {
-        queryType: 'offset',
-        offset,
-      },
-    ])
+    return new QueryImplementation(this.tables, queryItems)
   }
 
   orderBy(
-    column: AnyTableColumnRef,
-    direction: 'asc' | 'desc',
-    nulls: 'nullsFirst' | 'nullsLast',
+    col: ExprImpl,
+    direction?: 'asc' | 'desc',
+    nulls?: 'nullsFirst' | 'nullsLast',
   ) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
-        queryType: 'orderBy',
-        column: getTableImplementation(column),
-        direction,
+        type: 'orderBy',
+        direction: direction,
+        expr: col,
         nulls,
       },
     ])
   }
 
-  lock(lockMode: LockMode) {
-    // Does not work with json-aggregate columns at the moment bc they introduce a group-by.
-    // TODO: In this case, we need to add the FOR UPDATE in a plain subselect of the json-aggregated table.
+  limit(count: number | string) {
     return new QueryImplementation(this.tables, [
       ...this.query,
       {
-        queryType: 'lock',
-        lockMode,
+        type: 'limit',
+        count,
       },
     ])
   }
 
-  lockParam(paramKey: string) {
+  offset(param: string) {
     return new QueryImplementation(this.tables, [
       ...this.query,
-      { queryType: 'lockParam', paramKey },
+      {
+        type: 'offset',
+        offset: param,
+      },
     ])
   }
 
-  table(): any {
-    uniqueTableNameCounter += 1
+  lock(rowLockMode: RowLockMode) {
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      { type: 'lock', rowLockMode },
+    ])
+  }
 
-    // table name which does not clash with real tables
-    const tableName = '__typesafe_query_builder_' + uniqueTableNameCounter
+  // disciriminated union support
 
-    const tableImplementation = new TableImplementation(
-      tableName,
-      buildColumns(this.query),
+  narrow(
+    key: string,
+    values: string | string[],
+    cb: (q: QueryImplementation, t: AnyTable) => QueryImplementation,
+  ) {
+    // try finding a table that matches the discriminated union member
+    // identified by key and value(s)
+    const discriminatedUnionTables = this.tables.flatMap((t) => {
+      const ti = getTableImplementation(t)
+
+      if (!ti.discriminatedUnion) {
+        return []
+      }
+
+      return ti
+    })
+
+    if (discriminatedUnionTables.length !== 1) {
+      throw new QueryBuilderUsageError(
+        'To use query.narrow you must select from exactly one discriminated union table',
+      )
+    }
+
+    const baseTable = discriminatedUnionTables[0]
+
+    if (!baseTable.discriminatedUnion) {
+      throw new QueryBuilderAssertionError(
+        'expected discriminatedUnion to be defined',
+      )
+    }
+
+    if (key !== baseTable.discriminatedUnion.typeTagColumnName) {
+      throw new QueryBuilderAssertionError(
+        `query.narrow: ${formatValues(
+          key,
+        )} is not a type tag for table ${formatValues(baseTable.tableName)}`,
+      )
+    }
+
+    // build an artificial union table that contains columns of all matching
+    // union members
+    const narrowedTableImplementation = Array.isArray(values)
+      ? getTableImplementation(
+          tableConstructor(
+            baseTable.tableName,
+            Object.fromEntries(
+              values.flatMap((v) => {
+                const t =
+                  baseTable.discriminatedUnion?.memberTablesByTagValue[v]
+
+                if (!t) {
+                  throw new QueryBuilderAssertionError(
+                    `expected member table to exist for value ${formatValues(
+                      v,
+                    )}`,
+                  )
+                }
+
+                return t.getColumnNames().map((n) => [n, t.getColumn(n) as any])
+              }),
+            ),
+          ),
+        )
+      : baseTable.discriminatedUnion.memberTablesByTagValue[values]
+
+    if (!narrowedTableImplementation) {
+      throw new QueryBuilderAssertionError(
+        `expected member table to exist for value ${formatValues(values)}`,
+      )
+    }
+
+    const narrowedQueryRoot = new QueryImplementation(
+      [narrowedTableImplementation],
+      [{ type: 'from', table: narrowedTableImplementation }],
     )
 
-    // to be able to generate postgres positional arguments and map them to
-    // the `params: P` object we need delay building the sql until we know all
-    // parameters
-    tableImplementation.tableQuery = (
-      ctx: BuildContext,
-      params?: any,
-      canaryColumnName?: string,
-    ) => {
-      const query: QueryItem[] = !canaryColumnName
-        ? this.query
-        : [
-            { queryType: 'canaryColumn', columnName: canaryColumnName },
-            ...this.query,
-          ]
+    // build it
+    const narrowedQuery = cb(
+      narrowedQueryRoot,
+      narrowedTableImplementation.getTableProxy() as any,
+    )
 
-      return buildSqlQuery(query, ctx, params)
+    // collect the whole narrowed query - to build the final sql query we
+    // need to process all narrowed query items and compile a shadow query
+    // that hides the union type logic
+    return new QueryImplementation(this.tables, [
+      ...this.query,
+      {
+        type: 'narrow',
+        key,
+        values: Array.isArray(values) ? values : [values],
+        queryItems: narrowedQuery.getQueryItems(),
+      },
+    ])
+  }
+
+  // using queries
+
+  use(factory: (q: AnyQueryBottom) => any) {
+    return factory(this as any)
+  }
+
+  table() {
+    return {} as AnyTable
+  }
+
+  sql(client: DatabaseEscapeFunctions, params?: any) {
+    const tokens = this.getSql()
+
+    if (!params) {
+      return createSql(client, tokens).sql
     }
 
-    return tableImplementation.getTableProxy() as any
+    const tokensWithParameterValues = tokens.map((t): typeof t => {
+      if (typeof t !== 'string' && t.type === 'sqlParameter') {
+        return { type: 'sqlLiteral', value: params[t.parameterName] }
+      }
+
+      return t
+    })
+
+    return createSql(client, tokensWithParameterValues).sql
   }
 
-  buildSql(ctx?: BuildContext, params?: any): string {
-    // TODO: cache queries - take special param values into account (locking & ANY_PARAM)
-    return buildSqlQuery(this.query, ctx || new BuildContext(), params)
+  sqlLog(client: DatabaseEscapeFunctions, params?: any) {
+    console.log(this.sql(client, params))
+
+    return this
   }
 
-  sql(params?: any): string {
-    return this.buildSql(undefined, params)
-  }
+  async fetch(client: DatabaseClient, params?: any) {
+    const tokens = this.getSql()
+    const { sql, parameters } = createSql(client, tokens)
+    const resultTransformer = this.getResultTransformer()
 
-  async explain(client: DatabaseClient, params?: any): Promise<string> {
-    const ctx = new BuildContext()
-    const sql = 'EXPLAIN ' + this.buildSql(ctx, params)
-    const paramArray = params ? ctx.getParameters(params) : []
+    if (parameters.length) {
+      const paramsLen = Object.keys(params || {}).length
 
-    return (await client.query(sql, paramArray)).rows
-      .map(r => r['QUERY PLAN'])
-      .join('\n')
-  }
-
-  async explainAnalyze(client: DatabaseClient, params?: any): Promise<string> {
-    const ctx = new BuildContext()
-    const sql = 'EXPLAIN ANALYZE ' + this.buildSql(ctx, params)
-    const paramArray = params ? ctx.getParameters(params) : []
-
-    return (await client.query(sql, paramArray)).rows
-      .map(r => r['QUERY PLAN'])
-      .join('\n')
-  }
-
-  async fetch(client: DatabaseClient, params?: any): Promise<any[]> {
-    const ctx = new BuildContext()
-    const sql = this.buildSql(ctx, params)
-    const paramArray = params ? ctx.getParameters(params) : []
-    const resultConverter = buildResultConverter(this.query)
-
-    const result = (await client.query(sql, paramArray)).rows
-
-    result.forEach(row => resultConverter(row))
-
-    return result
-  }
-
-  async fetchOne(client: DatabaseClient, params?: any): Promise<any> {
-    const ctx = new BuildContext()
-    const sql = this.buildSql(ctx, params)
-    const paramArray = params ? ctx.getParameters(params) : []
-    const resultConverter = buildResultConverter(this.query)
-
-    const rows = (await client.query(sql, paramArray)).rows
-
-    if (!rows.length) {
-      return
+      if (paramsLen !== parameters.length) {
+        throw new QueryBuilderAssertionError(
+          `expected exactly ${parameters.length} parameters for this query but got ${paramsLen}`,
+        )
+      }
+    } else {
+      if (params !== undefined) {
+        throw new QueryBuilderAssertionError(
+          `expected no parameters for this query`,
+        )
+      }
     }
 
-    if (rows.length > 1) {
+    const result = await client.query(
+      sql,
+      parameters.map((p) => params[p]),
+    )
+
+    // modify result in-place bc it is more efficient
+    resultTransformer(result.rows)
+
+    return result.rows
+  }
+
+  async fetchOne(client: DatabaseClient, params?: any) {
+    const result = await this.fetch(client, params)
+
+    if (result.length > 1) {
       throw new QueryBuilderResultError(
-        `expected at most one row but the query returned: ${rows.length}`,
+        `fetchOne: query returned more than 1 row (it returned ${result.length} rows)`,
       )
     }
 
-    resultConverter(rows[0])
+    if (!result.length) {
+      return undefined
+    }
 
-    return rows[0]
+    return result[0]
   }
 
-  async fetchExactlyOne(client: DatabaseClient, params?: any): Promise<any> {
-    const ctx = new BuildContext()
-    const sql = this.buildSql(ctx, params)
-    const paramArray = params ? ctx.getParameters(params) : []
-    const resultConverter = buildResultConverter(this.query)
+  async fetchExactlyOne(client: DatabaseClient, params?: any) {
+    const result = await this.fetch(client, params)
 
-    const rows = (await client.query(sql, paramArray)).rows
-
-    if (rows.length !== 1) {
+    if (result.length === 0) {
       throw new QueryBuilderResultError(
-        `expected exactly one row but the query returned: ${rows.length}`,
+        'fetchExactlyOne: query returned 0 rows',
       )
     }
 
-    resultConverter(rows[0])
-
-    return rows[0]
-  }
-
-  use(factory: (statement: any) => any) {
-    return factory(this)
-  }
-
-  // DML methods
-
-  private validateRowsData(table: TableImplementation, data: any[]) {
-    // keep track of the current validation location so we can use one big
-    // try-catch and don't have to wrap every column validator which might be
-    // inefficient for large inserts
-    let currentRowIndex: number = 0
-    let currentRow: any = undefined
-    let currentKey: string = ''
-
-    try {
-      // validate the data of each column before insertion
-      data.forEach((row, i) => {
-        currentRow = row
-        currentRowIndex = i
-
-        const keys = Object.keys(row)
-
-        keys.forEach(k => {
-          currentKey = k
-
-          const value = row[k]
-          const column = table.tableColumns[k]
-
-          if (!column) {
-            assert.fail('column is missing from table implementation ' + k)
-          }
-
-          // throws on invalid data
-          row[k] = column.columnValue(value)
-        })
-      })
-    } catch (e) {
-      // Provide additional context info when the validation fails.
-      // Otherwise its next to impossible to find the invalid column esp for
-      // large tables with many custom (json) runtypes.
-      const msg = `validation failed for column ${JSON.stringify(
-        currentKey,
-      )} at row number ${currentRowIndex} with: ${JSON.stringify(e.message)}`
-
-      throw new QueryBuilderValidationError(
-        msg,
-        table.tableName,
-        currentKey,
-        currentRowIndex,
-        currentRow,
-        e,
-      )
-    }
-  }
-
-  async insert(client: DatabaseClient, data: any[]) {
-    if (!data.length) {
-      return []
-    }
-
-    if (this.tables.length !== 1) {
-      // this is actually prohibited by the type system
-      assert.fail('expected exactly one table')
-    }
-
-    // validate and sanitize data in place according to the tables column
-    // definitions
-    this.validateRowsData(this.tables[0], data)
-
-    const [sql, insertValues] = buildInsert(this.tables[0], data)
-
-    return (await client.query(sql, insertValues)).rows
-  }
-
-  async insertOne(client: DatabaseClient, data: any) {
-    return (await this.insert(client, [data]))[0]
-  }
-
-  async update(client: DatabaseClient, params: any, data: any) {
-    if (this.tables.length !== 1) {
-      // this is actually prohibited by the type system
-      assert.fail('expected exactly one table')
-    }
-
-    const table = this.tables[0]
-    const paramsCtx = new BuildContext() // parameters for the `WHERE` conditions
-    const dataCtx = new BuildContext() // the actual values for the update
-
-    const dataColumns = Object.keys(data)
-
-    if (!dataColumns.length) {
-      // nothing to update
-      return []
-    }
-
-    // validate and sanitize data in place according to the tables column
-    // definitions
-    this.validateRowsData(table, [data])
-
-    const columns = Object.keys(data)
-    const sql = buildUpdate(this.query, paramsCtx, columns, dataCtx, params)
-
-    return (
-      await client.query(
-        sql,
-        paramsCtx.getParameters(params).concat(dataCtx.getParameters(data)),
-      )
-    ).rows
-  }
-
-  async updateOne(client: DatabaseClient, params: any, data: any) {
-    const rows = await this.update(client, params, data)
-
-    if (rows.length > 1) {
+    if (result.length > 1) {
       throw new QueryBuilderResultError(
-        `expected at most one updated row but the query updated: ${rows.length}`,
+        `fetchExactlyOne: query returned more than 1 row (it returned ${result.length} rows)`,
       )
     }
 
-    return rows
-  }
-
-  async updateExactlyOne(client: DatabaseClient, params: any, data: any) {
-    const rows = await this.update(client, params, data)
-
-    if (rows.length !== 1) {
-      throw new QueryBuilderResultError(
-        `expected exactly one updated row but the query updated: ${rows.length}`,
-      )
-    }
-
-    return rows
+    return result[0]
   }
 }
 
 export const query: QueryRoot = function query(table: any) {
   const ti = getTableImplementation(table)
 
-  return new QueryImplementation(
-    [ti],
-    [{ queryType: 'from', table: ti }],
-  ) as any
+  return new QueryImplementation([ti], [{ type: 'from', table: ti }]) as any
 } as any
 
-query.anyParam = anyParam
+query.DEFAULT = InsertIntoImplementation.DEFAULT as any
+query.insertInto = InsertIntoImplementation.create as any
+query.insertStatement = InsertStatementImplementation.create as any
+query.update = UpdateImplementation.create as any
+query.deleteFrom = DeleteImplementation.create as any
+
+// TODO:
+query.union = () => {
+  throw new QueryBuilderUsageError('TODO')
+}
+query.unionAll = () => {
+  throw new QueryBuilderUsageError('TODO')
+}
+query.with = () => {
+  throw new QueryBuilderUsageError('TODO')
+}
+query.withRecursive = () => {
+  throw new QueryBuilderUsageError('TODO')
+}

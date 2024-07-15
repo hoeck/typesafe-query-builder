@@ -6,11 +6,35 @@ export class QueryBuilderError extends Error {}
 /**
  * Raised when the builder API is misused.
  *
- * Not all usages are fully covered by the type system,
- * e.g. calling .selectAsJsonAgg multiple times on a table or not having a
- * primary key for a table.
+ * Not all usages are fully covered by the type system.
+ * For example, selecting the same column name multiple times or renaming a
+ * column into a name that is already used in the selection will raise an
+ * error while the query is being constructed.
  */
 export class QueryBuilderUsageError extends QueryBuilderError {}
+
+/**
+ * Assert condition and throw a usage error otherwise.
+ */
+export function assertUsage(
+  condition: boolean,
+  msg: string,
+): asserts condition {
+  if (!condition) {
+    throw new QueryBuilderUsageError(msg)
+  }
+}
+
+/**
+ * Raised when something unexpected happens.
+ *
+ * In contrast to QueryBuilderUsageError, this error should have been caught
+ * by the type system.
+ *
+ * If you encounter this error, there might be some bug in the types or you
+ * have escaped the typesystem e.b. through an accidential `any` somewhere.
+ */
+export class QueryBuilderAssertionError extends QueryBuilderError {}
 
 /**
  * Thrown upon validation fails when using column validation.

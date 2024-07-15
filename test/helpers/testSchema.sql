@@ -22,7 +22,7 @@ CREATE TABLE json_any_table (
 
 --
 -- Classic Console Games Inventory:
--- Manufacturers 1-* Systems 1-* Games *-1 Franchises
+-- Manufacturers 1-* Systems *-* Games *-1 Franchises
 --
 
 CREATE SCHEMA classicgames;
@@ -90,9 +90,9 @@ CREATE TABLE classicgames.games (
 INSERT INTO classicgames.games
   (id, title, franchise_id, urls)
 VALUES
-  (1, 'Sonic the Hedgehog', 2, NULL),
+  (1, 'Sonic the Hedgehog', 2, '{"wiki": "https://de.wikipedia.org/wiki/Sonic_the_Hedgehog_(1991)", "misc": "https://www.sega.com/games/sonic-hedgehog"}'),
   (2, 'Super Mario Land', 3, NULL),
-  (3, 'Super Mario Bros', 3, '{"wiki": "https://de.wikipedia.org/wiki/Sonic_the_Hedgehog_(1991)", "misc": "https://www.sega.com/games/sonic-hedgehog"}'),
+  (3, 'Super Mario Bros', 3, NULL),
   (4, 'Ultima IV', 1, '{"wiki": "https://en.wikipedia.org/wiki/Ultima_IV:_Quest_of_the_Avatar"}'),
   (5, 'Virtua Racing', NULL, '{"wiki":"https://en.wikipedia.org/wiki/Virtua_Racing","ign":"https://www.ign.com/games/virtua-racing"}'),
   (6, 'Laser Blast', NULL, '{"wiki": "https://en.wikipedia.org/wiki/Laser_Blast"}');
@@ -115,7 +115,7 @@ VALUES
   -- sonic
   (1, 1, '1991-10-25', true), -- sms
   (1, 2, '1991-07-26', true), -- genesis
-  (1, 3, '1991-12-28', true), -- gg
+  (1, 3, null        , true), -- gg
   -- mario land
   (2, 6, '1989-04-21', true), -- gb
   -- mario bros
@@ -128,75 +128,67 @@ VALUES
   -- laser blast
   (6, 7, '1981-03-01', true); -- 2600
 
---
--- An abstract schema of users, items, events:
--- Users 1-* Items 1-* Events *-1 EventTypes
---
-
-CREATE TABLE users (
+-- a table for a discriminated union type
+CREATE TABLE classicgames.devices (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  avatar TEXT,
-  active TIMESTAMPTZ
-);
-
-INSERT INTO users
-  (id, name, email, avatar, active)
-VALUES
-  (1, 'user-a', 'a@user', NULL, NULL),
-  (2, 'user-c', 'c@user', NULL, NULL),
-  (3, 'user-b', 'b@user', 'image.png', '2016-01-16 10:00:00Z');
-
-SELECT pg_catalog.setval('users_id_seq', 4, false);
-
-CREATE TABLE items (
-  id SERIAL PRIMARY KEY,
-  label TEXT NOT NULL,
-  user_id INTEGER NOT NULL,
-  active BOOLEAN NOT NULL
-);
-
-INSERT INTO items
-  (id, label, user_id, active)
-VALUES
-  (1, 'item-1', 1, true),
-  (2, 'item-2', 1, true),
-  (3, 'item-3', 2, true),
-  (4, 'item-4', 2, false),
-  (5, 'item-5', 2, false);
-
-CREATE TABLE events (
-  id SERIAL PRIMARY KEY,
-  item_id INTEGER NOT NULL,
   type TEXT NOT NULL,
-  timestamp TIMESTAMPTZ NOT NULL,
-  payload JSON
+  system_id INT, -- console, dedicatedConsole
+  revision INT, -- console
+  games_count INT, -- dedicatedConsole
+  url TEXT -- emulator
 );
 
-INSERT INTO events
-  (item_id, type, timestamp, payload)
+INSERT INTO classicgames.devices
+  (id, name, type, system_id, revision, games_count, url)
 VALUES
-  (1, 'A', '2016-01-12 19:20:00', null),
-  (1, 'C', '2016-03-01 17:30:00', null),
-  (1, 'A', '2017-02-12 12:00:00', null),
-  (1, 'B', '2017-06-12 15:20:00', null),
-  (4, 'A', '2018-07-12 15:20:00', null),
-  (4, 'B', '2018-08-12 01:50:00', '{"data": "asdf"}'),
-  (4, 'C', '2019-01-12 19:50:00', null),
-  (5, 'A', '2020-11-08 22:45:00', null),
-  (5, 'B', '2022-10-05 09:20:00', null);
+  (1, 'Master System',       'console',             1,    1, null, null),
+  (2, 'Master System II',    'console',             1,    2, null, null),
+  (3, 'Sega Genesis Mini',   'dedicatedConsole',    2, null,   42, null),
+  (4, 'NES Classic Edition', 'dedicatedConsole',    4, null,   30, null),
+  (5, 'Fusion',              'emulator',         null, null, null, 'https://www.carpeludum.com/kega-fusion/'),
+  (6, 'Gens',                'emulator',         null, null, null, 'http://gens.me/');
 
-CREATE TABLE event_types (
-  type TEXT PRIMARY KEY,
-  description TEXT NOT NULL,
-  active BOOLEAN NOT NULL
+SELECT pg_catalog.setval('classicgames.devices_id_seq', 7, false);
+
+--
+-- Desktop computer component dependencies
+-- Intended for testing WITH RECURSIVE queries
+--
+
+CREATE TABLE pc_components (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL
 );
 
-INSERT INTO event_types
-  (type, description, active)
+CREATE TABLE pc_components_fits (
+  component_id INT NOT NULL,
+  fits_on_component_id INT NOT NULL,
+  FOREIGN KEY (component_id) REFERENCES pc_components(id),
+  FOREIGN KEY (fits_on_component_id) REFERENCES pc_components(id)
+);
+
+INSERT INTO pc_components
+  (id, name)
 VALUES
-  ('A', 'Type A', true),
-  ('B', 'Type B', true),
-  ('C', 'Type C', true),
-  ('X', 'Type X', false);
+  (1, 'CPU'),
+  (2, 'Mainboard'),
+  (3, 'RAM'),
+  (4, 'Power Supply'),
+  (5, 'Case'),
+  (6, 'SSD'),
+  (7, 'Fan'),
+  (8, 'Graphics Card');
+
+INSERT INTO pc_components_fits
+  (component_id, fits_on_component_id)
+VALUES
+  (1, 2), -- cpu on mainboard
+  (2, 5), -- mainboard on case
+  (3, 2), -- ram on mainboard
+  (4, 5), -- power supply on case
+  (6, 5), -- disk on case
+  (7, 5), -- fans on case
+  (7, 1), --         cpu
+  (7, 8), --         graphics card
+  (8, 2); -- graphics card on mainboard
