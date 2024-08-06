@@ -21,7 +21,7 @@ Create and fetch PostgresSQL selects, joins and JSON aggregations and let Typesc
 
 ## Install
 
-`npm install typesafe-query-builder` or `yarn add typesafe-query-builder`
+`npm install --save typesafe-query-builder`
 
 ## Getting Started
 
@@ -193,13 +193,13 @@ console.log(usersWithItems)
 
 ## Local Development
 
-`yarn` to fetch all deps
+`npm install` to fetch all deps
 
-`yarn test-database:start` to start a dockered postgres server that loads the test schema
+`npm run test-database:start` to start a dockered postgres server that loads the test schema
 
-`yarn test-database:psql` to start a psql connected to the test database
+`npm run test-database:psql` to start a psql connected to the test database
 
-`yarn test:watch` to run the tests in watch mode
+`npm run test:watch` to run the tests in watch mode
 
 ## Similar Projects
 
