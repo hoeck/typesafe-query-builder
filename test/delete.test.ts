@@ -25,7 +25,6 @@ describe('delete', () => {
       const res = await query
         .deleteFrom(Games)
         .where(({ eq }) => eq(Games.title, 'title'))
-        .sqlLog(client)
         .execute(client, { title: 'Laser Blast' })
 
       expect(res).toEqual(undefined)
