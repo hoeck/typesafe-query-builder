@@ -289,6 +289,7 @@ export class UpdateImplementation {
     )
 
     return [
+      sqlNewline,
       'SET',
       sqlIndent,
       sqlNewline,
@@ -303,6 +304,7 @@ export class UpdateImplementation {
     }
 
     return [
+      sqlNewline,
       'WHERE',
       sqlIndent,
       sqlNewline,
@@ -345,7 +347,6 @@ export class UpdateImplementation {
       sqlWhitespace,
       { type: 'sqlTableAlias', table: this.__table },
       sqlDedent,
-      sqlNewline,
       ...this._buildSetSql(),
       ...this._buildWhereSql(),
       ...this._buildReturning(),
