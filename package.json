@@ -5,8 +5,8 @@
   "author": "Erik Soehnel",
   "homepage": "https://github.com/hoeck/typesafe-query-builder",
   "repository": "github:hoeck/typesafe-query-builder",
+  "type": "module",
   "main": "dist/index.js",
-  "module": "dist/typesafe-query-builder.esm.js",
   "types": "dist/index.d.ts",
   "tsd": {
     "directory": "test-d",
@@ -26,8 +26,7 @@
     "clean": true,
     "dts": true,
     "format": [
-      "esm",
-      "cjs"
+      "esm"
     ]
   },
   "jest": {
