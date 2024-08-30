@@ -19,6 +19,8 @@ Create and fetch PostgresSQL selects, joins and JSON aggregations and let Typesc
 
 <!-- tocstop -->
 
+[try it in the playground](https://hoeck.github.io/typesafe-query-builder-playground/)
+
 ## Install
 
 `npm install --save typesafe-query-builder`
