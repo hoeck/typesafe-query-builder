@@ -221,12 +221,6 @@ console.log(usersWithItems)
 - [Vulcyn](https://github.com/travigd/vulcyn)
   - like a really basic version of mammoth or this project
   - seems unmaintained
-- [PgTyped](https://github.com/adelsz/pgtyped)
-  - different (but awesome) approach: parse SQL queries in your code and
-    generate types for them
-- [postguard](https://github.com/andywer/postguard)
-  - derive the types from a generated schema
-  - parse queries in the code from sql template tags and validate them
 - [typed-query-builder](https://github.com/ClickerMonkey/typed-query-builder)
   - db-agnostic (atm. MS-SQL only) and its own in memory DB for testing
   - covers every SQL feature incl. functions, WITH, ...
@@ -237,6 +231,17 @@ console.log(usersWithItems)
   - db agnostic
 - [Crudely Typed](https://github.com/danvk/crudely-typed)
   - relies on interfaces generated from the schema with [pg-to-ts](https://github.com/danvk/pg-to-ts)
+
+### SQL type generators
+
+- [PgTyped](https://github.com/adelsz/pgtyped)
+  - different (but awesome) approach: parse SQL queries in your code and
+    generate types for them
+- [postguard](https://github.com/andywer/postguard)
+  - derive the types from a generated schema
+  - parse queries in the code from sql template tags and validate them
+- [squeel](https://github.com/SorenHolstHansen/squeeel)
+  - looks similar to pgtyped
 
 ### ORMs
 
